@@ -3,6 +3,8 @@ import { ipc, ipcVoid, CMD, IpcError } from '@/shared/tauri';
 import { remoteKeys } from './keys';
 import { connectionSchema, hostSchema, type HostEnv } from './remote.schema';
 
+export type DockerAction = 'start' | 'stop' | 'restart' | 'remove';
+
 function useInvalidateState() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: remoteKeys.state() });
@@ -12,6 +14,7 @@ export function useSetConsent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (granted: boolean) => ipcVoid(CMD.REMOTE_SET_CONSENT, { granted }),
+    meta: { quiet: true },
     onSettled: (_d, _e, granted) => {
       void qc.invalidateQueries({ queryKey: remoteKeys.state() });
       // Revoking closes every connection in Rust; drop what we showed for them.
@@ -35,7 +38,7 @@ export function useImportHosts() {
   return useMutation({
     mutationFn: (hosts: ImportHostInput[]) => ipcVoid(CMD.REMOTE_IMPORT_HOSTS, { hosts }),
     onSettled: invalidate,
-    meta: { silent: true },
+    meta: { silent: true, quiet: true },
   });
 }
 
@@ -54,7 +57,7 @@ export function useAddManualHost() {
   return useMutation({
     mutationFn: (input: ManualHostInput) => ipc(CMD.REMOTE_ADD_MANUAL_HOST, { input }, hostSchema),
     onSettled: invalidate,
-    meta: { silent: true },
+    meta: { silent: true, quiet: true },
   });
 }
 
@@ -71,7 +74,7 @@ export function useUpdateHost() {
     mutationFn: ({ id, patch }: { id: string; patch: HostPatch }) =>
       ipcVoid(CMD.REMOTE_UPDATE_HOST, { id, patch }),
     onSettled: invalidate,
-    meta: { silent: true },
+    meta: { silent: true, quiet: true },
   });
 }
 
@@ -80,6 +83,7 @@ export function useRemoveHost() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => ipcVoid(CMD.REMOTE_REMOVE_HOST, { id }),
+    meta: { quiet: true },
     onSuccess: (_d, id) => qc.removeQueries({ queryKey: remoteKeys.snapshot(id) }),
     onSettled: () => qc.invalidateQueries({ queryKey: ['remote'] }),
   });
@@ -102,7 +106,7 @@ export function useConnectHost(id: string) {
       void qc.resetQueries({ queryKey: remoteKeys.snapshot(id) });
     },
     onSettled: () => qc.invalidateQueries({ queryKey: remoteKeys.status() }),
-    meta: { silent: true },
+    meta: { silent: true, quiet: true },
   });
 }
 
@@ -110,6 +114,7 @@ export function useDisconnectHost() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => ipcVoid(CMD.REMOTE_DISCONNECT, { id }),
+    meta: { quiet: true },
     onSuccess: (_d, id) => {
       qc.removeQueries({ queryKey: remoteKeys.snapshot(id) });
       qc.setQueryData<{ id: string; connected: boolean }[]>(remoteKeys.status(), (rows) =>
@@ -132,4 +137,19 @@ export function useLastConnect(id: string): { pending: boolean; error: IpcError 
     pending: last?.status === 'pending',
     error: last?.status === 'error' ? IpcError.from(last.error) : null,
   };
+}
+
+/** Native confirm + journal live in Rust; a cancel comes back as `cancelled`
+ * (no toast). Other failures toast, and the snapshot refreshes either way. */
+export function useDockerAction(hostId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ container, action }: { container: string; action: DockerAction }) =>
+      ipcVoid(CMD.REMOTE_DOCKER_ACTION, { id: hostId, container, action }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: remoteKeys.snapshot(hostId) });
+      void qc.invalidateQueries({ queryKey: remoteKeys.journal() });
+    },
+    meta: { quiet: true },
+  });
 }

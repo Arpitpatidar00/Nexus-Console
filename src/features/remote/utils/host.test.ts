@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
-import { guessEnv, hostAddress, sshCommand } from './host';
+import { guessEnv, hostAddress } from './host';
 
 const base: RemoteHost = {
   id: 'h_1',
@@ -21,15 +21,12 @@ const manual: RemoteHost = {
 
 test('alias hosts', () => {
   expect(hostAddress(base)).toBe('fameo-prod');
-  expect(sshCommand(base)).toBe('ssh fameo-prod');
 });
 
 test('manual hosts', () => {
   expect(hostAddress(manual)).toBe('ubuntu@10.0.0.5:2202');
-  expect(sshCommand(manual)).toBe('ssh -p 2202 -i ~/.ssh/prod.pem ubuntu@10.0.0.5');
   const plain = { ...manual, manual: { ...manual.manual!, port: 22, identityFile: null } };
   expect(hostAddress(plain)).toBe('ubuntu@10.0.0.5');
-  expect(sshCommand(plain)).toBe('ssh ubuntu@10.0.0.5');
 });
 
 test('env guesses from alias words, not substrings', () => {

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ipc, CMD } from '@/shared/tauri';
 import { remoteKeys } from './keys';
-import { remoteStateSchema, scanSchema } from './remote.schema';
+import { journalSchema, remoteStateSchema, scanSchema } from './remote.schema';
 
 /** Consent + the host list, owned by Rust (`remote.json`). Changes only via
  * this app's own mutations, which invalidate it, so it never polls. */
@@ -24,5 +24,14 @@ export function useRemoteScan(enabled: boolean) {
     staleTime: 0,
     gcTime: 0,
     refetchOnWindowFocus: false,
+  });
+}
+
+/** Every remote change this app made, newest first. Fetched while open. */
+export function useRemoteJournal(open: boolean) {
+  return useQuery({
+    queryKey: remoteKeys.journal(),
+    queryFn: () => ipc(CMD.REMOTE_JOURNAL, undefined, journalSchema),
+    enabled: open,
   });
 }

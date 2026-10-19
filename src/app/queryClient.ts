@@ -15,6 +15,9 @@ declare module '@tanstack/react-query' {
       silent?: boolean;
       /** Verb shown in the ActivityBar while this runs, e.g. 'Starting'. */
       label?: string;
+      /** Keep out of the ActivityBar: the UI shows this one's progress inline
+       * (and the bar's copy is about Homebrew). */
+      quiet?: boolean;
     };
   }
 }

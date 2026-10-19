@@ -14,7 +14,7 @@ import { Spinner } from '@/shared/ui/Spinner';
  * LEFT because toasts own the bottom right. */
 export const ActivityBar = () => {
   const labels = useMutationState({
-    filters: { status: 'pending' },
+    filters: { status: 'pending', predicate: (m) => !m.meta?.quiet },
     select: (m) => {
       const verb = m.meta?.label ?? 'Working';
       const vars = m.state.variables;

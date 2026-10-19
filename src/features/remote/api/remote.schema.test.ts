@@ -3,7 +3,7 @@ import { test, expect } from 'vitest';
 // captures, so this checks the zod mirror against what Rust actually sends.
 import restarting from '../../../../fixtures/remote/container-restarting-unhealthy/snapshot.json';
 import pm2Host from '../../../../fixtures/remote/amazon-linux-2023-docker-pm2/snapshot.json';
-import { remoteStateSchema, snapshotSchema } from './remote.schema';
+import { journalSchema, remoteStateSchema, snapshotSchema } from './remote.schema';
 
 test('parses the Rust snapshot of a restarting/unhealthy compose stack', () => {
   const s = snapshotSchema.parse(restarting);
@@ -50,4 +50,21 @@ test('parses remote state for both host kinds', () => {
     ],
   };
   expect(remoteStateSchema.parse(raw).hosts).toHaveLength(2);
+});
+
+test('parses journal entries as Rust writes them', () => {
+  const raw = [
+    {
+      atEpoch: 1792435438,
+      hostId: 'h_1',
+      hostLabel: 'Fameo API',
+      env: 'prod',
+      action: 'docker.restart',
+      target: 'web',
+      result: 'error',
+      message: 'Error response from daemon: No such container: web',
+    },
+  ];
+  expect(journalSchema.parse(raw)[0].result).toBe('error');
+  expect(() => journalSchema.parse([{ ...raw[0], result: 'maybe' }])).toThrow();
 });

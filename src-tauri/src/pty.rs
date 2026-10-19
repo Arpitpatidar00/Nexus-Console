@@ -1,5 +1,6 @@
 use crate::context::AppContext;
 use crate::error::{AppError, AppResult};
+use crate::remote::{ssh, RemoteState};
 use crate::util::{plist, validate};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
@@ -229,6 +230,88 @@ fn lock(
         .map_err(|_| AppError::Io("pty lock poisoned".into()))
 }
 
+/// What a terminal runs. JS names a target; Rust picks the program and argv —
+/// the frontend never sends a program, path or host.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum PtyTarget {
+    Brew {
+        formula: String,
+        kind: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    RemoteShell {
+        host_id: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    RemoteLogs {
+        host_id: String,
+        container: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    RemoteExec {
+        host_id: String,
+        container: String,
+    },
+}
+
+/// Inside the container: bash if it has one, else sh. One argv entry, quoted,
+/// because ssh joins the remote command into a single string for the remote
+/// shell. Constant: no user input is ever spliced into it.
+const EXEC_SHELL: &str = "'command -v bash >/dev/null && exec bash || exec sh'";
+
+/// Remote targets → `ssh -t …`. Containers must be in the host's latest
+/// snapshot, the same check as container actions.
+fn resolve_remote(target: &PtyTarget, remote: &RemoteState) -> AppResult<(String, Vec<String>)> {
+    let (host_id, cmd): (&str, Vec<String>) = match target {
+        PtyTarget::RemoteShell { host_id } => (host_id, vec![]),
+        PtyTarget::RemoteLogs { host_id, container } => {
+            let c = remote.known_container(host_id, container)?;
+            (
+                host_id,
+                ["docker", "logs", "-f", "--tail", "300"]
+                    .map(String::from)
+                    .into_iter()
+                    .chain([c.name])
+                    .collect(),
+            )
+        }
+        PtyTarget::RemoteExec { host_id, container } => {
+            let c = remote.known_container(host_id, container)?;
+            (
+                host_id,
+                vec![
+                    "docker".into(),
+                    "exec".into(),
+                    "-it".into(),
+                    c.name,
+                    "sh".into(),
+                    "-c".into(),
+                    EXEC_SHELL.into(),
+                ],
+            )
+        }
+        PtyTarget::Brew { .. } => unreachable!("brew targets resolve locally"),
+    };
+    let t = remote.target(host_id)?;
+    let cmd: Vec<&str> = cmd.iter().map(String::as_str).collect();
+    Ok((
+        ssh::SSH_BIN.into(),
+        ssh::interactive_args(&t, &ssh::control_dir()?, &cmd),
+    ))
+}
+
+fn resolve_target(
+    target: &PtyTarget,
+    ctx: &AppContext,
+    remote: &RemoteState,
+) -> AppResult<(String, Vec<String>)> {
+    match target {
+        PtyTarget::Brew { formula, kind } => resolve_command(formula, kind, ctx),
+        _ => resolve_remote(target, remote),
+    }
+}
+
 /// Server-side allowlist — JS passes a formula + kind, never a program. Resolves
 /// the client binary (or a login shell) / the `tail -f` log command.
 fn resolve_command(
@@ -278,15 +361,15 @@ fn resolve_command(
 #[allow(clippy::too_many_arguments)]
 pub async fn pty_open(
     id: String,
-    formula: String,
-    kind: String,
+    target: PtyTarget,
     cols: u16,
     rows: u16,
     on_event: Channel<PtyEvent>,
     ctx: State<'_, AppContext>,
+    remote: State<'_, RemoteState>,
     mgr: State<'_, PtyManager>,
 ) -> AppResult<()> {
-    let (program, args) = resolve_command(&formula, &kind, &ctx)?;
+    let (program, args) = resolve_target(&target, &ctx, &remote)?;
     mgr.open(id, program, args, cols, rows, on_event)
 }
 
@@ -323,6 +406,83 @@ mod tests {
         acc.extend_from_slice(b"\xAC done");
         assert_eq!(take_utf8(&mut acc), "€ done");
         assert!(acc.is_empty());
+    }
+
+    #[test]
+    fn targets_deserialize_from_the_js_shape() {
+        let t: PtyTarget =
+            serde_json::from_str(r#"{"type":"brew","formula":"redis","kind":"cli"}"#).unwrap();
+        assert!(
+            matches!(t, PtyTarget::Brew { ref formula, ref kind } if formula == "redis" && kind == "cli")
+        );
+        let t: PtyTarget =
+            serde_json::from_str(r#"{"type":"remoteLogs","hostId":"h_1","container":"web"}"#)
+                .unwrap();
+        assert!(
+            matches!(t, PtyTarget::RemoteLogs { ref host_id, ref container } if host_id == "h_1" && container == "web")
+        );
+        // A program can't be smuggled in: unknown fields are just ignored.
+        let t: PtyTarget =
+            serde_json::from_str(r#"{"type":"remoteShell","hostId":"h_1","program":"/bin/rm"}"#)
+                .unwrap();
+        assert!(matches!(t, PtyTarget::RemoteShell { .. }));
+        assert!(serde_json::from_str::<PtyTarget>(r#"{"type":"local","cmd":"sh"}"#).is_err());
+    }
+
+    #[test]
+    fn brew_target_resolves_exactly_as_before() {
+        let ctx = AppContext {
+            platform: "macos".into(),
+            arch: "aarch64".into(),
+            brew_prefix: Some("/nonexistent-prefix".into()),
+            brew_bin: None,
+            brew_version: None,
+        };
+        let remote = RemoteState::load(std::env::temp_dir().join("nexus-pty-unused.json"));
+        let t = PtyTarget::Brew {
+            formula: "redis".into(),
+            kind: "logs".into(),
+        };
+        let (prog, args) = resolve_target(&t, &ctx, &remote).unwrap();
+        assert_eq!(prog, "tail");
+        assert_eq!(args, ["-f", "/nonexistent-prefix/var/log/redis.log"]);
+        assert_eq!(
+            resolve_target(&t, &ctx, &remote).unwrap(),
+            resolve_command("redis", "logs", &ctx).unwrap()
+        );
+        let bad = PtyTarget::Brew {
+            formula: "redis; rm".into(),
+            kind: "cli".into(),
+        };
+        assert!(resolve_target(&bad, &ctx, &remote).is_err());
+    }
+
+    #[test]
+    fn remote_containers_must_be_in_the_latest_snapshot() {
+        let remote = RemoteState::load(std::env::temp_dir().join("nexus-pty-unused2.json"));
+        let t = PtyTarget::RemoteExec {
+            host_id: "h_1".into(),
+            container: "web".into(),
+        };
+        assert!(matches!(
+            resolve_remote(&t, &remote),
+            Err(AppError::NotFound(_))
+        ));
+        let t = PtyTarget::RemoteLogs {
+            host_id: "h_1".into(),
+            container: "--privileged".into(),
+        };
+        assert!(matches!(
+            resolve_remote(&t, &remote),
+            Err(AppError::InvalidName(_))
+        ));
+        let t = PtyTarget::RemoteShell {
+            host_id: "h_nope".into(),
+        };
+        assert!(matches!(
+            resolve_remote(&t, &remote),
+            Err(AppError::NotFound(_))
+        ));
     }
 
     #[test]

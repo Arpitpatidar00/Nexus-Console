@@ -49,13 +49,17 @@ export const ServiceActions = ({ service, compact = false }: ServiceActionsProps
   const handleStop = () => void stop(service).catch(() => {});
 
   const openCli = () =>
-    dispatch(openTerminal({ formula: service.formula, title: service.displayName, kind: 'cli' }));
+    dispatch(
+      openTerminal({
+        target: { type: 'brew', formula: service.formula, kind: 'cli' },
+        title: service.displayName,
+      }),
+    );
   const openLogs = () =>
     dispatch(
       openTerminal({
-        formula: service.formula,
+        target: { type: 'brew', formula: service.formula, kind: 'logs' },
         title: `${service.displayName} · logs`,
-        kind: 'logs',
       }),
     );
 

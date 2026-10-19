@@ -57,4 +57,6 @@ export const CMD = {
   REMOTE_DISCONNECT: 'remote_disconnect',
   REMOTE_STATUS: 'remote_status',
   REMOTE_SNAPSHOT: 'remote_snapshot',
+  REMOTE_DOCKER_ACTION: 'remote_docker_action',
+  REMOTE_JOURNAL: 'remote_journal',
 } as const;

@@ -6,10 +6,17 @@ import { IpcError } from './ipc-error';
 /** Streamed from Rust — not zod-validated (high-frequency, and it's raw bytes). */
 export type PtyEvent = { type: 'output'; data: string } | { type: 'exit' };
 
+/** What a terminal runs — mirrors Rust's `PtyTarget`. Rust resolves the
+ * program and argv; the frontend only ever names a target. */
+export type PtyTarget =
+  | { type: 'brew'; formula: string; kind: 'cli' | 'logs' }
+  | { type: 'remoteShell'; hostId: string }
+  | { type: 'remoteLogs'; hostId: string; container: string }
+  | { type: 'remoteExec'; hostId: string; container: string };
+
 export interface PtyOpenParams {
   id: string;
-  formula: string;
-  kind: 'cli' | 'logs';
+  target: PtyTarget;
   cols: number;
   rows: number;
 }

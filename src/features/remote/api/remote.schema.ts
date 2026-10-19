@@ -152,3 +152,16 @@ export const snapshotSchema = z.object({
   warnings: z.array(z.string()),
 });
 export type HostSnapshot = z.infer<typeof snapshotSchema>;
+
+export const journalEntrySchema = z.object({
+  atEpoch: z.number(),
+  hostId: z.string(),
+  hostLabel: z.string(),
+  env: z.enum(ENVS),
+  action: z.string(),
+  target: z.string(),
+  result: z.enum(['ok', 'error']),
+  message: z.string(),
+});
+export const journalSchema = z.array(journalEntrySchema);
+export type RemoteJournalEntry = z.infer<typeof journalEntrySchema>;

@@ -126,6 +126,28 @@ pub fn build_args(
     v
 }
 
+/// argv for an interactive session in the PTY: `-t`, and deliberately *no*
+/// BatchMode, so ssh can ask for a password or passphrase and the user can
+/// answer a host-key prompt themselves. Reuses (or becomes) the host's master.
+pub fn interactive_args(
+    target: &SshTarget,
+    control_dir: &std::path::Path,
+    remote_cmd: &[&str],
+) -> Vec<String> {
+    let mut v = base_args();
+    v.push("-t".into());
+    for kv in ["ServerAliveInterval=15", "ServerAliveCountMax=2"] {
+        v.extend(opt(kv.into()));
+    }
+    v.extend(control_opts(control_dir));
+    v.extend(target.0.iter().cloned());
+    if !remote_cmd.is_empty() {
+        v.push("--".into());
+        v.extend(remote_cmd.iter().map(|s| s.to_string()));
+    }
+    v
+}
+
 /// argv for `ssh -O <op>` against the host's master socket.
 pub fn control_args(target: &SshTarget, control_dir: &std::path::Path, op: &str) -> Vec<String> {
     let mut v = base_args();
@@ -404,6 +426,22 @@ mod tests {
         let v = args_for(&SshTarget::alias("h"), &["LC_ALL=C", "sh", "-s"]);
         let sep = v.iter().position(|a| a == "--").unwrap();
         assert_eq!(&v[sep + 1..], ["LC_ALL=C", "sh", "-s"]);
+    }
+
+    #[test]
+    fn interactive_sessions_can_prompt() {
+        let v = interactive_args(&SshTarget::alias("h"), Path::new(CM), &[]);
+        assert!(v.contains(&"-t".to_string()));
+        assert!(!v.iter().any(|a| a.starts_with("BatchMode")));
+        assert!(!v.join(" ").contains("StrictHostKeyChecking"));
+        assert!(has_pair(&v, "-o", &format!("ControlPath={CM}/%C")));
+        assert_eq!(v.last().unwrap(), "h");
+        let v = interactive_args(
+            &SshTarget::alias("h"),
+            Path::new(CM),
+            &["docker", "logs", "web"],
+        );
+        assert_eq!(&v[v.len() - 5..], ["h", "--", "docker", "logs", "web"]);
     }
 
     #[test]

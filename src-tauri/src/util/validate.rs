@@ -97,8 +97,6 @@ pub fn validate_port(port: u32) -> AppResult<()> {
 
 /// A Docker container id or name. Being well-formed isn't enough on its own:
 /// callers also require the ref to appear in the host's latest snapshot.
-// ponytail: first caller is the P5 docker actions.
-#[allow(dead_code)]
 pub fn validate_container_ref(r: &str) -> AppResult<()> {
     let ok = r.len() <= 128
         && r.starts_with(|c: char| c.is_ascii_alphanumeric())

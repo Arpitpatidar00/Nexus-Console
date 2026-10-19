@@ -57,6 +57,8 @@ pub fn run() {
             // Doctor tray automation (opt-in via Archiver settings): daily
             // auto-archive + VACUUM-when-VSCode-closes. Daemon thread, 5-min tick.
             doctor::scheduler::start(app.handle().clone());
+            // Servers background health (opt-in; never connects on its own).
+            remote::background::start(app.handle().clone());
             // brew --version costs 100-500ms — resolve it off the startup path so
             // it never blocks first paint. Consumers render "v—" until it lands.
             if let Some(bin) = brew_bin {

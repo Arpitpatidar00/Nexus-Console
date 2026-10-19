@@ -3,6 +3,8 @@ import { formatBytes, formatDuration } from '@/shared/lib/format';
 import type { HostSnapshot } from '@/features/remote/api/remote.schema';
 import { usedPct } from '@/features/remote/utils/health';
 import { Meter } from '@/features/remote/components/Meter';
+import { Sparkline } from '@/features/remote/components/Sparkline';
+import type { Sample } from '@/features/remote/utils/history';
 
 const Row = ({ k, v }: { k: string; v: string }) => (
   <div className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
@@ -20,7 +22,13 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-export const OverviewPanel = ({ snapshot: s }: { snapshot: HostSnapshot }) => {
+export const OverviewPanel = ({
+  snapshot: s,
+  history,
+}: {
+  snapshot: HostSnapshot;
+  history: Sample[];
+}) => {
   const m = s.memory;
   const memUsed = m.totalBytes - m.availableBytes;
   const swapUsed = m.swapTotalBytes - m.swapFreeBytes;
@@ -52,6 +60,7 @@ export const OverviewPanel = ({ snapshot: s }: { snapshot: HostSnapshot }) => {
               label={`CPU · ${s.cpu.cores} core${s.cpu.cores === 1 ? '' : 's'}`}
               pct={s.cpu.usagePct}
               detail={s.cpu.usagePct == null ? 'no data' : `${s.cpu.usagePct.toFixed(1)}%`}
+              trend={<Sparkline values={history.map((h) => h.cpuPct)} />}
             />
             <Meter
               label="Load (5 min)"
@@ -66,6 +75,7 @@ export const OverviewPanel = ({ snapshot: s }: { snapshot: HostSnapshot }) => {
               warnAt={90}
               critAt={97}
               detail={`${formatBytes(memUsed)} of ${formatBytes(m.totalBytes)}`}
+              trend={<Sparkline values={history.map((h) => h.memPct)} />}
             />
             {m.swapTotalBytes > 0 && (
               <Meter

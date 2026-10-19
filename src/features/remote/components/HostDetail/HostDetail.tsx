@@ -12,6 +12,7 @@ import { Spinner } from '@/shared/ui/Spinner';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
 import { useHostConnection } from '@/features/remote/api/useHostConnection';
 import { useHostSnapshot } from '@/features/remote/api/useHostSnapshot';
+import { useHostHistory } from '@/features/remote/api/useHostHistory';
 import { useConnectHost, useDisconnectHost } from '@/features/remote/api/remoteMutations';
 import { healthOf, issueCount } from '@/features/remote/utils/health';
 import { hostAddress } from '@/features/remote/utils/host';
@@ -53,6 +54,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
   const connect = useConnectHost(host.id);
   const disconnect = useDisconnectHost();
   const s = snap.data;
+  const history = useHostHistory(host.id);
   const status = describeStatus(conn.state, healthOf(s), issueCount(s), conn.error?.kind);
   // A probe that failed for a non-ssh reason (unreadable output) is shown
   // over the last good data; `busy` just means the previous probe is still out.
@@ -180,7 +182,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
               <BodySkeleton />
             )
           ) : view === 'overview' ? (
-            <OverviewPanel snapshot={s} />
+            <OverviewPanel snapshot={s} history={history} />
           ) : view === 'containers' ? (
             <ContainersTable host={host} snapshot={s} />
           ) : view === 'services' ? (

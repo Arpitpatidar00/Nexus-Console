@@ -2,6 +2,7 @@
 // (docs/remote/PLAN.md). Agentless and read-only by default: every remote
 // mutation is a fixed argv, confirmed natively and journaled.
 
+pub mod background;
 pub mod config;
 pub mod docker;
 pub mod findings;
@@ -55,6 +56,10 @@ impl RemoteState {
         if let Ok(mut m) = self.snapshots.lock() {
             m.insert(id.to_string(), snap.clone());
         }
+    }
+
+    pub fn snapshot(&self, id: &str) -> Option<HostSnapshot> {
+        self.snapshots.lock().ok()?.get(id).cloned()
     }
 
     pub fn forget_snapshot(&self, id: &str) {

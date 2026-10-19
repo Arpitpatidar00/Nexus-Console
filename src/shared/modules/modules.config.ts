@@ -74,7 +74,8 @@ export const MODULES: ModuleDef[] = [
     icon: Server,
     nav: [{ tab: 'servers', label: 'Servers', icon: Server }],
     blurb: 'Your SSH servers: health, containers, logs.',
-    background: null,
+    background:
+      'Optional: re-checks connected servers from the tray and notifies on new critical issues.',
     optIn: true,
   },
   {

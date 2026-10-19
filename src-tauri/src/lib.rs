@@ -5,6 +5,7 @@ mod commands;
 mod context;
 mod doctor;
 mod error;
+mod maclean;
 mod pty;
 mod quit;
 mod remote;
@@ -53,6 +54,9 @@ pub fn run() {
             app.manage(remote::RemoteState::load(remote::store::path_in(
                 app.path().app_data_dir()?,
             )));
+            app.manage(maclean::MacleanState::load(
+                app.path().app_data_dir()?.join(maclean::store::FILE_NAME),
+            ));
             tray::build_tray(app.handle())?;
             // Doctor tray automation (opt-in via Archiver settings): daily
             // auto-archive + VACUUM-when-VSCode-closes. Daemon thread, 5-min tick.
@@ -119,6 +123,8 @@ pub fn run() {
             commands::packages::upgrade_all,
             commands::packages::package_info,
             commands::packages::update_homebrew,
+            commands::maclean::maclean_scan,
+            commands::maclean::maclean_cancel_scan,
             commands::remote::remote_state,
             commands::remote::remote_set_consent,
             commands::remote::remote_scan_config,

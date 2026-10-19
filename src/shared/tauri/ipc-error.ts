@@ -10,6 +10,10 @@ export type IpcErrorKind =
   | 'cancelled'
   | 'busy'
   | 'untrustedTap'
+  | 'auth'
+  | 'hostKey'
+  | 'unreachable'
+  | 'timeout'
   | 'contract'
   | 'unknown';
 

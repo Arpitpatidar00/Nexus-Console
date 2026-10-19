@@ -32,6 +32,20 @@ pub enum AppError {
     /// the frontend renders it as a calm "working…" state, never a red error.
     #[error("{0}")]
     Busy(String),
+    /// SSH refused our key (or it needs a passphrase the agent doesn't hold).
+    /// Every remote variant carries the raw ssh stderr line, sent as `detail`.
+    #[error("SSH key not accepted, or it needs a passphrase. Add it to your agent (ssh-add --apple-use-keychain) or open a terminal.")]
+    Auth(String),
+    /// Unknown or changed host key. Never auto-accepted: the user verifies the
+    /// fingerprint themselves in an interactive terminal.
+    #[error("This server's host key isn't trusted yet (or changed). Verify it in a terminal.")]
+    HostKey(String),
+    #[error("Can't reach the server.")]
+    Unreachable(String),
+    /// Our own exec deadline fired, not ssh's ConnectTimeout (that one is
+    /// `Unreachable`).
+    #[error("The server didn't answer in time.")]
+    Timeout(String),
 }
 
 impl AppError {
@@ -46,6 +60,10 @@ impl AppError {
             AppError::Cancelled(_) => "cancelled",
             AppError::Busy(_) => "busy",
             AppError::UntrustedTap(_) => "untrustedTap",
+            AppError::Auth(_) => "auth",
+            AppError::HostKey(_) => "hostKey",
+            AppError::Unreachable(_) => "unreachable",
+            AppError::Timeout(_) => "timeout",
         }
     }
 }
@@ -56,9 +74,14 @@ impl serde::Serialize for AppError {
         st.serialize_field("kind", self.kind())?;
         st.serialize_field("message", &self.to_string())?;
         // `detail` normally repeats the message; for an untrusted tap it carries
-        // the bare tap name, which the UI needs to offer "Trust <tap>".
+        // the bare tap name, which the UI needs to offer "Trust <tap>"; for the
+        // ssh kinds it carries ssh's own stderr line under the friendly copy.
         match self {
             AppError::UntrustedTap(tap) => st.serialize_field("detail", tap)?,
+            AppError::Auth(raw)
+            | AppError::HostKey(raw)
+            | AppError::Unreachable(raw)
+            | AppError::Timeout(raw) => st.serialize_field("detail", raw)?,
             _ => st.serialize_field("detail", &self.to_string())?,
         }
         st.end()

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
 
 interface MeterProps {
@@ -8,10 +9,12 @@ interface MeterProps {
   detail: string;
   warnAt?: number;
   critAt?: number;
+  /** Optional trend (e.g. a sparkline) shown before the numbers. */
+  trend?: ReactNode;
 }
 
 /** A labelled usage bar. Neutral until a threshold, then warn/danger. */
-export const Meter = ({ label, pct, detail, warnAt = 85, critAt = 95 }: MeterProps) => {
+export const Meter = ({ label, pct, detail, warnAt = 85, critAt = 95, trend }: MeterProps) => {
   const tone =
     pct == null
       ? ''
@@ -24,7 +27,10 @@ export const Meter = ({ label, pct, detail, warnAt = 85, critAt = 95 }: MeterPro
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-3 text-sm">
         <span className="truncate font-medium text-fg">{label}</span>
-        <span className="shrink-0 text-xs text-fg-muted tabular-nums">{detail}</span>
+        <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted tabular-nums">
+          {trend}
+          {detail}
+        </span>
       </div>
       {/* Decorative: the label + numbers above carry the information. */}
       <div aria-hidden className="h-1.5 overflow-hidden rounded-full bg-list">

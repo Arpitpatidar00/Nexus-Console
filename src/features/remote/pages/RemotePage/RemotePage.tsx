@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { FileDown, History, Plus, Server } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { FileDown, History, Plus, RefreshCw, Server } from 'lucide-react';
+import { useIpcEvent } from '@/shared/tauri';
+import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { useRemoteState } from '@/features/remote/api/useRemoteState';
 import { useRemoteStatus } from '@/features/remote/api/useRemoteStatus';
+import { useCheckAll } from '@/features/remote/api/useCheckAll';
+import { useRecordHostHistory } from '@/features/remote/api/useHostHistory';
+import { remoteKeys } from '@/features/remote/api/keys';
+import { snapshotSchema } from '@/features/remote/api/remote.schema';
 import { groupHosts, projectNames } from '@/features/remote/utils/grouping';
 import { ConsentPanel } from '@/features/remote/components/ConsentPanel';
 import { HostList } from '@/features/remote/components/HostList';
@@ -35,6 +42,14 @@ export const RemotePage = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const checkAll = useCheckAll();
+  const qc = useQueryClient();
+  useRecordHostHistory();
+  // Background checks (Rust, tray) push fresh snapshots; show them here too.
+  useIpcEvent<{ id: string; snapshot: unknown }>('remote://snapshot', (e) => {
+    const parsed = snapshotSchema.safeParse(e.payload.snapshot);
+    if (parsed.success) qc.setQueryData(remoteKeys.snapshot(e.payload.id), parsed.data);
+  });
 
   const hosts = state.data?.hosts ?? [];
   const granted = state.data?.consent.granted ?? false;
@@ -76,6 +91,21 @@ export const RemotePage = () => {
         </div>
         {(granted || hosts.length > 0) && (
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Re-check every connected server now"
+              disabled={checkAll.count === 0 || checkAll.running}
+              onClick={() => void checkAll.run()}
+            >
+              <RefreshCw
+                className={cn(
+                  'h-4 w-4',
+                  checkAll.running && 'animate-spin motion-reduce:animate-none',
+                )}
+              />
+              Check all
+            </Button>
             <Button
               variant="ghost"
               size="icon"

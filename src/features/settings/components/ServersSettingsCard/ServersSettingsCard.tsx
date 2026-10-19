@@ -1,16 +1,17 @@
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
-import { setRemotePollInterval } from '@/shared/state/settingsSlice';
+import { setRemoteBackgroundMinutes, setRemotePollInterval } from '@/shared/state/settingsSlice';
 import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 // Deep imports: the remote barrel would chain RemotePage into Settings' chunk.
 import { useRemoteState } from '@/features/remote/api/useRemoteState';
 import { useSetConsent } from '@/features/remote/api/remoteMutations';
 import { formatTime } from '@/shared/lib/format';
-import { REMOTE_POLL_OPTIONS } from './ServersSettingsCard.config';
+import { REMOTE_BACKGROUND_OPTIONS, REMOTE_POLL_OPTIONS } from './ServersSettingsCard.config';
 
 export const ServersSettingsCard = () => {
   const dispatch = useAppDispatch();
   const pollMs = useAppSelector((s) => s.settings.remotePollIntervalMs);
+  const bgMins = useAppSelector((s) => s.settings.remoteBackgroundMinutes);
   const state = useRemoteState();
   const consent = useSetConsent();
   const granted = state.data?.consent.granted ?? false;
@@ -32,6 +33,21 @@ export const ServersSettingsCard = () => {
             value={String(pollMs)}
             options={REMOTE_POLL_OPTIONS}
             onChange={(v) => dispatch(setRemotePollInterval(Number(v)))}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4 py-3.5">
+          <div>
+            <p className="text-sm font-medium text-fg">Check in the background</p>
+            <p className="text-xs text-fg-muted">
+              While Nexus is in the menu bar, re-check servers that are already connected and notify
+              only about new critical issues. Never connects on its own.
+            </p>
+          </div>
+          <SegmentedControl
+            ariaLabel="Background check interval"
+            value={String(bgMins)}
+            options={REMOTE_BACKGROUND_OPTIONS}
+            onChange={(v) => dispatch(setRemoteBackgroundMinutes(Number(v)))}
           />
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">

@@ -40,6 +40,16 @@ pub fn module_enabled(settings: Option<&serde_json::Value>, id: &str) -> bool {
     known.is_empty() || known.contains(&id)
 }
 
+/// Is this opt-in module explicitly switched on? Unlike `module_enabled`
+/// this fails CLOSED: background work for a module the user never chose
+/// (Servers reaches other machines) must not start because a file is missing.
+pub fn module_opted_in(settings: Option<&serde_json::Value>, id: &str) -> bool {
+    settings
+        .and_then(|s| s.get("enabledModules"))
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|list| list.iter().any(|v| v.as_str() == Some(id)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,6 +69,27 @@ mod tests {
         assert!(module_enabled(Some(&s), "doctor"));
         assert!(!module_enabled(Some(&s), "homebrew"));
         assert!(!module_enabled(Some(&s), "ports"));
+    }
+
+    #[test]
+    fn opt_in_modules_fail_closed() {
+        assert!(module_opted_in(
+            Some(&json!({ "enabledModules": ["remote"] })),
+            "remote"
+        ));
+        assert!(!module_opted_in(
+            Some(&json!({ "enabledModules": ["homebrew"] })),
+            "remote"
+        ));
+        assert!(!module_opted_in(
+            Some(&json!({ "enabledModules": [] })),
+            "remote"
+        ));
+        assert!(!module_opted_in(
+            Some(&json!({ "theme": "dark" })),
+            "remote"
+        ));
+        assert!(!module_opted_in(None, "remote"));
     }
 
     #[test]

@@ -5,6 +5,8 @@
 pub mod config;
 pub mod docker;
 pub mod findings;
+#[cfg(test)]
+mod it;
 pub mod parse;
 pub mod probe;
 pub mod ssh;

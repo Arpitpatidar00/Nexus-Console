@@ -22,6 +22,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:remote": "sh scripts/remote-testbed/testbed.sh test",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -1,0 +1,33 @@
+# Local SSH testbed: three "servers" on 127.0.0.1 (PLAN.md §8.3).
+#   nexus-dev     :2221  docker CLI, no daemon reachable  → daemonDown
+#   nexus-staging :2222  daemon reachable, user not in the docker group → noPermission
+#   nexus-prod    :2223  daemon reachable, user in the docker group → ok
+# Workloads (web / crashy / sick) run on the private dind daemon.
+name: nexus-remote-testbed
+services:
+  dockerd:
+    image: docker:29-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ''
+    command: ['dockerd', '--host', 'unix:///var/run/dind/docker.sock', '--group', '2375']
+    volumes: [sock:/var/run/dind]
+  nexus-dev:
+    build: .
+    hostname: nexus-dev
+    ports: ['127.0.0.1:2221:22']
+    volumes: ['./.keys:/keys:ro']
+  nexus-staging:
+    build: .
+    hostname: nexus-staging
+    ports: ['127.0.0.1:2222:22']
+    volumes: ['./.keys:/keys:ro', 'sock:/var/run/dind']
+  nexus-prod:
+    build: .
+    hostname: nexus-prod
+    ports: ['127.0.0.1:2223:22']
+    volumes: ['./.keys:/keys:ro', 'sock:/var/run/dind']
+    environment:
+      NEXUS_DOCKER_GROUP: '1'
+volumes:
+  sock: {}

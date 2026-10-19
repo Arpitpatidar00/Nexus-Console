@@ -128,6 +128,8 @@ pub fn run() {
             commands::remote::remote_disconnect,
             commands::remote::remote_status,
             commands::remote::remote_snapshot,
+            commands::remote::remote_docker_action,
+            commands::remote::remote_journal,
             pty::pty_open,
             pty::pty_write,
             pty::pty_resize,

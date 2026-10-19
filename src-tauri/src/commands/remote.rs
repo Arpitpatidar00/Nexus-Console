@@ -4,7 +4,9 @@
 
 use super::{blocking, confirm_action};
 use crate::error::{AppError, AppResult};
+use crate::remote::docker::{self, DockerAction};
 use crate::remote::probe::{self, HostSnapshot};
+use crate::remote::store::JournalEntry;
 use crate::remote::store::{
     new_host_id, Consent, Env, Host, HostSource, ManualTarget, DEFAULT_PROJECT,
 };
@@ -262,23 +264,13 @@ pub async fn remote_remove_host(app: AppHandle, id: String) -> AppResult<()> {
         if let Ok(t) = ssh::SshTarget::from_host(&host) {
             ssh::control_exit(&t);
         }
+        state.forget_snapshot(&id);
         state.write(|s| {
             s.hosts.retain(|h| h.id != id);
             Ok(())
         })
     })
     .await
-}
-
-/// The target for a host, consent-gated for ssh_config hosts (their alias is
-/// resolved from the user's config).
-fn target_for(state: &RemoteState, id: &str) -> AppResult<ssh::SshTarget> {
-    let s = state.read()?;
-    let host = s.host(id)?;
-    if host.source == HostSource::SshConfig {
-        s.require_consent()?;
-    }
-    ssh::SshTarget::from_host(host)
 }
 
 #[derive(Serialize)]
@@ -294,7 +286,7 @@ pub struct ConnectionDto {
 pub async fn remote_connect(app: AppHandle, id: String) -> AppResult<ConnectionDto> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = target_for(&state, &id)?;
+        let target = state.target(&id)?;
         with_host_lock(&state, &id, || {
             let out = ssh::exec(&target, &["true"], None, ssh::DEFAULT_TIMEOUT)?;
             Ok(ConnectionDto {
@@ -353,8 +345,40 @@ pub async fn remote_status(app: AppHandle) -> AppResult<Vec<HostStatus>> {
 pub async fn remote_snapshot(app: AppHandle, id: String) -> AppResult<HostSnapshot> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = target_for(&state, &id)?;
-        with_host_lock(&state, &id, || probe::run(&target))
+        let target = state.target(&id)?;
+        let snap = with_host_lock(&state, &id, || probe::run(&target))?;
+        state.remember_snapshot(&id, &snap);
+        Ok(snap)
     })
     .await
+}
+
+/// start / stop / restart / remove a container the latest snapshot reported.
+/// Native confirm (host label + ENV, destructive on prod), then the fixed
+/// argv, then a journal entry whatever the outcome.
+#[tauri::command]
+pub async fn remote_docker_action(
+    app: AppHandle,
+    id: String,
+    container: String,
+    action: DockerAction,
+) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let p = docker::prepare(&state, &id, &container, action)?;
+        confirm_action(
+            &app,
+            &p.confirm_title(),
+            &p.confirm_message(),
+            p.action.label(),
+            p.destructive(),
+        )?;
+        docker::execute(&state, &p)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_journal(app: AppHandle) -> AppResult<Vec<JournalEntry>> {
+    blocking(move || Ok(app.state::<RemoteState>().read()?.journal.clone())).await
 }

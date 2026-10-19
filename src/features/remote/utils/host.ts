@@ -10,16 +10,6 @@ export function hostAddress(h: RemoteHost): string {
   return h.alias ?? '';
 }
 
-/** The interactive command that reaches this host from Terminal — shown when
- * the user must verify a host key or unlock a key themselves. */
-export function sshCommand(h: RemoteHost): string {
-  if (!h.manual) return `ssh ${h.alias ?? ''}`;
-  const m = h.manual;
-  const port = m.port === 22 ? '' : ` -p ${m.port}`;
-  const key = m.identityFile ? ` -i ${m.identityFile}` : '';
-  return `ssh${port}${key} ${m.user}@${m.hostname}`;
-}
-
 /** Guess an env from an alias (`fameo-prod`, `api.staging`). Only pre-fills
  * the import row; the user confirms it. */
 export function guessEnv(alias: string): HostEnv {

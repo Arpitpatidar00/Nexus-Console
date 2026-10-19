@@ -56,7 +56,7 @@ pub struct Host {
     pub order: u32,
 }
 
-/// One remote mutation, newest first. Written from P5 (docker actions).
+/// One remote mutation; the journal is newest first, capped at JOURNAL_CAP.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JournalEntry {
@@ -94,6 +94,7 @@ impl Default for Store {
 }
 
 pub const DEFAULT_PROJECT: &str = "Ungrouped";
+pub const JOURNAL_CAP: usize = 500;
 
 impl Store {
     /// Missing file → defaults. Unreadable/corrupt file → defaults, with the
@@ -149,6 +150,11 @@ impl Store {
 
     pub fn has_alias(&self, alias: &str) -> bool {
         self.hosts.iter().any(|h| h.alias.as_deref() == Some(alias))
+    }
+
+    pub fn append_journal(&mut self, entry: JournalEntry) {
+        self.journal.insert(0, entry);
+        self.journal.truncate(JOURNAL_CAP);
     }
 
     pub fn next_order(&self) -> u32 {
@@ -245,6 +251,25 @@ mod tests {
             fs::read_to_string(path.with_extension("json.corrupt")).unwrap(),
             "{ not json"
         );
+    }
+
+    #[test]
+    fn journal_is_newest_first_and_capped() {
+        let mut s = Store::default();
+        for i in 0..(JOURNAL_CAP + 5) {
+            s.append_journal(JournalEntry {
+                at_epoch: i as u64,
+                host_id: "h_1".into(),
+                host_label: "api".into(),
+                env: Env::Prod,
+                action: "docker.restart".into(),
+                target: "web".into(),
+                result: "ok".into(),
+                message: String::new(),
+            });
+        }
+        assert_eq!(s.journal.len(), JOURNAL_CAP);
+        assert_eq!(s.journal[0].at_epoch, (JOURNAL_CAP + 4) as u64);
     }
 
     #[test]

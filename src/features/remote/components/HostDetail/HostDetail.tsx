@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Pencil, Plug, RotateCw, ServerOff, Unplug } from 'lucide-react';
+import { Pencil, Plug, RotateCw, ServerOff, TerminalSquare, Unplug } from 'lucide-react';
+import { useAppDispatch } from '@/shared/state/hooks';
+import { openTerminal } from '@/shared/state/terminalsSlice';
 import { cn } from '@/shared/lib/cn';
 import { IpcError } from '@/shared/tauri';
 import { Button } from '@/shared/ui/Button';
@@ -37,6 +39,14 @@ const BodySkeleton = () => (
 
 export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => void }) => {
   const [view, setView] = useState<View>('overview');
+  const dispatch = useAppDispatch();
+  const openShell = () =>
+    dispatch(
+      openTerminal({
+        target: { type: 'remoteShell', hostId: host.id },
+        title: `${host.label} · ssh`,
+      }),
+    );
   const conn = useHostConnection(host.id);
   const connected = conn.state === 'connected';
   const snap = useHostSnapshot(host.id, connected);
@@ -97,6 +107,15 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             />
           </Button>
         )}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Open a shell on this server"
+          title="Terminal"
+          onClick={openShell}
+        >
+          <TerminalSquare className="h-4 w-4" />
+        </Button>
         <Button variant="ghost" size="icon" aria-label="Edit server" title="Edit" onClick={onEdit}>
           <Pencil className="h-4 w-4" />
         </Button>
@@ -132,10 +151,10 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         <BodySkeleton />
       ) : conn.state === 'error' && conn.error ? (
         <ConnectionError
-          host={host}
           error={conn.error}
           onRetry={() => connect.mutate()}
           retrying={connect.isPending}
+          onOpenTerminal={openShell}
         />
       ) : (
         <>
@@ -163,7 +182,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
           ) : view === 'overview' ? (
             <OverviewPanel snapshot={s} />
           ) : view === 'containers' ? (
-            <ContainersTable snapshot={s} />
+            <ContainersTable host={host} snapshot={s} />
           ) : view === 'services' ? (
             <ServicesPanel snapshot={s} />
           ) : view === 'ports' ? (

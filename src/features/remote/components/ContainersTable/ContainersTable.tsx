@@ -4,7 +4,8 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { chipStyles, dotStyles } from '@/shared/ui/StatusChip/StatusChip.styles';
 import { formatBytes, formatPercent } from '@/shared/lib/format';
-import type { Container, HostSnapshot } from '@/features/remote/api/remote.schema';
+import type { Container, HostSnapshot, RemoteHost } from '@/features/remote/api/remote.schema';
+import { ContainerMenu } from '@/features/remote/components/ContainerMenu';
 import { containerChip } from './ContainersTable.config';
 
 const DOCKER_EMPTY: Record<
@@ -23,8 +24,7 @@ const DOCKER_EMPTY: Record<
   },
 };
 
-// ponytail: per-row actions (logs, restart, shell) land with P5.
-const columns: ColumnDef<Container>[] = [
+const baseColumns: ColumnDef<Container>[] = [
   {
     id: 'name',
     header: 'Container',
@@ -90,7 +90,13 @@ const columns: ColumnDef<Container>[] = [
   },
 ];
 
-export const ContainersTable = ({ snapshot }: { snapshot: HostSnapshot }) => {
+export const ContainersTable = ({
+  host,
+  snapshot,
+}: {
+  host: RemoteHost;
+  snapshot: HostSnapshot;
+}) => {
   const { state } = snapshot.docker;
   if (state !== 'ok') {
     return <EmptyState icon={<ContainerIcon className="h-8 w-8" />} {...DOCKER_EMPTY[state]} />;
@@ -99,7 +105,17 @@ export const ContainersTable = ({ snapshot }: { snapshot: HostSnapshot }) => {
     <div className="min-h-0 flex-1">
       <DataTable
         data={snapshot.containers}
-        columns={columns}
+        columns={[
+          ...baseColumns,
+          {
+            id: 'actions',
+            header: '',
+            size: 52,
+            enableSorting: false,
+            meta: { align: 'right' },
+            cell: ({ row: { original: c } }) => <ContainerMenu host={host} container={c} />,
+          },
+        ]}
         getRowId={(c) => c.id}
         estimateRowHeight={52}
         emptyMessage="No containers on this server."

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileDown, Plus, Server } from 'lucide-react';
+import { FileDown, History, Plus, Server } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
@@ -12,6 +12,7 @@ import { HostDetail } from '@/features/remote/components/HostDetail';
 import { ImportHostsDialog } from '@/features/remote/components/ImportHostsDialog';
 import { AddHostDialog } from '@/features/remote/components/AddHostDialog';
 import { EditHostDialog } from '@/features/remote/components/EditHostDialog';
+import { JournalDialog } from '@/features/remote/components/JournalDialog';
 
 const ListSkeleton = () => (
   <div aria-hidden>
@@ -33,6 +34,7 @@ export const RemotePage = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const hosts = state.data?.hosts ?? [];
   const granted = state.data?.consent.granted ?? false;
@@ -52,6 +54,7 @@ export const RemotePage = () => {
   const dialogs = (
     <>
       <ImportHostsDialog open={importOpen} onOpenChange={setImportOpen} />
+      <JournalDialog open={historyOpen} onOpenChange={setHistoryOpen} />
       <AddHostDialog
         open={addOpen}
         onOpenChange={setAddOpen}
@@ -73,6 +76,15 @@ export const RemotePage = () => {
         </div>
         {(granted || hosts.length > 0) && (
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Server history"
+              title="History"
+              onClick={() => setHistoryOpen(true)}
+            >
+              <History className="h-4 w-4" />
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
               <FileDown className="h-4 w-4" />
               Import from SSH config

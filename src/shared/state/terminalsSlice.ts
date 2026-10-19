@@ -1,13 +1,30 @@
 import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
 import { env } from '@/config/env';
+import type { PtyTarget } from '@/shared/tauri/pty';
 
 export type TerminalKind = 'cli' | 'logs';
 
 export interface TerminalSession {
   id: string;
-  formula: string;
   title: string;
-  kind: TerminalKind;
+  target: PtyTarget;
+  /** Derived from the target: one terminal per thing, reopening focuses it. */
+  key: string;
+}
+
+/** Stable identity for "the same terminal": a second open of the same target
+ * focuses the existing tab instead of spawning another PTY. */
+export function terminalKey(t: PtyTarget): string {
+  switch (t.type) {
+    case 'brew':
+      return `brew:${t.kind}:${t.formula}`;
+    case 'remoteShell':
+      return `remote:shell:${t.hostId}`;
+    case 'remoteLogs':
+      return `remote:logs:${t.hostId}:${t.container}`;
+    case 'remoteExec':
+      return `remote:exec:${t.hostId}:${t.container}`;
+  }
 }
 
 interface TerminalsState {
@@ -22,12 +39,10 @@ const terminalsSlice = createSlice({
   name: 'terminals',
   initialState,
   reducers: {
-    // The ONE cross-feature seam: Services dispatches this; the terminal feature reacts.
+    // The ONE cross-feature seam: Services / Servers dispatch this; the terminal feature reacts.
     openTerminal: {
       reducer(state, action: PayloadAction<TerminalSession>) {
-        const existing = state.sessions.find(
-          (s) => s.formula === action.payload.formula && s.kind === action.payload.kind,
-        );
+        const existing = state.sessions.find((s) => s.key === action.payload.key);
         if (existing) {
           state.activeId = existing.id;
         } else if (state.sessions.length < env.VITE_PTY_CAP) {
@@ -36,8 +51,8 @@ const terminalsSlice = createSlice({
         }
         state.drawerOpen = true;
       },
-      prepare(input: { formula: string; title: string; kind: TerminalKind }) {
-        return { payload: { ...input, id: nanoid() } };
+      prepare(input: { target: PtyTarget; title: string }) {
+        return { payload: { ...input, id: nanoid(), key: terminalKey(input.target) } };
       },
     },
     closeTerminal(state, action: PayloadAction<string>) {

@@ -3,6 +3,7 @@
 // mutation is a fixed argv, confirmed natively and journaled.
 
 pub mod config;
+pub mod docker;
 pub mod findings;
 pub mod parse;
 pub mod probe;
@@ -10,17 +11,21 @@ pub mod ssh;
 pub mod store;
 
 use crate::error::{AppError, AppResult};
+use probe::HostSnapshot;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
-use store::Store;
+use store::{HostSource, Store};
 
-/// Managed state: the store (mirrored to `remote.json` on every write) plus
-/// per-host locks, so two probes of one host never overlap.
+/// Managed state: the store (mirrored to `remote.json` on every write),
+/// per-host locks so two probes of one host never overlap, and each host's
+/// latest snapshot: container actions and terminals only accept a container
+/// the server itself reported.
 pub struct RemoteState {
     path: PathBuf,
     store: Mutex<Store>,
     host_locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    snapshots: Mutex<HashMap<String, HostSnapshot>>,
 }
 
 impl RemoteState {
@@ -29,7 +34,48 @@ impl RemoteState {
             store: Mutex::new(Store::load(&path)),
             path,
             host_locks: Mutex::default(),
+            snapshots: Mutex::default(),
         }
+    }
+
+    /// Where to ssh for a host. ssh_config hosts resolve through the user's
+    /// config, so they're consent-gated here.
+    pub fn target(&self, id: &str) -> AppResult<ssh::SshTarget> {
+        let s = self.read()?;
+        let host = s.host(id)?;
+        if host.source == HostSource::SshConfig {
+            s.require_consent()?;
+        }
+        ssh::SshTarget::from_host(host)
+    }
+
+    pub fn remember_snapshot(&self, id: &str, snap: &HostSnapshot) {
+        if let Ok(mut m) = self.snapshots.lock() {
+            m.insert(id.to_string(), snap.clone());
+        }
+    }
+
+    pub fn forget_snapshot(&self, id: &str) {
+        if let Ok(mut m) = self.snapshots.lock() {
+            m.remove(id);
+        }
+    }
+
+    /// The container with this name or id in the host's latest snapshot.
+    pub fn known_container(&self, id: &str, r: &str) -> AppResult<parse::docker::Container> {
+        crate::util::validate::validate_container_ref(r)?;
+        let m = self
+            .snapshots
+            .lock()
+            .map_err(|_| AppError::Io("snapshot cache poisoned".into()))?;
+        m.get(id)
+            .and_then(|s| s.containers.iter().find(|c| c.name == r || c.id == r))
+            .cloned()
+            .ok_or_else(|| {
+                AppError::NotFound(format!(
+                    "{r} isn't in this server's latest check. Refresh and try again."
+                ))
+            })
     }
 
     pub fn read(&self) -> AppResult<MutexGuard<'_, Store>> {

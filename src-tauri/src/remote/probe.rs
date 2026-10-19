@@ -313,6 +313,31 @@ mod tests {
         assert_eq!(d.used_bytes * 100 / d.total_bytes, 96);
     }
 
+    /// The wire format the frontend's zod schema is tested against
+    /// (`src/features/remote/api/remote.schema.test.ts` parses this file).
+    /// Regenerate with `UPDATE_GOLDEN=1 cargo test golden`.
+    #[test]
+    fn snapshot_json_golden() {
+        for case in [
+            "container-restarting-unhealthy",
+            "amazon-linux-2023-docker-pm2",
+        ] {
+            let json = serde_json::to_string_pretty(&fixture(case)).unwrap() + "\n";
+            let path = format!(
+                "{}/../fixtures/remote/{case}/snapshot.json",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            if std::env::var_os("UPDATE_GOLDEN").is_some() {
+                std::fs::write(&path, &json).unwrap();
+            }
+            let golden = std::fs::read_to_string(&path).unwrap_or_default();
+            assert_eq!(
+                json, golden,
+                "{case}: snapshot JSON changed; rerun with UPDATE_GOLDEN=1"
+            );
+        }
+    }
+
     #[test]
     fn output_without_a_probe_is_a_parse_error() {
         let e = build("fish: Unknown command: sh\n", 0, 0).unwrap_err();

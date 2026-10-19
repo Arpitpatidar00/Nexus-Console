@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 import { settingsReducer, setEnabledModules } from '@/shared/state/settingsSlice';
-import { ALL_MODULES, isTabVisible, sanitizeModules, visibleTabs } from './selectors';
+import { DEFAULT_MODULES, isTabVisible, sanitizeModules, visibleTabs } from './selectors';
 
 test('visibleTabs: only the enabled modules, registry order, Settings last', () => {
   expect(visibleTabs(['claude'])).toEqual(['archiver', 'settings']);
@@ -25,7 +25,7 @@ test('sanitizeModules: no persisted settings → null (first run)', () => {
 });
 
 test('sanitizeModules: existing install without the key → everything on', () => {
-  expect(sanitizeModules(undefined, true)).toEqual(ALL_MODULES);
+  expect(sanitizeModules(undefined, true)).toEqual(DEFAULT_MODULES);
 });
 
 test('sanitizeModules: unknown ids are dropped, order normalized', () => {
@@ -33,10 +33,10 @@ test('sanitizeModules: unknown ids are dropped, order normalized', () => {
 });
 
 test('sanitizeModules: garbage or empty fails OPEN, never a tabless window', () => {
-  expect(sanitizeModules([], true)).toEqual(ALL_MODULES);
-  expect(sanitizeModules(['nope'], true)).toEqual(ALL_MODULES);
-  expect(sanitizeModules('homebrew', true)).toEqual(ALL_MODULES);
-  expect(sanitizeModules({ homebrew: true }, true)).toEqual(ALL_MODULES);
+  expect(sanitizeModules([], true)).toEqual(DEFAULT_MODULES);
+  expect(sanitizeModules(['nope'], true)).toEqual(DEFAULT_MODULES);
+  expect(sanitizeModules('homebrew', true)).toEqual(DEFAULT_MODULES);
+  expect(sanitizeModules({ homebrew: true }, true)).toEqual(DEFAULT_MODULES);
 });
 
 test('setEnabledModules: normalizes order and drops unknown ids', () => {
@@ -48,4 +48,13 @@ test('setEnabledModules: emptying the list is a no-op (last module can never go)
   const one = settingsReducer(undefined, setEnabledModules(['doctor']));
   const still = settingsReducer(one, setEnabledModules([]));
   expect(still.enabledModules).toEqual(['doctor']);
+});
+
+test('Servers is opt-in: never part of the everything-on defaults', () => {
+  expect(DEFAULT_MODULES).not.toContain('remote');
+  expect(sanitizeModules(undefined, true)).not.toContain('remote');
+  // An existing install's saved list (written before Servers existed) keeps it off.
+  expect(sanitizeModules(['homebrew', 'ports', 'doctor', 'claude'], true)).not.toContain('remote');
+  expect(sanitizeModules(['remote'], true)).toEqual(['remote']);
+  expect(visibleTabs(['remote'])).toEqual(['servers', 'settings']);
 });

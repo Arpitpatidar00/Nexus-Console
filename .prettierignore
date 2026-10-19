@@ -6,3 +6,5 @@ package-lock.json
 .future-scope
 # Xcode-generated icon asset catalog (minified JSON — not our source)
 public/Assets.xcassets
+# Captured tool output + Rust-generated golden JSON — compared byte-for-byte
+fixtures

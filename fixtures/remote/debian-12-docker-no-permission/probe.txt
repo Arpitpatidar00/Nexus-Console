@@ -1,0 +1,92 @@
+@@NX:meta@@
+hostname=billing-staging
+uname=Linux 7.0.14-linuxkit aarch64
+now=1792435604
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+@@NX:uptime@@
+uptime=532.67 4024.65
+loadavg=0.53 0.53 0.24 2/383 60
+nproc=8
+@@NX:cpu@@
+cpu  10925 0 5444 402465 3893 0 2399 0 0 0
+cpu  10941 0 5456 402841 3894 0 2403 0 0 0
+@@NX:mem@@
+MemTotal:        5034356 kB
+MemFree:          431472 kB
+MemAvailable:    4171452 kB
+Buffers:          141336 kB
+Cached:          3581704 kB
+SwapCached:            0 kB
+Active:           744844 kB
+Inactive:        3365764 kB
+Active(anon):     388336 kB
+Inactive(anon):        0 kB
+Active(file):     356508 kB
+Inactive(file):  3365764 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       4194300 kB
+SwapFree:        4194300 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:              1352 kB
+Writeback:             0 kB
+AnonPages:        353568 kB
+Mapped:           281912 kB
+Shmem:               788 kB
+KReclaimable:     209008 kB
+Slab:             269584 kB
+SReclaimable:     209008 kB
+SUnreclaim:        60576 kB
+KernelStack:        6288 kB
+PageTables:         5080 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     6711476 kB
+Committed_AS:    1798500 kB
+VmallocTotal:   135288315904 kB
+VmallocUsed:       16680 kB
+VmallocChunk:          0 kB
+Percpu:             4864 kB
+AnonHugePages:    233472 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+Balloon:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+@@NX:disk@@
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+/dev/vda1         98496756 18994040  74453220      21% /run/dind
+@@NX:reboot@@
+no
+@@NX:docker:error@@
+permission denied while trying to connect to the docker API at unix:///var/run/dind/docker.sock
+@@NX:units@@
+cron.service             loaded active running Regular background program processing daemon
+dbus.service             loaded active running D-Bus System Message Bus
+getty@tty1.service       loaded active running Getty on tty1
+systemd-journald.service loaded active running Journal Service
+systemd-logind.service   loaded active running User Login Management
+@@NX:failed@@
+@@NX:pm2:absent@@
+@@NX:ports@@
+@@NX:oom@@
+0
+@@NX:errors@@
+@@NX:end@@

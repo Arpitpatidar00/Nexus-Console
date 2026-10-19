@@ -4,6 +4,7 @@
 
 use super::{blocking, confirm_action};
 use crate::error::{AppError, AppResult};
+use crate::remote::probe::{self, HostSnapshot};
 use crate::remote::store::{
     new_host_id, Consent, Env, Host, HostSource, ManualTarget, DEFAULT_PROJECT,
 };
@@ -342,6 +343,18 @@ pub async fn remote_status(app: AppHandle) -> AppResult<Vec<HostStatus>> {
                 .collect();
             hs.into_iter().filter_map(|h| h.join().ok()).collect()
         }))
+    })
+    .await
+}
+
+/// Run the read-only probe: one ssh round trip. A second request while one is
+/// in flight for the same host gets `Busy` (the poll simply skips a beat).
+#[tauri::command]
+pub async fn remote_snapshot(app: AppHandle, id: String) -> AppResult<HostSnapshot> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = target_for(&state, &id)?;
+        with_host_lock(&state, &id, || probe::run(&target))
     })
     .await
 }

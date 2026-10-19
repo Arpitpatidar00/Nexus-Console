@@ -1,0 +1,94 @@
+@@NX:meta@@
+hostname=edge-01
+uname=Linux 7.0.14-linuxkit aarch64
+now=1792435602
+NAME="Alpine Linux"
+ID=alpine
+VERSION_ID=3.20.10
+PRETTY_NAME="Alpine Linux v3.20"
+HOME_URL="https://alpinelinux.org/"
+BUG_REPORT_URL="https://gitlab.alpinelinux.org/alpine/aports/-/issues"
+@@NX:uptime@@
+uptime=530.90 4012.85
+loadavg=0.53 0.53 0.24 1/349 19
+nproc=8
+@@NX:cpu@@
+cpu  10821 0 5351 401286 3888 0 2367 0 0 0
+cpu  10828 0 5356 401675 3888 0 2370 0 0 0
+@@NX:mem@@
+MemTotal:        5034356 kB
+MemFree:          450288 kB
+MemAvailable:    4173272 kB
+Buffers:          140972 kB
+Cached:          3564860 kB
+SwapCached:            0 kB
+Active:           695668 kB
+Inactive:        3365144 kB
+Active(anon):     355536 kB
+Inactive(anon):        0 kB
+Active(file):     340132 kB
+Inactive(file):  3365144 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       4194300 kB
+SwapFree:        4194300 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:               116 kB
+Writeback:             0 kB
+AnonPages:        320820 kB
+Mapped:           248108 kB
+Shmem:               576 kB
+KReclaimable:     209008 kB
+Slab:             269312 kB
+SReclaimable:     209008 kB
+SUnreclaim:        60304 kB
+KernelStack:        5696 kB
+PageTables:         3868 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     6711476 kB
+Committed_AS:    1571812 kB
+VmallocTotal:   135288315904 kB
+VmallocUsed:       15660 kB
+VmallocChunk:          0 kB
+Percpu:             4736 kB
+AnonHugePages:    221184 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+Balloon:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+@@NX:disk@@
+Filesystem           1024-blocks    Used Available Capacity Mounted on
+overlay               98496756  18977088  74470172  20% /
+tmpfs                    65536         0     65536   0% /dev
+shm                      65536         0     65536   0% /dev/shm
+/dev/vda1             98496756  18977088  74470172  20% /etc/hostname
+/dev/vda1             98496756  18977088  74470172  20% /etc/hosts
+/dev/vda1             98496756  18977088  74470172  20% /etc/resolv.conf
+/dev/vda1             98496756  18977088  74470172  20% /run/dind
+tmpfs                    65536         0     65536   0% /proc/interrupts
+tmpfs                    65536         0     65536   0% /proc/kcore
+tmpfs                    65536         0     65536   0% /proc/keys
+tmpfs                        4         0         4   0% /proc/scsi
+tmpfs                    65536         0     65536   0% /proc/timer_list
+tmpfs                        4         0         4   0% /sys/firmware
+@@NX:reboot@@
+no
+@@NX:docker:absent@@
+@@NX:units:absent@@
+@@NX:failed:absent@@
+@@NX:pm2:absent@@
+@@NX:ports:absent@@
+@@NX:oom:absent@@
+@@NX:errors:absent@@
+@@NX:end@@

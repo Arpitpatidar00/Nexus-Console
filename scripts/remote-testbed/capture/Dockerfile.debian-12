@@ -1,0 +1,9 @@
+# A systemd Debian 12 server with the docker CLI, but `nexus` isn't in the docker group.
+FROM docker:29-cli AS cli
+FROM debian:12
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      systemd systemd-sysv dbus iproute2 procps cron && rm -rf /var/lib/apt/lists/*
+COPY --from=cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
+RUN useradd -m -s /bin/bash -G adm nexus
+CMD ["/sbin/init"]

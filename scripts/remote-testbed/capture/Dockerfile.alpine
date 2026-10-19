@@ -1,0 +1,4 @@
+# Plain Alpine: busybox tools, no systemd, journald, docker, ss or pm2.
+FROM alpine:3.20
+RUN adduser -D nexus
+CMD ["sleep", "infinity"]

@@ -1,0 +1,108 @@
+@@NX:meta@@
+hostname=shop-dev
+uname=Linux 7.0.14-linuxkit aarch64
+now=1792435644
+NAME="Amazon Linux"
+VERSION="2023"
+ID="amzn"
+ID_LIKE="fedora"
+VERSION_ID="2023"
+PLATFORM_ID="platform:al2023"
+PRETTY_NAME="Amazon Linux 2023.12.20260930"
+ANSI_COLOR="0;33"
+CPE_NAME="cpe:2.3:o:amazon:amazon_linux:2023"
+HOME_URL="https://aws.amazon.com/linux/amazon-linux-2023/"
+DOCUMENTATION_URL="https://docs.aws.amazon.com/linux/"
+SUPPORT_URL="https://aws.amazon.com/premiumsupport/"
+BUG_REPORT_URL="https://github.com/amazonlinux/amazon-linux-2023"
+VENDOR_NAME="AWS"
+VENDOR_URL="https://aws.amazon.com/"
+SUPPORT_END="2029-06-30"
+@@NX:uptime@@
+uptime=572.78 4329.55
+loadavg=0.88 0.59 0.28 4/497 101
+nproc=8
+@@NX:cpu@@
+cpu  11555 0 5907 432956 4099 0 2582 0 0 0
+cpu  11555 0 5908 433359 4099 0 2582 0 0 0
+@@NX:mem@@
+MemTotal:        5034356 kB
+MemFree:          139208 kB
+MemAvailable:    3988924 kB
+Buffers:          147164 kB
+Cached:          3677648 kB
+SwapCached:            0 kB
+Active:           901892 kB
+Inactive:        3459168 kB
+Active(anon):     537196 kB
+Inactive(anon):        0 kB
+Active(file):     364696 kB
+Inactive(file):  3459168 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       4194300 kB
+SwapFree:        4194300 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:               564 kB
+Writeback:             0 kB
+AnonPages:        477176 kB
+Mapped:           354384 kB
+Shmem:               968 kB
+KReclaimable:     217152 kB
+Slab:             279504 kB
+SReclaimable:     217152 kB
+SUnreclaim:        62352 kB
+KernelStack:        8048 kB
+PageTables:         9256 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     6711476 kB
+Committed_AS:    2512008 kB
+VmallocTotal:   135288315904 kB
+VmallocUsed:       18756 kB
+VmallocChunk:          0 kB
+Percpu:             5184 kB
+AnonHugePages:    247808 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+Balloon:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+@@NX:disk@@
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+/dev/vda1         98496756 19092420  74354840      21% /run/dind
+@@NX:reboot@@
+no
+@@NX:docker@@
+29.9.1
+@@NX:containers@@
+{"Command":"\"sh -c 'exit 1'\"","CreatedAt":"2026-10-19 18:46:59 +0000 UTC","HealthStatus":"none","ID":"54479ff40afee114adc57ef6521ba05fd4be7ff70a30632d52f7e26e559d065f","Image":"alpine:3.20","Labels":"com.docker.compose.config-hash=311e91660a2f810e9f8973e26cb8a8e5007c3d0a37b397b9452814bebe872d3e,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:45e09956dc667c5eff3583c9d94830261fb1ca0be10a0a7db36266edf5de9e1d,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=-,com.docker.compose.project.working_dir=/,com.docker.compose.project=nexus-testbed,com.docker.compose.service=crashy,com.docker.compose.version=5.6.0","LocalVolumes":"0","Mounts":"","Names":"nexus-testbed-crashy-1","Networks":"nexus-testbed_default","Platform":{"architecture":"arm64","os":"linux","variant":"v8"},"Ports":"","RunningFor":"26 seconds ago","Size":"4.1kB (virtual 9.51MB)","State":"restarting","Status":"Restarting (1) 11 seconds ago"}
+{"Command":"\"/docker-entrypoint.sh nginx -g 'daemon off;'\"","CreatedAt":"2026-10-19 18:46:59 +0000 UTC","HealthStatus":"unhealthy","ID":"0c6d07d7a5cb65ee125dc59ca5bb5625395679d6872e08ba7cbc347ffc7347cf","Image":"nginx:1.27-alpine","Labels":"com.docker.compose.config-hash=9fcb713ffc2feb0dad7c12591294ab49da8f34ebd142b4e1f0b01c526053e8a1,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:63ffc0d1f14e4082b832c6a42e606e9a0384a526f16ddd720af7c1f018f2f7c4,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=-,com.docker.compose.project.working_dir=/,com.docker.compose.project=nexus-testbed,com.docker.compose.service=sick,com.docker.compose.version=5.6.0,maintainer=NGINX Docker Maintainers \u003cdocker-maint@nginx.com\u003e","LocalVolumes":"0","Mounts":"","Names":"nexus-testbed-sick-1","Networks":"nexus-testbed_default","Platform":{"architecture":"arm64","os":"linux","variant":"v8"},"Ports":"80/tcp","RunningFor":"26 seconds ago","Size":"81.9kB (virtual 54.2MB)","State":"running","Status":"Up 25 seconds (unhealthy)"}
+{"Command":"\"/docker-entrypoint.sh nginx -g 'daemon off;'\"","CreatedAt":"2026-10-19 18:46:51 +0000 UTC","HealthStatus":"healthy","ID":"22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab","Image":"nginx:1.27-alpine","Labels":"com.docker.compose.config-hash=c25dc9743e6f10c01b8b718cee49e653079efa07fa764599b7bbb4cc66a7c0a3,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:63ffc0d1f14e4082b832c6a42e606e9a0384a526f16ddd720af7c1f018f2f7c4,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=-,com.docker.compose.project.working_dir=/,com.docker.compose.project=nexus-testbed,com.docker.compose.service=web,com.docker.compose.version=5.6.0,maintainer=NGINX Docker Maintainers \u003cdocker-maint@nginx.com\u003e","LocalVolumes":"0","Mounts":"","Names":"nexus-testbed-web-1","Networks":"nexus-testbed_default","Platform":{"architecture":"arm64","os":"linux","variant":"v8"},"Ports":"0.0.0.0:8080-\u003e80/tcp, [::]:8080-\u003e80/tcp","RunningFor":"34 seconds ago","Size":"81.9kB (virtual 54.2MB)","State":"running","Status":"Up 34 seconds (healthy)"}
+@@NX:inspect@@
+54479ff40afee114adc57ef6521ba05fd4be7ff70a30632d52f7e26e559d065f 8 "unless-stopped" {"Dead":false,"Error":"","ExitCode":1,"FinishedAt":"2026-10-19T18:47:13.944239301Z","OOMKilled":false,"Paused":false,"Pid":0,"Restarting":true,"Running":true,"StartedAt":"2026-10-19T18:47:13.859698801Z","Status":"restarting"}
+0c6d07d7a5cb65ee125dc59ca5bb5625395679d6872e08ba7cbc347ffc7347cf 0 "no" {"Dead":false,"Error":"","ExitCode":0,"FinishedAt":"0001-01-01T00:00:00Z","Health":{"FailingStreak":12,"Log":[{"End":"2026-10-19T18:47:16.654465886Z","ExitCode":1,"Output":"","Start":"2026-10-19T18:47:16.639545511Z"},{"End":"2026-10-19T18:47:18.684918928Z","ExitCode":1,"Output":"","Start":"2026-10-19T18:47:18.655591512Z"},{"End":"2026-10-19T18:47:20.720770554Z","ExitCode":1,"Output":"","Start":"2026-10-19T18:47:20.686400888Z"},{"End":"2026-10-19T18:47:22.769518597Z","ExitCode":1,"Output":"","Start":"2026-10-19T18:47:22.72740968Z"},{"End":"2026-10-19T18:47:24.796312042Z","ExitCode":1,"Output":"","Start":"2026-10-19T18:47:24.768367209Z"}],"Status":"unhealthy"},"OOMKilled":false,"Paused":false,"Pid":641,"Restarting":false,"Running":true,"StartedAt":"2026-10-19T18:47:00.098285711Z","Status":"running"}
+22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab 0 "no" {"Dead":false,"Error":"","ExitCode":0,"FinishedAt":"0001-01-01T00:00:00Z","Health":{"FailingStreak":0,"Log":[{"End":"2026-10-19T18:47:15.979788594Z","ExitCode":0,"Output":"","Start":"2026-10-19T18:47:15.951642177Z"},{"End":"2026-10-19T18:47:18.017353595Z","ExitCode":0,"Output":"","Start":"2026-10-19T18:47:17.981125553Z"},{"End":"2026-10-19T18:47:20.070561512Z","ExitCode":0,"Output":"","Start":"2026-10-19T18:47:20.022417179Z"},{"End":"2026-10-19T18:47:22.12522093Z","ExitCode":0,"Output":"","Start":"2026-10-19T18:47:22.074137722Z"},{"End":"2026-10-19T18:47:24.169852458Z","ExitCode":0,"Output":"","Start":"2026-10-19T18:47:24.128653708Z"}],"Status":"healthy"},"OOMKilled":false,"Paused":false,"Pid":405,"Restarting":false,"Running":true,"StartedAt":"2026-10-19T18:46:51.30849318Z","Status":"running"}
+@@NX:stats@@
+{"BlockIO":"0B / 12.3kB","CPUPerc":"1.53%","Container":"0c6d07d7a5cb65ee125dc59ca5bb5625395679d6872e08ba7cbc347ffc7347cf","ID":"0c6d07d7a5cb","MemPerc":"0.14%","MemUsage":"7.008MiB / 4.801GiB","Name":"nexus-testbed-sick-1","NetIO":"1.03kB / 126B","PIDs":"9"}
+{"BlockIO":"0B / 12.3kB","CPUPerc":"1.91%","Container":"22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab","ID":"22b01e19f1aa","MemPerc":"0.17%","MemUsage":"8.312MiB / 4.801GiB","Name":"nexus-testbed-web-1","NetIO":"1.77kB / 126B","PIDs":"9"}
+@@NX:compose@@
+[{"Name":"nexus-testbed","Status":"restarting(1), running(2)","ConfigFiles":"-"}]
+@@NX:units:absent@@
+@@NX:failed:absent@@
+@@NX:pm2@@
+[{"pid":35,"name":"api","pm2_env":{"kill_retry_time":100,"windowsHide":true,"username":"nexus","treekill":true,"automation":true,"pmx":true,"instance_var":"NODE_APP_INSTANCE","watch":false,"autorestart":true,"autostart":true,"vizion":true,"merge_logs":true,"env":{"HOSTNAME":"shop-dev","PWD":"/home/nexus","HOME":"/home/nexus","SHLVL":"1","PATH":"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","_":"/usr/bin/pm2","PM2_USAGE":"CLI","PM2_INTERACTOR_PROCESSING":"true","PM2_HOME":"/home/nexus/.pm2","api":{},"unique_id":"497085e3-1297-4cd9-9ddd-13c1ce64b85c"},"namespace":"default","filter_env":[],"name":"api","node_args":[],"pm_exec_path":"/home/nexus/api.js","pm_cwd":"/home/nexus","exec_interpreter":"node","exec_mode":"fork_mode","instances":1,"pm_out_log_path":"/home/nexus/.pm2/logs/api-out.log","pm_err_log_path":"/home/nexus/.pm2/logs/api-error.log","pm_pid_path":"/home/nexus/.pm2/pids/api-0.pid","km_link":false,"vizion_running":false,"NODE_APP_INSTANCE":0,"HOSTNAME":"shop-dev","PWD":"/home/nexus","HOME":"/home/nexus","SHLVL":"1","PATH":"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","_":"/usr/bin/pm2","PM2_USAGE":"CLI","PM2_INTERACTOR_PROCESSING":"true","PM2_HOME":"/home/nexus/.pm2","unique_id":"497085e3-1297-4cd9-9ddd-13c1ce64b85c","status":"online","pm_uptime":1792435639515,"axm_actions":[{"action_name":"km:heapdump","action_type":"internal","arity":2},{"action_name":"km:cpu:profiling:start","action_type":"internal","arity":2},{"action_name":"km:cpu:profiling:stop","action_type":"internal","arity":1},{"action_name":"km:heap:sampling:start","action_type":"internal","arity":2},{"action_name":"km:heap:sampling:stop","action_type":"internal","arity":1}],"axm_monitor":{"Used Heap Size":{"value":"7.68","type":"internal/v8/heap/used","unit":"MiB","historic":true},"Heap Usage":{"value":63.73,"type":"internal/v8/heap/usage","unit":"%","historic":true},"Heap Size":{"value":"12.05","type":"internal/v8/heap/total","unit":"MiB","historic":true},"Event Loop Latency p95":{"value":"11.75","type":"internal/libuv/latency/p95","unit":"ms","historic":true},"Event Loop Latency":{"value":"3.10","type":"internal/libuv/latency/p50","unit":"ms","historic":true},"Active handles":{"value":3,"type":"internal/libuv/handles","historic":true},"Active requests":{"value":0,"type":"internal/libuv/requests","historic":true}},"axm_options":{"error":true,"heapdump":true,"feature.profiler.heapsnapshot":false,"feature.profiler.heapsampling":true,"feature.profiler.cpu_js":true,"latency":true,"catchExceptions":true,"profiling":true,"metrics":{"http":true,"runtime":true,"eventLoop":true,"network":false,"v8":true},"standalone":false,"module_conf":{},"apm":{"version":"6.0.1","type":"node"},"module_name":"api","module_version":"5.4.3"},"axm_dynamic":{},"created_at":1792435639515,"pm_id":0,"restart_time":0,"unstable_restarts":0,"version":"N/A","versioning":null,"node_version":"18.20.8"},"pm_id":0,"monit":{"memory":54231040,"cpu":0.7}},{"pid":0,"name":"worker","pm2_env":{"kill_retry_time":100,"windowsHide":true,"username":"nexus","treekill":true,"automation":true,"pmx":true,"instance_var":"NODE_APP_INSTANCE","max_restarts":3,"watch":false,"autorestart":true,"autostart":true,"vizion":true,"merge_logs":true,"env":{"HOSTNAME":"shop-dev","PWD":"/home/nexus","HOME":"/home/nexus","SHLVL":"1","PATH":"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","_":"/usr/bin/pm2","PM2_USAGE":"CLI","PM2_HOME":"/home/nexus/.pm2","worker":{},"unique_id":"ba56fd2c-407d-4066-bd38-5d9918037984"},"namespace":"default","filter_env":[],"name":"worker","node_args":[],"pm_exec_path":"/home/nexus/worker.js","pm_cwd":"/home/nexus","exec_interpreter":"node","exec_mode":"fork_mode","instances":1,"pm_out_log_path":"/home/nexus/.pm2/logs/worker-out.log","pm_err_log_path":"/home/nexus/.pm2/logs/worker-error.log","pm_pid_path":"/home/nexus/.pm2/pids/worker-1.pid","km_link":false,"vizion_running":false,"NODE_APP_INSTANCE":0,"HOSTNAME":"shop-dev","PWD":"/home/nexus","HOME":"/home/nexus","SHLVL":"1","PATH":"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","_":"/usr/bin/pm2","PM2_USAGE":"CLI","PM2_HOME":"/home/nexus/.pm2","unique_id":"ba56fd2c-407d-4066-bd38-5d9918037984","status":"errored","pm_uptime":1792435639786,"axm_actions":[],"axm_monitor":{},"axm_options":{"error":true,"heapdump":true,"feature.profiler.heapsnapshot":false,"feature.profiler.heapsampling":true,"feature.profiler.cpu_js":true,"latency":true,"catchExceptions":true,"profiling":true,"metrics":{"http":true,"runtime":true,"eventLoop":true,"network":false,"v8":true},"standalone":false,"module_conf":{},"apm":{"version":"6.0.1","type":"node"},"module_name":"worker","module_version":"5.4.3"},"axm_dynamic":{},"created_at":null,"pm_id":1,"restart_time":2,"unstable_restarts":0,"version":"N/A","versioning":null,"node_version":"18.20.8","exit_code":1},"pm_id":1,"monit":{"memory":0,"cpu":0}}]
+@@NX:ports@@
+LISTEN 0      511    *:3000 *:* users:(("node /home/nexu",pid=35,fd=20))
+@@NX:oom:absent@@
+@@NX:errors:absent@@
+@@NX:end@@

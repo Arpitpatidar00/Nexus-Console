@@ -1,0 +1,108 @@
+@@NX:meta@@
+hostname=fameo-prod
+uname=Linux 7.0.14-linuxkit aarch64
+now=1792435614
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.5 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+@@NX:uptime@@
+uptime=542.18 4094.46
+loadavg=0.53 0.53 0.25 1/441 111
+nproc=8
+@@NX:cpu@@
+cpu  11147 0 5637 409448 3968 0 2469 0 0 0
+cpu  11147 0 5637 409854 3968 0 2469 0 0 0
+@@NX:mem@@
+MemTotal:        5034356 kB
+MemFree:          250740 kB
+MemAvailable:    4081884 kB
+Buffers:          144660 kB
+Cached:          3664212 kB
+SwapCached:            0 kB
+Active:           827116 kB
+Inactive:        3443300 kB
+Active(anon):     462420 kB
+Inactive(anon):        0 kB
+Active(file):     364696 kB
+Inactive(file):  3443300 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       4194300 kB
+SwapFree:        4194300 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:               672 kB
+Writeback:             0 kB
+AnonPages:        420056 kB
+Mapped:           313368 kB
+Shmem:               896 kB
+KReclaimable:     214448 kB
+Slab:             275600 kB
+SReclaimable:     214448 kB
+SUnreclaim:        61152 kB
+KernelStack:        7152 kB
+PageTables:         6600 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     6711476 kB
+Committed_AS:    2133700 kB
+VmallocTotal:   135288315904 kB
+VmallocUsed:       17832 kB
+VmallocChunk:          0 kB
+Percpu:             5088 kB
+AnonHugePages:    276480 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+Balloon:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+@@NX:disk@@
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+/dev/vda1         98496756 94556886   3939870      96% /run/dind
+@@NX:reboot@@
+no
+@@NX:docker@@
+29.9.1
+@@NX:containers@@
+{"Command":"\"/docker-entrypoint.sh nginx -g 'daemon off;'\"","CreatedAt":"2026-10-19 18:46:51 +0000 UTC","HealthStatus":"healthy","ID":"22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab","Image":"nginx:1.27-alpine","Labels":"com.docker.compose.config-hash=c25dc9743e6f10c01b8b718cee49e653079efa07fa764599b7bbb4cc66a7c0a3,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:63ffc0d1f14e4082b832c6a42e606e9a0384a526f16ddd720af7c1f018f2f7c4,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=-,com.docker.compose.project.working_dir=/,com.docker.compose.project=nexus-testbed,com.docker.compose.service=web,com.docker.compose.version=5.6.0,maintainer=NGINX Docker Maintainers \u003cdocker-maint@nginx.com\u003e","LocalVolumes":"0","Mounts":"","Names":"nexus-testbed-web-1","Networks":"nexus-testbed_default","Platform":{"architecture":"arm64","os":"linux","variant":"v8"},"Ports":"0.0.0.0:8080-\u003e80/tcp, [::]:8080-\u003e80/tcp","RunningFor":"3 seconds ago","Size":"81.9kB (virtual 54.2MB)","State":"running","Status":"Up 3 seconds (healthy)"}
+@@NX:inspect@@
+22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab 0 "no" {"Dead":false,"Error":"","ExitCode":0,"FinishedAt":"0001-01-01T00:00:00Z","Health":{"FailingStreak":0,"Log":[{"End":"2026-10-19T18:46:53.49085725Z","ExitCode":0,"Output":"","Start":"2026-10-19T18:46:53.44163925Z"}],"Status":"healthy"},"OOMKilled":false,"Paused":false,"Pid":405,"Restarting":false,"Running":true,"StartedAt":"2026-10-19T18:46:51.30849318Z","Status":"running"}
+@@NX:stats@@
+{"BlockIO":"0B / 8.19kB","CPUPerc":"2.43%","Container":"22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab","ID":"22b01e19f1aa","MemPerc":"0.16%","MemUsage":"7.852MiB / 4.801GiB","Name":"nexus-testbed-web-1","NetIO":"1.1kB / 126B","PIDs":"9"}
+@@NX:compose@@
+[{"Name":"nexus-testbed","Status":"running(1)","ConfigFiles":"-"}]
+@@NX:units@@
+cron.service             loaded active running Regular background program processing daemon
+dbus.service             loaded active running D-Bus System Message Bus
+getty@tty1.service       loaded active running Getty on tty1
+systemd-journald.service loaded active running Journal Service
+systemd-logind.service   loaded active running User Login Management
+@@NX:failed@@
+report-export.service loaded failed failed Nightly report export
+@@NX:pm2:absent@@
+@@NX:ports@@
+LISTEN 0      4096   0.0.0.0:22 0.0.0.0:*
+LISTEN 0      4096      [::]:22    [::]:*
+@@NX:oom@@
+0
+@@NX:errors@@
+2026-10-19T18:46:45+00:00 fameo-prod systemd[1]: Failed to start report-export.service - Nightly report export.
+@@NX:end@@

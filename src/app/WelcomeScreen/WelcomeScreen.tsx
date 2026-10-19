@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Boxes } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
-  ALL_MODULES,
+  DEFAULT_MODULES,
   MODULES,
   availableModules,
   useClaudeInstalled,
@@ -28,7 +28,7 @@ export const WelcomeScreen = () => {
   const claudeInstalled = useClaudeInstalled();
   const reduce = useReducedMotion();
   const [selected, setSelected] = useState<ModuleId[]>(() =>
-    availableModules(ALL_MODULES, { claudeInstalled }),
+    availableModules(DEFAULT_MODULES, { claudeInstalled }),
   );
 
   const confirm = () => {

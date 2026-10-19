@@ -6,6 +6,10 @@ import { CMD, IpcError, ipcVoid } from '@/shared/tauri';
 // suppression below nor the ActivityBar has to cast `unknown`.
 declare module '@tanstack/react-query' {
   interface Register {
+    queryMeta: {
+      /** Errors render inline (e.g. a server's connection state), not as a toast. */
+      silent?: boolean;
+    };
     mutationMeta: {
       /** Opt out of the per-item error toast (bulk ops toast once, aggregated). */
       silent?: boolean;
@@ -57,7 +61,12 @@ const notify = (e: unknown) => {
 };
 
 export const queryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: notify }),
+  queryCache: new QueryCache({
+    onError: (e, query) => {
+      if (query.meta?.silent) return;
+      notify(e);
+    },
+  }),
   // Bulk mutations mark themselves `meta.silent` and report one aggregated
   // toast, so skip the per-item auto-toast for those.
   mutationCache: new MutationCache({

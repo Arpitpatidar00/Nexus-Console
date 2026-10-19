@@ -9,6 +9,7 @@ export {
 } from './modules.config';
 export {
   ALL_MODULES,
+  DEFAULT_MODULES,
   availableModules,
   isModuleAvailable,
   isTabVisible,

@@ -1,6 +1,6 @@
 import { useAppSelector } from '@/shared/state/hooks';
 import {
-  ALL_MODULES,
+  DEFAULT_MODULES,
   availableModules,
   isModuleAvailable,
   visibleNav,
@@ -13,7 +13,7 @@ import type { Tab } from '@/shared/state/uiSlice';
 /** The user's choice, before machine availability. `null` (never chosen) reads as
  * everything on, so the app is fully usable while the first-run picker decides. */
 export function useEnabledModules(): ModuleId[] {
-  return useAppSelector((s) => s.settings.enabledModules) ?? ALL_MODULES;
+  return useAppSelector((s) => s.settings.enabledModules) ?? DEFAULT_MODULES;
 }
 
 export function useModuleEnabled(id: ModuleId): boolean {

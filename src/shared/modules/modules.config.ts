@@ -4,13 +4,14 @@ import {
   LayoutGrid,
   Network,
   Package,
+  Server,
   Stethoscope,
   type LucideIcon,
 } from 'lucide-react';
 import type { Tab } from '@/shared/state/uiSlice';
 
 /** The four things this app actually is. Order is nav order. */
-export const MODULE_IDS = ['homebrew', 'ports', 'doctor', 'claude'] as const;
+export const MODULE_IDS = ['homebrew', 'ports', 'remote', 'doctor', 'claude'] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
 /** What a module needs on this Mac to be offered at all. Only Claude Code
@@ -37,6 +38,9 @@ export interface ModuleDef {
   /** One line: what runs while it's on. null = nothing in the background. */
   background: string | null;
   requires?: ModuleRequirement;
+  /** Off unless the user turns it on — never part of an "everything on"
+   * default. For modules that reach beyond this Mac. */
+  optIn?: boolean;
 }
 
 /** THE registry — the sidebar, the first-run screen and Settings → Features are
@@ -63,6 +67,15 @@ export const MODULES: ModuleDef[] = [
     nav: [{ tab: 'ports', label: 'Ports', icon: Network }],
     blurb: "See what's listening, kill what's stuck.",
     background: null,
+  },
+  {
+    id: 'remote',
+    label: 'Servers',
+    icon: Server,
+    nav: [{ tab: 'servers', label: 'Servers', icon: Server }],
+    blurb: 'Your SSH servers: health, containers, logs.',
+    background: null,
+    optIn: true,
   },
   {
     id: 'doctor',

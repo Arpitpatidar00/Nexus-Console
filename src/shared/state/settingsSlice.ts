@@ -9,6 +9,8 @@ interface SettingsState {
   theme: ThemeMode;
   layout: Layout;
   pollIntervalMs: number;
+  /** Servers tab snapshot refresh; 0 = manual only. */
+  remotePollIntervalMs: number;
   quitBehavior: QuitBehavior;
   /** User drag-reorder of service cards, by formula. Unknown/new formulas sort last. */
   cardOrder: string[];
@@ -30,6 +32,7 @@ export type PersistedSettings = Pick<
   | 'theme'
   | 'layout'
   | 'pollIntervalMs'
+  | 'remotePollIntervalMs'
   | 'quitBehavior'
   | 'cardOrder'
   | 'enabledModules'
@@ -42,6 +45,7 @@ const initialState: SettingsState = {
   theme: 'system',
   layout: 'grid',
   pollIntervalMs: 4000,
+  remotePollIntervalMs: 10_000,
   quitBehavior: 'stopUnlinked',
   cardOrder: [],
   enabledModules: null,
@@ -63,6 +67,9 @@ const settingsSlice = createSlice({
     },
     setPollInterval(state, action: PayloadAction<number>) {
       state.pollIntervalMs = action.payload;
+    },
+    setRemotePollInterval(state, action: PayloadAction<number>) {
+      state.remotePollIntervalMs = action.payload;
     },
     setQuitBehavior(state, action: PayloadAction<QuitBehavior>) {
       state.quitBehavior = action.payload;
@@ -98,6 +105,7 @@ export const {
   setTheme,
   setLayout,
   setPollInterval,
+  setRemotePollInterval,
   setQuitBehavior,
   setCardOrder,
   setEnabledModules,

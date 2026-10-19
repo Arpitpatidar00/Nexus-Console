@@ -7,6 +7,7 @@ mod doctor;
 mod error;
 mod pty;
 mod quit;
+mod remote;
 mod session;
 mod settings;
 mod tray;
@@ -49,6 +50,9 @@ pub fn run() {
             app.manage(commands::services::ServicesCache::default());
             app.manage(pty::PtyManager::default());
             app.manage(session::SessionServices::default());
+            app.manage(remote::RemoteState::load(remote::store::path_in(
+                app.path().app_data_dir()?,
+            )));
             tray::build_tray(app.handle())?;
             // Doctor tray automation (opt-in via Archiver settings): daily
             // auto-archive + VACUUM-when-VSCode-closes. Daemon thread, 5-min tick.
@@ -113,6 +117,16 @@ pub fn run() {
             commands::packages::upgrade_all,
             commands::packages::package_info,
             commands::packages::update_homebrew,
+            commands::remote::remote_state,
+            commands::remote::remote_set_consent,
+            commands::remote::remote_scan_config,
+            commands::remote::remote_import_hosts,
+            commands::remote::remote_add_manual_host,
+            commands::remote::remote_update_host,
+            commands::remote::remote_remove_host,
+            commands::remote::remote_connect,
+            commands::remote::remote_disconnect,
+            commands::remote::remote_status,
             pty::pty_open,
             pty::pty_write,
             pty::pty_resize,
@@ -123,9 +137,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Nexus Console")
         .run(|app, event| {
-            // On real quit: kill PTYs + stop explicitly-unlinked running services.
+            // On real quit: kill PTYs, close ssh masters, stop explicitly-unlinked
+            // running services.
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 app.state::<pty::PtyManager>().kill_all();
+                app.state::<remote::RemoteState>().disconnect_all();
                 quit::stop_session_services(app);
             }
         });

@@ -3,6 +3,7 @@
 // mutation is a fixed argv, confirmed natively and journaled.
 
 pub mod config;
+pub mod findings;
 pub mod parse;
 pub mod probe;
 pub mod ssh;

@@ -1,6 +1,7 @@
 // One round trip per refresh: the constant probe.sh piped to `sh -s`, its
 // sections parsed into a HostSnapshot (docs/remote/PLAN.md §4.5, §4.6).
 
+use super::findings::{self, HostFinding};
 use super::parse::{self, disk, docker, journal, mem, pm2, ports, system, systemd, Section};
 use super::ssh::{self, SshTarget};
 use crate::error::{AppError, AppResult};
@@ -29,6 +30,8 @@ pub struct HostSnapshot {
     pub ports: Vec<ports::Port>,
     pub recent_errors: Vec<String>,
     pub oom_kills_24h: Option<u32>,
+    /// Rules over everything above, red first (`findings.rs`).
+    pub findings: Vec<HostFinding>,
     /// What the snapshot couldn't see, in plain words.
     pub warnings: Vec<String>,
 }
@@ -126,7 +129,7 @@ pub fn build(out: &str, probe_ms: u64, captured_at: u64) -> AppResult<HostSnapsh
         _ => None,
     };
 
-    Ok(HostSnapshot {
+    let mut snap = HostSnapshot {
         captured_at,
         probe_ms,
         system: system::parse_system(s.ok("meta"), s.ok("uptime"), s.ok("reboot")),
@@ -142,8 +145,11 @@ pub fn build(out: &str, probe_ms: u64, captured_at: u64) -> AppResult<HostSnapsh
         ports: ports::parse_ports(s.ok("ports")),
         recent_errors: journal::parse_errors(s.ok("errors")),
         oom_kills_24h: journal::parse_oom(s.ok("oom")),
+        findings: vec![],
         warnings,
-    })
+    };
+    snap.findings = findings::evaluate(&snap);
+    Ok(snap)
 }
 
 #[cfg(test)]

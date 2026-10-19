@@ -1,0 +1,12 @@
+# A systemd Ubuntu 24.04 server with the docker CLI (daemon is the capture rig's dind).
+FROM docker:29-cli AS cli
+FROM ubuntu:24.04
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      systemd systemd-sysv dbus iproute2 procps cron openssh-server && rm -rf /var/lib/apt/lists/*
+COPY --from=cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
+RUN groupadd -g 2375 docker && useradd -m -s /bin/bash -G adm,docker nexus
+# A unit that always fails, so `systemctl --failed` and the error journal have real content.
+RUN printf '[Unit]\nDescription=Nightly report export\n[Service]\nType=oneshot\nExecStart=/bin/false\n[Install]\nWantedBy=multi-user.target\n' \
+      > /etc/systemd/system/report-export.service && systemctl enable report-export.service
+CMD ["/sbin/init"]

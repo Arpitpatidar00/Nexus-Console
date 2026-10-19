@@ -138,8 +138,6 @@ pub fn control_args(target: &SshTarget, control_dir: &std::path::Path, op: &str)
 #[derive(Debug)]
 pub struct ExecOutput {
     pub status: ExitStatus,
-    // ponytail: first read by the P2 probe.
-    #[allow(dead_code)]
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
     pub elapsed: Duration,

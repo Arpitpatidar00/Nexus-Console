@@ -64,21 +64,37 @@ pub fn base_args() -> Vec<String> {
     config_override()
 }
 
-/// `~/Library/Caches/com.vss.nexusconsole/cm`, created `0700`. `%C` (a 40-char
-/// hash) keeps socket paths under macOS's 104-byte limit.
+/// `/tmp/nxc-<uid>`, `0700`. Short on purpose: ssh binds the master at
+/// `<ControlPath>.<16 random chars>` before renaming it, and macOS caps a
+/// socket path at 104 bytes; under ~/Library/Caches that's ~113 and every
+/// master fails ("too long for Unix domain socket"). /tmp is shared, so a dir
+/// that is a symlink, or isn't ours, or isn't 0700, is refused rather than used.
 pub fn control_dir() -> AppResult<PathBuf> {
-    use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
-    let home = std::env::var_os("HOME").ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
-    let dir = PathBuf::from(home).join("Library/Caches/com.vss.nexusconsole/cm");
+    // SAFETY: getuid(2) has no preconditions and can't fail.
+    let uid = unsafe { libc::getuid() };
+    ensure_private_dir(&PathBuf::from(format!("/tmp/nxc-{uid}")), uid)
+}
+
+fn ensure_private_dir(dir: &std::path::Path, uid: u32) -> AppResult<PathBuf> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
     let io = |e: std::io::Error| AppError::Io(format!("ssh control dir: {e}"));
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(&dir)
-        .map_err(io)?;
-    // `recursive` leaves an existing dir's mode alone; force it.
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).map_err(io)?;
-    Ok(dir)
+    match std::fs::DirBuilder::new().mode(0o700).create(dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => return Err(io(e)),
+    }
+    // lstat: never follow a symlink someone else planted.
+    let meta = std::fs::symlink_metadata(dir).map_err(io)?;
+    if !meta.is_dir() || meta.uid() != uid {
+        return Err(AppError::Forbidden(format!(
+            "{} isn't a directory owned by you; refusing to put ssh sockets there",
+            dir.display()
+        )));
+    }
+    if meta.mode() & 0o077 != 0 {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(io)?;
+    }
+    Ok(dir.to_path_buf())
 }
 
 fn opt(kv: String) -> [String; 2] {
@@ -362,7 +378,7 @@ mod tests {
     use super::*;
     use std::path::Path;
 
-    const CM: &str = "/Users/me/Library/Caches/com.vss.nexusconsole/cm";
+    const CM: &str = "/tmp/nxc-501";
 
     fn args_for(target: &SshTarget, cmd: &[&str]) -> Vec<String> {
         build_args(target, Path::new(CM), cmd)
@@ -450,6 +466,36 @@ mod tests {
         assert!(has_pair(&v, "-O", "check"));
         assert!(has_pair(&v, "-o", &format!("ControlPath={CM}/%C")));
         assert_eq!(v.last().unwrap(), "h");
+    }
+
+    #[test]
+    fn control_socket_paths_fit_macos_limit() {
+        let dir = control_dir().unwrap();
+        // %C is 40 hex chars; ssh adds ".XXXXXXXXXXXXXXXX" while binding.
+        let worst = dir.join(format!("{}.{}", "f".repeat(40), "x".repeat(16)));
+        assert!(worst.as_os_str().len() < 104, "{}", worst.display());
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&dir).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
+
+    #[test]
+    fn control_dir_refuses_one_that_isnt_ours() {
+        let base = std::env::temp_dir().join(format!("nxc-own-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        // SAFETY: getuid(2) has no preconditions.
+        let me = unsafe { libc::getuid() };
+        assert!(ensure_private_dir(&base.join("ok"), me).is_ok());
+        assert!(matches!(
+            ensure_private_dir(&base.join("ok"), me + 1),
+            Err(AppError::Forbidden(_))
+        ));
+        std::os::unix::fs::symlink(base.join("ok"), base.join("link")).unwrap();
+        assert!(matches!(
+            ensure_private_dir(&base.join("link"), me),
+            Err(AppError::Forbidden(_))
+        ));
     }
 
     #[test]

@@ -1,25 +1,34 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 
 export const buttonStyles = cva(
-  'inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-[background-color,color,transform,box-shadow] duration-150 active:scale-[.98] disabled:pointer-events-none disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-[18px] [&_svg]:shrink-0 cursor-pointer select-none',
   {
     variants: {
       variant: {
-        primary: 'bg-accent text-accent-fg hover:bg-accent-hover',
-        primaryOutline: 'border border-accent text-accent hover:bg-accent-soft',
-        secondary: 'border border-border bg-paper text-fg hover:bg-list',
-        ghost: 'text-fg-muted hover:bg-list hover:text-fg',
-        dangerGhost: 'text-fg-muted hover:bg-danger-soft hover:text-danger',
-        dangerOutline: 'border border-danger text-danger hover:bg-danger-soft',
-        danger: 'bg-danger text-white hover:opacity-90',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        ember: 'bg-ember text-ember-foreground hover:bg-ember/90 shadow-sm',
+        secondary: 'glass text-secondary-foreground hover:bg-glass-strong',
+        glass: 'glass text-secondary-foreground hover:bg-glass-strong',
+        outline: 'border border-input bg-transparent hover:bg-accent text-foreground',
+        ghost: 'hover:bg-accent hover:text-accent-foreground text-foreground',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        link: 'text-ember-text underline-offset-4 hover:underline',
+        primaryOutline: 'border border-ember text-ember-text hover:bg-ember-soft',
+        dangerOutline: 'border border-destructive text-destructive hover:bg-danger-soft',
+        dangerGhost: 'text-muted-foreground hover:bg-danger-soft hover:text-destructive',
       },
       size: {
-        sm: 'h-8 px-3',
-        md: 'h-9 px-4',
-        icon: 'h-9 w-9',
+        default: 'h-10 px-[18px]',
+        md: 'h-10 px-[18px]',
+        sm: 'h-8 px-3.5 text-[13px] [&_svg]:size-4',
+        lg: 'h-12 px-6 text-[15px]',
+        icon: 'size-11 [&_svg]:size-5 p-0',
+        iconSm: 'size-8 [&_svg]:size-4 p-0',
       },
     },
-    defaultVariants: { variant: 'primary', size: 'md' },
+    defaultVariants: { variant: 'default', size: 'default' },
   },
 );
 

@@ -1,0 +1,159 @@
+/* Stackroost Smoked Glass — token variables (mirrors the design system's tokens.json). */
+:root {
+  --font-display: Outfit, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Outfit, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+  --radius-full: 9999px;
+  --blur-sm: 12px;
+  --blur-md: 24px;
+  --blur-lg: 48px;
+}
+:root,
+.theme-dark,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #141215;
+  --foreground: #f4f1ec;
+  --glow-warm: rgba(255, 122, 47, 0.16);
+  --glow-cool: rgba(196, 178, 166, 0.1);
+  --card: rgba(255, 255, 255, 0.06);
+  --card-foreground: #f4f1ec;
+  --glass-strong: rgba(255, 255, 255, 0.11);
+  --hairline: rgba(255, 255, 255, 0.09);
+  --popover: #1e1c20;
+  --popover-foreground: #f4f1ec;
+  --primary: #f4f1ec;
+  --primary-foreground: #141215;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f4f1ec;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: #a8a3a0;
+  --accent: rgba(255, 255, 255, 0.1);
+  --accent-foreground: #f4f1ec;
+  --ember: #ff7a2f;
+  --ember-foreground: #1a0f08;
+  --ember-text: #ff8a47;
+  --ember-soft: rgba(255, 122, 47, 0.16);
+  --success: #5be08f;
+  --success-soft: rgba(91, 224, 143, 0.14);
+  --warning: #f7c64b;
+  --warning-soft: rgba(247, 198, 75, 0.14);
+  --info: #7cc4ff;
+  --info-soft: rgba(124, 196, 255, 0.14);
+  --destructive: #ff5a5f;
+  --destructive-foreground: #1a0b0c;
+  --danger-soft: rgba(255, 90, 95, 0.14);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #ff7a2f;
+  --chart-1: #ff7a2f;
+  --chart-2: #f4f1ec;
+  --chart-3: #d9f26b;
+  --chart-4: #7cc4ff;
+  --chart-5: #b79cff;
+  --sidebar: rgba(10, 9, 11, 0.72);
+  --sidebar-foreground: #a8a3a0;
+  --sidebar-primary: #ff7a2f;
+  --sidebar-primary-foreground: #1a0f08;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #f4f1ec;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-ring: #ff7a2f;
+  --shadow-edge: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-float: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-ring-ember: 0 0 0 4px rgba(255, 122, 47, 0.22);
+}
+.theme-light,
+[data-theme='light'] {
+  color-scheme: light;
+  --background: #e7e7ea;
+  --foreground: #0c0c0e;
+  --glow-warm: rgba(226, 96, 15, 0.1);
+  --glow-cool: rgba(255, 255, 255, 0.7);
+  --card: rgba(255, 255, 255, 0.62);
+  --card-foreground: #0c0c0e;
+  --glass-strong: rgba(255, 255, 255, 0.86);
+  --hairline: rgba(12, 12, 14, 0.08);
+  --popover: #ffffff;
+  --popover-foreground: #0c0c0e;
+  --primary: #0c0c0e;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.7);
+  --secondary-foreground: #0c0c0e;
+  --muted: rgba(12, 12, 14, 0.04);
+  --muted-foreground: #5a5860;
+  --accent: rgba(12, 12, 14, 0.06);
+  --accent-foreground: #0c0c0e;
+  --ember: #e2600f;
+  --ember-foreground: #1a0f08;
+  --ember-text: #9c3d08;
+  --ember-soft: rgba(226, 96, 15, 0.12);
+  --success: #11612e;
+  --success-soft: rgba(17, 97, 46, 0.1);
+  --warning: #7a4a00;
+  --warning-soft: rgba(122, 74, 0, 0.1);
+  --info: #17538c;
+  --info-soft: rgba(23, 83, 140, 0.1);
+  --destructive: #b3203a;
+  --destructive-foreground: #ffffff;
+  --danger-soft: rgba(179, 32, 58, 0.1);
+  --border: rgba(12, 12, 14, 0.1);
+  --input: rgba(12, 12, 14, 0.16);
+  --ring: #e2600f;
+  --chart-1: #e2600f;
+  --chart-2: #0c0c0e;
+  --chart-3: #5c7300;
+  --chart-4: #17538c;
+  --chart-5: #5b3fc4;
+  --sidebar: rgba(255, 255, 255, 0.72);
+  --sidebar-foreground: #5a5860;
+  --sidebar-primary: #0c0c0e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(12, 12, 14, 0.06);
+  --sidebar-accent-foreground: #0c0c0e;
+  --sidebar-border: rgba(12, 12, 14, 0.08);
+  --sidebar-ring: #e2600f;
+  --shadow-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-float: 0 24px 60px rgba(28, 24, 32, 0.14);
+  --shadow-ring-ember: 0 0 0 4px rgba(226, 96, 15, 0.18);
+}
+.sr-row--on {
+  background: var(--glass-strong);
+  border-color: var(--ember);
+}
+.sr-h-display {
+  margin: 0;
+  font: 600 56px/60px var(--font-display);
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+}
+.sr-h-lg {
+  margin: 0;
+  font: 600 40px/44px var(--font-display);
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+}
+.sr-caption {
+  margin: 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--muted-foreground);
+}
+.sr-eyebrow {
+  margin: 0;
+  font: 500 12px/16px var(--font-mono);
+  color: var(--muted-foreground);
+}

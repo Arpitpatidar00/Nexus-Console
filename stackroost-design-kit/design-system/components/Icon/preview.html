@@ -1,0 +1,39 @@
+<!-- @dsCard group="Brand" height=300 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Icon — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          'div',
+          {
+            style: {
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+              gap: '12px',
+            },
+          },
+          S.iconNames.map(function (n) {
+            return h(
+              'div',
+              { key: n, className: 'sr-stack', style: { alignItems: 'center', gap: '8px' } },
+              h(
+                'span',
+                { className: 'sr-row__icon', style: { width: '44px', height: '44px' } },
+                h(S.Icon, { name: n, size: 20 }),
+              ),
+              h('span', { className: 'sr-mono sr-muted', style: { fontSize: '11px' } }, n),
+            );
+          }),
+        ),
+      );
+    </script>
+  </body>
+</html>

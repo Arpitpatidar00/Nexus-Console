@@ -1,0 +1,31 @@
+<!-- @dsCard group="Surfaces" height=340 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DialogSurface — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          S.DialogSurface,
+          {
+            title: 'Restart api-1 on fameo-prod?',
+            description: 'This is a PROD server. Type the server name to confirm.',
+            actions: h(
+              React.Fragment,
+              null,
+              h(S.Button, { variant: 'ghost' }, 'Cancel'),
+              h(S.Button, { variant: 'destructive', icon: 'restart' }, 'Restart on PROD'),
+            ),
+          },
+          h(S.Input, { label: 'Server name', mono: true, placeholder: 'fameo-prod' }),
+        ),
+      );
+    </script>
+  </body>
+</html>

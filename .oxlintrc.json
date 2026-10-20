@@ -12,7 +12,8 @@
   "rules": {
     "react/react-in-jsx-scope": "off",
     "import/no-unassigned-import": "off",
-    "react/no-unstable-nested-components": "off"
+    "react/no-unstable-nested-components": "off",
+    "jsx-a11y/prefer-tag-over-role": "off"
   },
   "ignorePatterns": ["dist", "src-tauri", "node_modules"]
 }

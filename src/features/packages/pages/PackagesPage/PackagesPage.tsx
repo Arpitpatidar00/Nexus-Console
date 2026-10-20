@@ -4,6 +4,7 @@ import { useUpgradePackage, useUpgradeAll } from '@/features/packages/api/packag
 import { useServices } from '@/shared/brew';
 import { Spinner } from '@/shared/ui/Spinner';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
+import { Panel } from '@/shared/ui/Panel';
 import {
   PackagesToolbar,
   type PackageFilter,
@@ -26,8 +27,6 @@ export const PackagesPage = () => {
 
   const serviceNames = useMemo(() => new Set((services ?? []).map((s) => s.name)), [services]);
 
-  // Merge the (background) outdated status onto the installed list. Until it
-  // resolves, packages simply show as up-to-date — the list still renders.
   const packages = useMemo(() => {
     if (!data) return [];
     const byName = new Map((outdated ?? []).map((o) => [o.name, o]));
@@ -55,12 +54,12 @@ export const PackagesPage = () => {
   }, [packages, query, filter]);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-fg">Packages</h1>
-          <p className="text-sm text-fg-muted">Everything Homebrew installed</p>
-        </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* Top action header */}
+      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
+        <p className="sr-caption tabular-nums">
+          Homebrew · {packages.length} installed · {outdatedCount} outdated
+        </p>
         <PackagesToolbar
           query={query}
           onQueryChange={setQuery}
@@ -72,10 +71,10 @@ export const PackagesPage = () => {
           onRefresh={() => void refetch()}
           isFetching={isFetching}
         />
-      </header>
+      </div>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1">
+      <div className="flex min-h-0 flex-1 gap-4">
+        <Panel className="min-w-0 flex-1 gap-0 overflow-hidden p-0">
           {isPending ? (
             <div className="flex h-full items-center justify-center">
               <Spinner />
@@ -98,15 +97,16 @@ export const PackagesPage = () => {
               upgradingName={upgradingName}
             />
           )}
-        </div>
-        {selected && <BrewInfoPanel name={selected} onClose={() => setSelected(null)} />}
+        </Panel>
+
+        {selected && (
+          <Panel className="w-96 shrink-0 overflow-y-auto p-4">
+            <BrewInfoPanel name={selected} onClose={() => setSelected(null)} />
+          </Panel>
+        )}
       </div>
 
-      <UninstallDialog
-        key={uninstallTarget ?? 'none'}
-        name={uninstallTarget}
-        onClose={() => setUninstallTarget(null)}
-      />
+      <UninstallDialog name={uninstallTarget} onClose={() => setUninstallTarget(null)} />
     </div>
   );
 };

@@ -26,7 +26,7 @@ export const Checkbox = ({ checked, onChange, ariaLabel, disabled }: CheckboxPro
         checked ? 'border-accent bg-accent' : 'border-fg-subtle/50 hover:border-fg-subtle',
       )}
     >
-      {checked && <Check className="h-3 w-3 text-accent-fg" strokeWidth={3} />}
+      {checked && <Check className="text-accent-fg h-3 w-3" strokeWidth={3} />}
     </span>
   </label>
 );

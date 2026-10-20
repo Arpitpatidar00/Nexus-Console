@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stackroost components</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="components/bundle.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 40px clamp(16px, 4vw, 56px);
+      }
+      .g-top {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+      .g-top h1 {
+        margin: 0;
+        font: 600 40px/44px var(--font-display);
+        letter-spacing: -0.025em;
+      }
+      .g-sec {
+        margin: 0 0 40px;
+      }
+      .g-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .g-head h2 {
+        margin: 0;
+        font: 600 22px/28px var(--font-display);
+      }
+      .g-guide {
+        margin: 6px 0 14px;
+        max-width: 760px;
+        font: 400 14px/21px var(--font-sans);
+        color: var(--muted-foreground);
+      }
+      .g-guide code {
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .g-stage {
+        overflow-x: auto;
+      }
+    </style>
+    <script src="../vendor/react.production.min.js"></script>
+    <script src="../vendor/react-dom.production.min.js"></script>
+    <script src="components/bundle.js"></script>
+  </head>
+  <body class="theme-dark">
+    <div class="g-top">
+      <div>
+        <p class="sr-eyebrow">Stackroost · Smoked Glass</p>
+        <h1>Components</h1>
+      </div>
+      <button
+        type="button"
+        class="sr-btn sr-btn--glass sr-btn--md"
+        onclick="
+          var b = document.body;
+          var d = b.classList.toggle('theme-light');
+          b.classList.toggle('theme-dark', !d);
+          this.textContent = d ? 'Show Smoked (dark)' : 'Show Frost (light)';
+        "
+      >
+        Show Frost (light)
+      </button>
+    </div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+    </script>
+    <section class="g-sec" id="Logo">
+      <div class="g-head">
+        <h2>Logo</h2>
+        <span class="sr-eyebrow">Brand</span>
+      </div>
+      <p class="g-guide">
+        The Stackroost lockup: the mark plus the lowercase wordmark set in Outfit 600.
+      </p>
+      <div class="sr-ground g-stage" id="c0"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c0')).render(
+          h(
+            'div',
+            { className: 'sr-flex', style: { gap: '40px' } },
+            h(S.Logo, { size: 44 }),
+            h(S.Logo, { size: 30 }),
+            h(S.Logo, { size: 20 }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Mark">
+      <div class="g-head">
+        <h2>Mark</h2>
+        <span class="sr-eyebrow">Brand</span>
+      </div>
+      <p class="g-guide">
+        The Stackroost mark: three stacked pills (your stack) with a warm dot roosting on top.
+      </p>
+      <div class="sr-ground g-stage" id="c1"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c1')).render(
+          h(
+            'div',
+            { className: 'sr-flex', style: { gap: '28px', alignItems: 'flex-end' } },
+            h(S.Mark, { size: 96 }),
+            h(S.Mark, { size: 56 }),
+            h(S.Mark, { size: 32 }),
+            h(S.Mark, { size: 20 }),
+            h('img', {
+              src: 'assets/Logos/stackroost-app-icon.svg',
+              width: 128,
+              height: 128,
+              alt: 'App icon',
+            }),
+            h('img', {
+              src: 'assets/Logos/stackroost-app-icon-dial.svg',
+              width: 128,
+              height: 128,
+              alt: 'App icon, dial variant',
+            }),
+            h(
+              'div',
+              {
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  height: '32px',
+                  padding: '0 14px',
+                  borderRadius: '10px',
+                  background: '#E9EAEE',
+                  color: '#000',
+                  font: '13px -apple-system, system-ui',
+                },
+              },
+              h('img', {
+                src: 'assets/Logos/stackroost-menubar-template.svg',
+                width: 18,
+                height: 18,
+                alt: 'Menu bar icon',
+              }),
+              '3/5',
+            ),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Icon">
+      <div class="g-head">
+        <h2>Icon</h2>
+        <span class="sr-eyebrow">Brand</span>
+      </div>
+      <p class="g-guide">
+        Line icons on a 24 px grid, 1.75 stroke, round caps and joins, drawn in
+        <code>currentColor</code>.
+      </p>
+      <div class="sr-ground g-stage" id="c2"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c2')).render(
+          h(
+            'div',
+            {
+              style: {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+                gap: '12px',
+              },
+            },
+            S.iconNames.map(function (n) {
+              return h(
+                'div',
+                { key: n, className: 'sr-stack', style: { alignItems: 'center', gap: '8px' } },
+                h(
+                  'span',
+                  { className: 'sr-row__icon', style: { width: '44px', height: '44px' } },
+                  h(S.Icon, { name: n, size: 20 }),
+                ),
+                h('span', { className: 'sr-mono sr-muted', style: { fontSize: '11px' } }, n),
+              );
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Button">
+      <div class="g-head">
+        <h2>Button</h2>
+        <span class="sr-eyebrow">Actions</span>
+      </div>
+      <p class="g-guide">
+        Pill buttons; the inverse pill (<code>primary</code>) is the one main action in a view.
+      </p>
+      <div class="sr-ground g-stage" id="c3"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c3')).render(
+          h(
+            'div',
+            { className: 'sr-stack', style: { gap: '20px' } },
+            h(
+              'div',
+              { className: 'sr-flex' },
+              h(S.Button, null, 'Connect'),
+              h(S.Button, { variant: 'ember', icon: 'upload' }, 'Deploy'),
+              h(S.Button, { variant: 'glass', icon: 'terminal' }, 'Open terminal'),
+              h(S.Button, { variant: 'outline' }, 'Logs'),
+              h(S.Button, { variant: 'ghost' }, 'Cancel'),
+              h(S.Button, { variant: 'destructive', icon: 'stop' }, 'Stop container'),
+            ),
+            h(
+              'div',
+              { className: 'sr-flex' },
+              h(S.Button, { size: 'sm' }, 'Small'),
+              h(S.Button, { size: 'lg' }, 'Large'),
+              h(S.Button, {
+                size: 'icon',
+                variant: 'glass',
+                icon: 'restart',
+                'aria-label': 'Restart',
+              }),
+              h(S.Button, { size: 'icon', icon: 'plus', 'aria-label': 'Add server' }),
+              h(S.Button, { disabled: true }, 'Disabled'),
+            ),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Badge">
+      <div class="g-head">
+        <h2>Badge</h2>
+        <span class="sr-eyebrow">Status</span>
+      </div>
+      <p class="g-guide">Status pills: colour plus words, never colour alone.</p>
+      <div class="sr-ground g-stage" id="c4"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c4')).render(
+          h(
+            'div',
+            { className: 'sr-flex' },
+            h(S.Badge, { dot: true }, 'Not connected'),
+            h(S.Badge, { tone: 'success', dot: true }, 'Healthy'),
+            h(S.Badge, { tone: 'warning', dot: true }, 'Starting'),
+            h(S.Badge, { tone: 'danger', dot: true }, '2 issues'),
+            h(S.Badge, { tone: 'info' }, 'Update available'),
+            h(S.Badge, { tone: 'ember' }, 'New'),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="EnvBadge">
+      <div class="g-head">
+        <h2>EnvBadge</h2>
+        <span class="sr-eyebrow">Status</span>
+      </div>
+      <p class="g-guide">
+        The environment tag on every host, tunnel and connection: Dev, Staging, PROD, Other.
+      </p>
+      <div class="sr-ground g-stage" id="c5"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c5')).render(
+          h(
+            'div',
+            { className: 'sr-flex' },
+            h(S.EnvBadge, { env: 'dev' }),
+            h(S.EnvBadge, { env: 'staging' }),
+            h(S.EnvBadge, { env: 'prod' }),
+            h(S.EnvBadge, { env: 'other' }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Panel">
+      <div class="g-head">
+        <h2>Panel</h2>
+        <span class="sr-eyebrow">Surfaces</span>
+      </div>
+      <p class="g-guide">A card: frosted glass over the ground, 28 px corners, 24 px padding.</p>
+      <div class="sr-ground g-stage" id="c6"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c6')).render(
+          h(
+            'div',
+            {
+              style: {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: '20px',
+              },
+            },
+            h(
+              S.Panel,
+              {
+                title: 'Containers',
+                subtitle: '6 running · 1 restarting',
+                action: h(S.Button, { size: 'sm', variant: 'glass' }, 'View all'),
+              },
+              h(S.Progress, { label: 'Healthy', value: 86, tone: 'success', valueText: '6 of 7' }),
+            ),
+            h(
+              S.Panel,
+              {
+                variant: 'solid',
+                title: 'Opaque surface',
+                subtitle: 'For reduced transparency and dense tables.',
+              },
+              h(S.Badge, { tone: 'warning', dot: true }, 'Starting'),
+            ),
+            h(
+              S.Panel,
+              {
+                variant: 'inverse',
+                title: 'Deploy ready',
+                subtitle: 'staging is 3 images ahead of prod.',
+              },
+              h('div', null, h(S.Button, { variant: 'ember', size: 'sm' }, 'Review changes')),
+            ),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Metric">
+      <div class="g-head">
+        <h2>Metric</h2>
+        <span class="sr-eyebrow">Data</span>
+      </div>
+      <p class="g-guide">
+        A measured number with its label: the big-number style from the references, used honestly.
+      </p>
+      <div class="sr-ground g-stage" id="c7"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c7')).render(
+          h(
+            'div',
+            {
+              style: {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: '28px',
+              },
+            },
+            h(S.Metric, {
+              value: '68.5',
+              unit: '%',
+              label: 'Disk used · fameo-prod',
+              tone: 'ember',
+              progress: 68.5,
+            }),
+            h(S.Metric, {
+              value: '14',
+              unit: 'd',
+              label: 'Uptime',
+              tone: 'success',
+              progress: 100,
+            }),
+            h(S.Metric, {
+              value: '0.42',
+              label: 'Load, 5 min',
+              spark: [0.3, 0.42, 0.38, 0.6, 0.51, 0.47, 0.39, 0.44, 0.42],
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Sparkline">
+      <div class="g-head">
+        <h2>Sparkline</h2>
+        <span class="sr-eyebrow">Data</span>
+      </div>
+      <p class="g-guide">
+        A thin smoothed line for a trend, with an optional soft area and end marker.
+      </p>
+      <div class="sr-ground g-stage" id="c8"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c8')).render(
+          h(
+            'div',
+            { className: 'sr-flex', style: { gap: '32px' } },
+            h(S.Sparkline, {
+              data: [3, 5, 4, 8, 6, 9, 7, 11, 10],
+              width: 200,
+              height: 48,
+              area: true,
+              marker: true,
+              label: 'CPU trend',
+            }),
+            h(S.Sparkline, {
+              data: [9, 7, 8, 5, 6, 4, 5, 3, 4],
+              width: 200,
+              height: 48,
+              tone: 'ivory',
+              label: 'Memory trend',
+            }),
+            h(S.Sparkline, {
+              data: [2, 3, 2, 4, 3, 6, 5, 7, 6],
+              width: 200,
+              height: 48,
+              tone: 'lime',
+              label: 'Requests trend',
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Progress">
+      <div class="g-head">
+        <h2>Progress</h2>
+        <span class="sr-eyebrow">Status</span>
+      </div>
+      <p class="g-guide">An 8 px track with a rounded fill: disk, memory, deploy steps.</p>
+      <div class="sr-ground g-stage" id="c9"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c9')).render(
+          h(
+            'div',
+            { className: 'sr-stack', style: { gap: '20px', maxWidth: '520px' } },
+            h(S.Progress, { label: 'Disk · /', value: 68 }),
+            h(S.Progress, { label: 'Memory', value: 41, tone: 'ivory' }),
+            h(S.Progress, {
+              label: 'Deploy · pulling images',
+              value: 92,
+              tone: 'success',
+              valueText: '11 of 12',
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Segmented">
+      <div class="g-head">
+        <h2>Segmented</h2>
+        <span class="sr-eyebrow">Inputs</span>
+      </div>
+      <p class="g-guide">
+        A pill group for switching views or ranges; the active segment is the inverse pill.
+      </p>
+      <div class="sr-ground g-stage" id="c10"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c10')).render(
+          h(
+            'div',
+            { className: 'sr-stack', style: { gap: '16px', alignItems: 'flex-start' } },
+            h(S.Segmented, {
+              label: 'Section',
+              options: ['Overview', 'Containers', 'Services', 'Ports', 'Issues'],
+            }),
+            h(S.Segmented, {
+              label: 'Range',
+              options: ['1H', '24H', '7D', '30D'],
+              defaultValue: '24H',
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Switch">
+      <div class="g-head">
+        <h2>Switch</h2>
+        <span class="sr-eyebrow">Inputs</span>
+      </div>
+      <p class="g-guide">An on/off setting; on = ember track with an ink thumb.</p>
+      <div class="sr-ground g-stage" id="c11"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c11')).render(
+          h(
+            'div',
+            { className: 'sr-stack', style: { gap: '16px' } },
+            h(S.Switch, { label: 'Check in the background', defaultChecked: true }),
+            h(S.Switch, { label: 'Connect when Stackroost opens' }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Input">
+      <div class="g-head">
+        <h2>Input</h2>
+        <span class="sr-eyebrow">Inputs</span>
+      </div>
+      <p class="g-guide">
+        A text field in a soft well: 44 px tall, 16 px corners, ember focus ring with a halo.
+      </p>
+      <div class="sr-ground g-stage" id="c12"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c12')).render(
+          h(
+            'div',
+            {
+              style: {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: '20px',
+                maxWidth: '640px',
+              },
+            },
+            h(S.Input, {
+              label: 'Hostname',
+              mono: true,
+              placeholder: '10.0.4.12',
+              hint: 'IPv4, IPv6 or a DNS name',
+            }),
+            h(S.Input, { label: 'Label', defaultValue: 'Fameo API' }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="SearchField">
+      <div class="g-head">
+        <h2>SearchField</h2>
+        <span class="sr-eyebrow">Inputs</span>
+      </div>
+      <p class="g-guide">
+        The header search pill from the references: an ink circle with the glass, then the field,
+        then the shortcut.
+      </p>
+      <div class="sr-ground g-stage" id="c13"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c13')).render(
+          h(
+            'div',
+            { style: { maxWidth: '520px' } },
+            h(S.SearchField, { placeholder: 'Search hosts, containers, ports', shortcut: '⌘K' }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="NavRail">
+      <div class="g-head">
+        <h2>NavRail</h2>
+        <span class="sr-eyebrow">Navigation</span>
+      </div>
+      <p class="g-guide">
+        The floating icon rail that replaces the wide sidebar: 44 px circles, the active one filled.
+      </p>
+      <div class="sr-ground g-stage" id="c14"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c14')).render(
+          h(
+            'div',
+            { style: { display: 'flex', height: '500px' } },
+            h(S.NavRail, {
+              active: 'servers',
+              items: [
+                { id: 'services', icon: 'activity', label: 'Services' },
+                { id: 'servers', icon: 'server', label: 'Servers', badge: true },
+                { id: 'ports', icon: 'plug', label: 'Ports' },
+                { id: 'doctor', icon: 'shield', label: 'Doctor' },
+                { id: 'storage', icon: 'drive', label: 'Storage' },
+                { id: 'claude', icon: 'message', label: 'Claude Chats' },
+              ],
+              footer: [{ id: 'settings', icon: 'settings', label: 'Settings' }],
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="ListRow">
+      <div class="g-head">
+        <h2>ListRow</h2>
+        <span class="sr-eyebrow">Data</span>
+      </div>
+      <p class="g-guide">
+        The workhorse row: icon circle, title, mono subtitle, meta, status badge, trailing actions.
+      </p>
+      <div class="sr-ground g-stage" id="c15"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c15')).render(
+          h(
+            'div',
+            { className: 'sr-stack', style: { maxWidth: '720px' } },
+            h(S.ListRow, {
+              icon: 'server',
+              title: 'fameo-prod',
+              subtitle: 'ubuntu@10.0.4.12:22',
+              meta: '12 ms',
+              status: h(S.Badge, { tone: 'success', dot: true }, 'Healthy'),
+              trailing: h(S.Button, {
+                size: 'icon',
+                variant: 'ghost',
+                icon: 'more',
+                'aria-label': 'More for fameo-prod',
+              }),
+            }),
+            h(S.ListRow, {
+              icon: 'containers',
+              title: 'api-1',
+              subtitle: 'ghcr.io/fameo/api:2.4.1',
+              meta: 'CPU 3% · 212 MB',
+              status: h(S.Badge, { tone: 'warning', dot: true }, 'Restarting'),
+              trailing: h(S.Button, {
+                size: 'icon',
+                variant: 'ghost',
+                icon: 'more',
+                'aria-label': 'More for api-1',
+              }),
+            }),
+            h(S.ListRow, {
+              icon: 'database',
+              title: 'postgresql@18',
+              subtitle: 'localhost:5432',
+              meta: '1.2 GB',
+              status: h(S.Badge, { dot: true }, 'Stopped'),
+            }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="DialogSurface">
+      <div class="g-head">
+        <h2>DialogSurface</h2>
+        <span class="sr-eyebrow">Surfaces</span>
+      </div>
+      <p class="g-guide">
+        The dialog card: opaque <code>popover</code>, 28 px corners, title, description, body,
+        right-aligned actions.
+      </p>
+      <div class="sr-ground g-stage" id="c16"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c16')).render(
+          h(
+            S.DialogSurface,
+            {
+              title: 'Restart api-1 on fameo-prod?',
+              description: 'This is a PROD server. Type the server name to confirm.',
+              actions: h(
+                React.Fragment,
+                null,
+                h(S.Button, { variant: 'ghost' }, 'Cancel'),
+                h(S.Button, { variant: 'destructive', icon: 'restart' }, 'Restart on PROD'),
+              ),
+            },
+            h(S.Input, { label: 'Server name', mono: true, placeholder: 'fameo-prod' }),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Menu">
+      <div class="g-head">
+        <h2>Menu</h2>
+        <span class="sr-eyebrow">Surfaces</span>
+      </div>
+      <p class="g-guide">
+        The dropdown and context menu surface: opaque, 22 px corners, 36 px items, separators,
+        shortcuts.
+      </p>
+      <div class="sr-ground g-stage" id="c17"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c17')).render(
+          h(S.Menu, {
+            label: 'Container actions',
+            items: [
+              { label: 'Live logs', icon: 'list', shortcut: '⌘L' },
+              { label: 'Shell inside', icon: 'terminal' },
+              { label: 'Restart', icon: 'restart' },
+              { separator: true },
+              { label: 'Stop', icon: 'stop', danger: true },
+              { label: 'Remove', icon: 'x', danger: true },
+            ],
+          }),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="Tooltip">
+      <div class="g-head">
+        <h2>Tooltip</h2>
+        <span class="sr-eyebrow">Surfaces</span>
+      </div>
+      <p class="g-guide">A small inverse pill naming an icon-only control.</p>
+      <div class="sr-ground g-stage" id="c18"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c18')).render(
+          h(
+            'div',
+            { className: 'sr-flex', style: { gap: '28px', paddingTop: '36px' } },
+            h(
+              S.Tooltip,
+              { label: 'Restart', open: true },
+              h(S.Button, {
+                size: 'icon',
+                variant: 'glass',
+                icon: 'restart',
+                'aria-label': 'Restart',
+              }),
+            ),
+            h(
+              S.Tooltip,
+              { label: 'Open terminal' },
+              h(S.Button, {
+                size: 'icon',
+                variant: 'glass',
+                icon: 'terminal',
+                'aria-label': 'Open terminal',
+              }),
+            ),
+          ),
+        );
+      </script>
+    </section>
+    <section class="g-sec" id="CommandDial">
+      <div class="g-head">
+        <h2>CommandDial</h2>
+        <span class="sr-eyebrow">Navigation</span>
+      </div>
+      <p class="g-guide">
+        The quick-switch dial from the radial-menu reference: a glass ring of module segments around
+        an ivory knob, with the modules fanned out as chips.
+      </p>
+      <div class="sr-ground g-stage" id="c19"></div>
+      <script>
+        ReactDOM.createRoot(document.getElementById('c19')).render(
+          h(S.CommandDial, {
+            active: 'servers',
+            items: [
+              { id: 'servers', icon: 'server', label: 'Servers' },
+              { id: 'services', icon: 'activity', label: 'Services' },
+              { id: 'ports', icon: 'plug', label: 'Ports' },
+              { id: 'terminal', icon: 'terminal', label: 'Terminal' },
+              { id: 'doctor', icon: 'shield', label: 'Doctor' },
+              { id: 'storage', icon: 'drive', label: 'Storage' },
+              { id: 'claude', icon: 'message', label: 'Claude Chats' },
+              { id: 'settings', icon: 'settings', label: 'Settings' },
+            ],
+          }),
+        );
+      </script>
+    </section>
+  </body>
+</html>

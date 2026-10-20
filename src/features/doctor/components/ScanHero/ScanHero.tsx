@@ -1,4 +1,4 @@
-import { Code, Cog, Globe, HardDrive, Power, ShieldCheck, Stethoscope } from 'lucide-react';
+import { Code, Cog, Globe, HardDrive, Power, Stethoscope } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/Button';
 
@@ -8,31 +8,31 @@ const AREAS = [
     icon: Cog,
     label: 'System',
     desc: 'Low Power Mode, memory pressure, Time Machine',
-    badge: 'bg-accent-soft text-accent',
+    badge: 'bg-ember-soft text-ember-text',
   },
   {
     icon: Code,
     label: 'VSCode',
     desc: 'Extensions, orphan caches, database bloat',
-    badge: 'bg-running-soft text-running',
+    badge: 'bg-success-soft text-success',
   },
   {
     icon: Globe,
     label: 'Browser',
     desc: 'Memory, extension cost, caches',
-    badge: 'bg-accent-soft text-accent',
+    badge: 'bg-info-soft text-info',
   },
   {
     icon: HardDrive,
     label: 'Disk',
     desc: 'Free space, dev caches, ollama models',
-    badge: 'bg-warn-soft text-warn',
+    badge: 'bg-warning-soft text-warning',
   },
   {
     icon: Power,
     label: 'Startup',
     desc: 'Third-party launch agents',
-    badge: 'bg-running-soft text-running',
+    badge: 'bg-success-soft text-success',
   },
 ];
 
@@ -45,40 +45,44 @@ export const ScanHero = ({
   onDeepScan: () => void;
 }) => (
   <div className="h-full overflow-y-auto">
-    <div className="mx-auto flex min-h-full max-w-4xl flex-col items-center justify-center gap-6 p-8">
+    <div className="mx-auto flex min-h-full max-w-4xl flex-col items-center justify-center gap-6 p-8 select-none">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft">
-          <Stethoscope className="h-7 w-7 text-accent" />
+        <div className="flex size-16 items-center justify-center rounded-full bg-ember-soft text-ember">
+          <Stethoscope className="size-8" />
         </div>
-        <h2 className="text-xl font-semibold text-fg">Check your Mac's health</h2>
-        <p className="max-w-md text-sm leading-relaxed text-fg-muted">
+        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          Check your Mac&apos;s health
+        </h2>
+        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
           One read-only scan across key areas. Nothing changes without your confirmation.
         </p>
       </div>
 
       <div className="flex w-full items-center gap-3" aria-hidden>
-        <span className="h-px flex-1 bg-border" />
-        <span className="text-xs font-medium text-fg-subtle">Scan areas</span>
-        <span className="h-px flex-1 bg-border" />
+        <span className="h-px flex-1 bg-hairline" />
+        <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+          Scan areas
+        </span>
+        <span className="h-px flex-1 bg-hairline" />
       </div>
 
-      <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {AREAS.map(({ icon: Icon, label, desc, badge }) => (
           <div
             key={label}
-            className="flex h-20 items-center gap-3 rounded-xl border border-border bg-list px-4"
+            className="flex h-22 items-center gap-3 rounded-xl p-4 shadow-edge glass transition-all hover:bg-glass-strong"
           >
             <span
               className={cn(
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                'flex size-10 shrink-0 items-center justify-center rounded-full',
                 badge,
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-fg">{label}</span>
-              <span className="line-clamp-2 block text-xs leading-relaxed text-fg-muted">
+              <span className="block text-sm font-semibold text-foreground">{label}</span>
+              <span className="line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
                 {desc}
               </span>
             </span>
@@ -86,32 +90,20 @@ export const ScanHero = ({
         ))}
       </div>
 
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Button onClick={onScan}>
-            <Stethoscope className="h-4 w-4" />
+      <div className="mt-2 flex flex-col items-center gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ember" onClick={onScan}>
+            <Stethoscope className="size-4" />
             Scan
           </Button>
-          <Button variant="secondary" onClick={onDeepScan}>
-            <HardDrive className="h-4 w-4" />
+          <Button variant="glass" onClick={onDeepScan}>
+            <HardDrive className="size-4" />
             Deep scan
           </Button>
         </div>
-        <p className="text-xs text-fg-subtle">
-          Deep scan also sweeps node_modules and dev caches — slower, but finds the most disk.
+        <p className="text-xs text-muted-foreground">
+          Read-only: checks what is installed and running, changes nothing.
         </p>
-      </div>
-
-      <div className="flex w-full items-center gap-3 rounded-xl border border-border bg-list px-4 py-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-          <ShieldCheck className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-fg">Safe &amp; Read-only</span>
-          <span className="block text-xs leading-relaxed text-fg-muted">
-            This tool only reads system information. No changes are made without your confirmation.
-          </span>
-        </span>
       </div>
     </div>
   </div>

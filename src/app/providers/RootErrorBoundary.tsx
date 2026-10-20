@@ -32,7 +32,7 @@ export class RootErrorBoundary extends Component<Props, State> {
           <p className="text-sm text-fg-muted">{error.message}</p>
           <button
             type="button"
-            className="mt-2 rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg"
+            className="text-accent-fg mt-2 rounded-md bg-accent px-3 py-1.5 text-sm"
             onClick={() => this.setState({ error: null })}
           >
             Try again

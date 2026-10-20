@@ -21,17 +21,6 @@ import { AddHostDialog } from '@/features/remote/components/AddHostDialog';
 import { EditHostDialog } from '@/features/remote/components/EditHostDialog';
 import { JournalDialog } from '@/features/remote/components/JournalDialog';
 
-const ListSkeleton = () => (
-  <div aria-hidden>
-    {Array.from({ length: 5 }, (_, i) => (
-      <div key={i} className="border-b border-border px-4 py-3 last:border-b-0">
-        <div className="h-4 w-36 animate-pulse rounded bg-list" />
-        <div className="mt-1.5 h-3 w-48 animate-pulse rounded bg-list" />
-      </div>
-    ))}
-  </div>
-);
-
 /** Master-detail: servers grouped by project on the left, the selected
  * server's health on the right. Nothing connects until the user says so. */
 export const RemotePage = () => {
@@ -144,13 +133,12 @@ export const RemotePage = () => {
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] gap-4 p-6">
           <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
-            {state.isPending ? (
-              <ListSkeleton />
-            ) : hosts.length === 0 ? (
-              <p className="p-4 text-sm text-fg-muted">No servers yet.</p>
-            ) : (
-              <HostList hosts={hosts} activeId={active?.id ?? null} onSelect={setSelectedId} />
-            )}
+            <HostList
+              hosts={hosts}
+              activeId={active?.id ?? null}
+              isLoading={state.isPending}
+              onSelect={setSelectedId}
+            />
           </section>
           {active ? (
             <HostDetail key={active.id} host={active} onEdit={() => setEditing(true)} />

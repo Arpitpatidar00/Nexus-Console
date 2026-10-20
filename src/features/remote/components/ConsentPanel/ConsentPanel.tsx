@@ -7,9 +7,9 @@ import { useSetConsent } from '@/features/remote/api/remoteMutations';
 export const ConsentCopy = () => (
   <ul className="max-w-[60ch] list-disc space-y-1.5 pl-5 text-left text-sm leading-relaxed text-fg-muted">
     <li>
-      Nexus reads <span className="font-mono text-fg">~/.ssh/config</span> (and files it includes)
-      to list your hosts. It never opens your keys or <span className="font-mono">known_hosts</span>
-      .
+      Stackroost reads <span className="font-mono text-fg">~/.ssh/config</span> (and files it
+      includes) to list your hosts. It never opens your keys or{' '}
+      <span className="font-mono">known_hosts</span>.
     </li>
     <li>
       Connections use your own <span className="font-mono">ssh</span>, keys and agent. Nothing

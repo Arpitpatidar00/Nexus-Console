@@ -1,14 +1,14 @@
 import { FolderSearch } from 'lucide-react';
 import { formatBytes } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/Button';
-import type { StorageReport } from '@/features/maclean/api/maclean.schema';
 import { useReveal } from '@/features/maclean/api/macleanMutations';
 import { Card } from '@/features/maclean/components/Card';
+import type { LargeFilesProps } from './LargeFiles.types';
 
 const tilde = (p: string) => p.replace(/^\/Users\/[^/]+/, '~');
 
 /** Files of 1 GB or more. Reported only; Reveal opens Finder at the file. */
-export const LargeFiles = ({ files }: { files: StorageReport['largeFiles'] }) => {
+export const LargeFiles = ({ files }: LargeFilesProps) => {
   const reveal = useReveal();
   return (
     <Card

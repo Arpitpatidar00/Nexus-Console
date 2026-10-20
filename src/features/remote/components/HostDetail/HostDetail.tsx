@@ -147,7 +147,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         <EmptyState
           icon={<ServerOff className="h-8 w-8" />}
           title="Not connected"
-          description="Nexus connects with your own ssh, keys and agent, and only when you ask."
+          description="Stackroost connects with your own ssh, keys and agent, and only when you ask."
         />
       ) : conn.state === 'connecting' ? (
         <BodySkeleton />

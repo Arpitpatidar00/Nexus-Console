@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Nexus Console** — a macOS desktop/menu-bar app: Tauri 2 (Rust) + React 19 + Vite + Tailwind v4.
-It manages local Homebrew services/packages/ports, an embedded PTY terminal, and **Nexus Doctor**
+**Stackroost** — a macOS desktop/menu-bar app: Tauri 2 (Rust) + React 19 + Vite + Tailwind v4.
+It manages local Homebrew services/packages/ports, an embedded PTY terminal, and **Stackroost Doctor**
 (read-only machine-health probes, the Claude chat Archiver, VSCode cleanup). macOS 11+, single
 window (`main`), no backend, no network API.
 
@@ -17,7 +17,7 @@ window (`main`), no backend, no network API.
 ## Commands
 
 Package manager is **npm** (`package-lock.json` is the tracked lockfile; CI runs `npm ci`).
-An untracked `pnpm-lock.yaml` exists locally — don't commit lockfile churn from mixing the two.
+Do not use or introduce pnpm or yarn files.
 
 ```bash
 npm run setup        # fresh-Mac setup: checks Xcode CLT, brew, node ≥22.12, rustup — and installs

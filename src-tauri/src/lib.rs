@@ -1,4 +1,4 @@
-// Nexus Console — Tauri core.
+// Stackroost — Tauri core.
 
 mod brew;
 mod commands;
@@ -156,7 +156,7 @@ pub fn run() {
             tray::set_tray_services
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Nexus Console")
+        .expect("error while building Stackroost")
         .run(|app, event| {
             // On real quit: kill PTYs, close ssh masters, stop explicitly-unlinked
             // running services.

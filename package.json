@@ -1,8 +1,8 @@
 {
-  "name": "nexus-console",
+  "name": "stackroost",
   "private": true,
   "version": "0.1.0",
-  "author": "xDAnkit <xDAnkitjain@gmail.com>",
+  "author": "Arpit<arpitpatidarappi01@gmail.com>",
   "license": "MIT",
   "type": "module",
   "engines": {

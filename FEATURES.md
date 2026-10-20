@@ -1,6 +1,6 @@
-# Nexus Console — Features
+# Stackroost — Features
 
-Every feature in the app, end to end, in one place. Nexus Console is a macOS menu-bar app for
+Every feature in the app, end to end, in one place. Stackroost is a macOS menu-bar app for
 your local dev setup: Homebrew services and packages, ports, your SSH servers, machine health,
 disk cleanup and memory, Claude Code chats, and a built-in terminal.
 

@@ -1,9 +1,9 @@
 import { formatBytes } from '@/shared/lib/format';
-import type { StorageReport } from '@/features/maclean/api/maclean.schema';
 import { Card } from '@/features/maclean/components/Card';
+import type { CausesListProps } from './CausesList.types';
 
 /** Root causes, biggest first, each with the fix the user applies themselves. */
-export const CausesList = ({ causes }: { causes: StorageReport['causes'] }) => (
+export const CausesList = ({ causes }: CausesListProps) => (
   <Card title="Root causes">
     <ol className="divide-y divide-border">
       {causes.map((c, i) => (

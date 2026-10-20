@@ -1,4 +1,4 @@
-import { KeyRound, TriangleAlert } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { formatBytes } from '@/shared/lib/format';
 import { IpcError } from '@/shared/tauri';
 import { Button } from '@/shared/ui/Button';
@@ -7,18 +7,14 @@ import { Spinner } from '@/shared/ui/Spinner';
 import { useDeepScan } from '@/features/maclean/api/macleanMutations';
 import { Card } from '@/features/maclean/components/Card';
 import { CausesList } from '@/features/maclean/components/CausesList';
-import { UsageBar } from '@/features/maclean/components/UsageBar';
+import { DeepScanEntryRow } from './DeepScanEntryRow';
+import type { DeepScanCardProps } from './DeepScanCard.types';
 
 /** The script's `--deep`. Explains "Other users & system data". */
-export const DeepScanCard = ({
-  unexplainedBytes,
-  dataUsedBytes,
-}: {
-  unexplainedBytes: number;
-  dataUsedBytes: number;
-}) => {
+export const DeepScanCard = ({ unexplainedBytes, dataUsedBytes }: DeepScanCardProps) => {
   const deep = useDeepScan();
   const cancelled = deep.error instanceof IpcError && deep.error.kind === 'cancelled';
+
   return (
     <>
       <Card
@@ -41,25 +37,8 @@ export const DeepScanCard = ({
       >
         {deep.data ? (
           <ul className="divide-y divide-border">
-            {deep.data.entries.map((e) => (
-              <li key={e.label} className="space-y-1.5 px-5 py-2.5">
-                <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="flex min-w-0 items-center gap-1.5 text-fg">
-                    {e.flagged && (
-                      <TriangleAlert aria-hidden className="h-3.5 w-3.5 shrink-0 text-warn" />
-                    )}
-                    <span className="truncate">{e.label}</span>
-                  </span>
-                  <span className="shrink-0 text-xs text-fg-muted tabular-nums">
-                    {formatBytes(e.bytes)}
-                  </span>
-                </div>
-                <UsageBar
-                  pct={dataUsedBytes ? (e.bytes * 100) / dataUsedBytes : 0}
-                  tone={e.flagged ? 'warn' : 'neutral'}
-                />
-                <p className="text-xs text-fg-subtle">{e.why}</p>
-              </li>
+            {deep.data.entries.map((entry) => (
+              <DeepScanEntryRow key={entry.label} entry={entry} dataUsedBytes={dataUsedBytes} />
             ))}
           </ul>
         ) : (

@@ -91,7 +91,7 @@ export const AddHostDialog = ({
         <TextField
           label="Key file (optional)"
           placeholder="~/.ssh/id_ed25519"
-          hint="Passed to ssh -i. Nexus never reads the file."
+          hint="Passed to ssh -i. Stackroost never reads the file."
           value={f.identityFile}
           onChange={set('identityFile')}
         />

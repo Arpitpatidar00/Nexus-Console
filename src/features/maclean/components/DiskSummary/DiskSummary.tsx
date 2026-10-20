@@ -1,17 +1,11 @@
 import { formatBytes, formatRelative } from '@/shared/lib/format';
-import type { CleanJournal, StorageReport } from '@/features/maclean/api/maclean.schema';
 import { diskTone, pct } from '@/features/maclean/utils/storage';
 import { UsageBar } from '@/features/maclean/components/UsageBar';
+import type { DiskSummaryProps } from './DiskSummary.types';
 
 const TONE_TEXT = { ok: 'text-running', warn: 'text-warn', danger: 'text-danger' } as const;
 
-export const DiskSummary = ({
-  disk,
-  lastClean,
-}: {
-  disk: StorageReport['disk'];
-  lastClean?: CleanJournal[number];
-}) => {
+export const DiskSummary = ({ disk, lastClean }: DiskSummaryProps) => {
   const used = pct(disk.usedBytes, disk.totalBytes);
   const tone = diskTone(used);
   return (

@@ -1,11 +1,20 @@
-import { cn } from '@/shared/lib/cn';
+import { Server } from 'lucide-react';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
 import { useHostConnection } from '@/features/remote/api/useHostConnection';
 import { useCachedSnapshot } from '@/features/remote/api/useHostSnapshot';
 import { healthOf, issueCount } from '@/features/remote/utils/health';
 import { hostAddress } from '@/features/remote/utils/host';
-import { EnvBadge } from '@/features/remote/components/EnvBadge';
-import { HostStatus, describeStatus } from '@/features/remote/components/HostStatus';
+import { EnvBadge, Badge } from '@/shared/ui/Badge';
+import { ListRow } from '@/shared/ui/ListRow';
+import { describeStatus, type Tone } from '@/features/remote/components/HostStatus';
+
+const TONE_TO_BADGE: Record<Tone, 'neutral' | 'warning' | 'success' | 'danger'> = {
+  neutral: 'neutral',
+  pending: 'warning',
+  ok: 'success',
+  warn: 'warning',
+  danger: 'danger',
+};
 
 export const HostRow = ({
   host,
@@ -21,32 +30,21 @@ export const HostRow = ({
   const status = describeStatus(conn.state, healthOf(snap), issueCount(snap), conn.error?.kind);
 
   return (
-    <button
-      type="button"
-      aria-pressed={active}
+    <ListRow
+      icon={<Server className="size-4" />}
+      title={host.label}
+      subtitle={hostAddress(host)}
+      active={active}
       onClick={onSelect}
-      className={cn(
-        'block w-full border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
-        active ? 'bg-accent-soft' : 'hover:bg-list',
-      )}
-    >
-      <span className="flex items-center gap-2">
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate text-sm font-medium',
-            active ? 'text-accent' : 'text-fg',
-          )}
-        >
-          {host.label}
-        </span>
-        <EnvBadge env={host.env} />
-      </span>
-      <span className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-muted">
-        <HostStatus {...status} />
-        {host.label !== hostAddress(host) && (
-          <span className="min-w-0 truncate text-fg-subtle">· {hostAddress(host)}</span>
-        )}
-      </span>
-    </button>
+      className="mb-1 cursor-pointer"
+      trailing={
+        <div className="flex shrink-0 items-center gap-1.5">
+          <EnvBadge env={host.env} />
+          <Badge tone={TONE_TO_BADGE[status.tone]} dot size="sm">
+            {status.label}
+          </Badge>
+        </div>
+      }
+    />
   );
 };

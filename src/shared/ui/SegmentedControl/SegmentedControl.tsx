@@ -10,12 +10,12 @@ export const SegmentedControl = <T extends string>({
   ariaLabel,
 }: SegmentedControlProps<T>) => {
   const reduce = useReducedMotion();
-  // Per-instance id so two controls on one screen don't share the sliding pill.
   const groupId = useId();
+
   return (
     <fieldset
       aria-label={ariaLabel}
-      className="m-0 inline-flex min-w-0 rounded-lg border border-border bg-paper p-0.5"
+      className="m-0 inline-flex min-w-0 items-center gap-0.5 rounded-full border border-hairline bg-muted p-1"
     >
       {options.map((o) => {
         const active = value === o.value;
@@ -26,16 +26,15 @@ export const SegmentedControl = <T extends string>({
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'relative rounded-md px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
-              active ? 'text-accent-fg' : 'text-fg-muted hover:text-fg',
+              'relative h-8 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+              active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {/* Shared-layout pill slides between segments — the macOS control feel. */}
             {active && (
               <motion.span
                 aria-hidden
                 layoutId={groupId}
-                className="absolute inset-0 rounded-md bg-accent"
+                className="absolute inset-0 rounded-full bg-primary shadow-sm"
                 transition={
                   reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }
                 }

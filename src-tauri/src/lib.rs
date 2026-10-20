@@ -1,17 +1,25 @@
-// Nexus Console — Tauri core.
+// Stackroost — Tauri core.
 
-mod brew;
-mod commands;
-mod context;
-mod doctor;
-mod error;
-mod pty;
-mod quit;
-mod remote;
-mod session;
-mod settings;
-mod tray;
-mod util;
+pub mod commands;
+pub mod core;
+pub mod database;
+pub mod models;
+pub mod services;
+
+// Backward-compatible crate root aliases for internal references
+pub use core::error::{self, AppError, AppResult};
+pub use core::util;
+pub use database::settings_store as settings;
+pub use models::context::{self, AppContext, BrewVersion};
+pub use models::tray::TrayService;
+pub use services::brew;
+pub use services::doctor;
+pub use services::maclean;
+pub use services::pty;
+pub use services::remote;
+pub use services::session;
+pub use services::session::quit;
+pub use services::tray;
 
 use tauri::Manager;
 
@@ -53,12 +61,17 @@ pub fn run() {
             app.manage(remote::RemoteState::load(remote::store::path_in(
                 app.path().app_data_dir()?,
             )));
+            app.manage(maclean::MacleanState::load(
+                app.path().app_data_dir()?.join(maclean::store::FILE_NAME),
+            ));
             tray::build_tray(app.handle())?;
             // Doctor tray automation (opt-in via Archiver settings): daily
             // auto-archive + VACUUM-when-VSCode-closes. Daemon thread, 5-min tick.
             doctor::scheduler::start(app.handle().clone());
             // Servers background health (opt-in; never connects on its own).
             remote::background::start(app.handle().clone());
+            // Mac Clean scheduled cleanup + low-disk warning (opt-in).
+            maclean::background::start(app.handle().clone());
             // brew --version costs 100-500ms — resolve it off the startup path so
             // it never blocks first paint. Consumers render "v—" until it lands.
             if let Some(bin) = brew_bin {
@@ -119,6 +132,16 @@ pub fn run() {
             commands::packages::upgrade_all,
             commands::packages::package_info,
             commands::packages::update_homebrew,
+            commands::maclean::maclean_scan,
+            commands::maclean::maclean_cancel_scan,
+            commands::maclean::maclean_clean,
+            commands::maclean::maclean_rules,
+            commands::maclean::maclean_set_rules,
+            commands::maclean::maclean_journal,
+            commands::maclean::maclean_memory,
+            commands::maclean::maclean_deep_scan,
+            commands::maclean::maclean_drill,
+            commands::maclean::maclean_reveal,
             commands::remote::remote_state,
             commands::remote::remote_set_consent,
             commands::remote::remote_scan_config,
@@ -132,15 +155,15 @@ pub fn run() {
             commands::remote::remote_snapshot,
             commands::remote::remote_docker_action,
             commands::remote::remote_journal,
-            pty::pty_open,
-            pty::pty_write,
-            pty::pty_resize,
-            pty::pty_kill,
-            tray::set_tray_title,
-            tray::set_tray_services
+            commands::pty::pty_open,
+            commands::pty::pty_write,
+            commands::pty::pty_resize,
+            commands::pty::pty_kill,
+            commands::tray::set_tray_title,
+            commands::tray::set_tray_services,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Nexus Console")
+        .expect("error while building Stackroost")
         .run(|app, event| {
             // On real quit: kill PTYs, close ssh masters, stop explicitly-unlinked
             // running services.

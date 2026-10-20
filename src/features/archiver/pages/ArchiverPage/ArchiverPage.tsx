@@ -2,25 +2,15 @@ import { useState } from 'react';
 import { FolderOpen, Settings2 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import { cn } from '@/shared/lib/cn';
+import { Panel } from '@/shared/ui/Panel';
 import { formatBytes } from '@/shared/lib/format';
 import { useArchivedChats, useClaudeProjects } from '@/features/archiver/api/useArchiver';
 import { ArchiveSettingsDialog } from '@/features/archiver/components/ArchiveSettingsDialog';
 import { ProjectDetail, type ArchiverRow } from '@/features/archiver/components/ProjectDetail';
-
-const ListSkeleton = () => (
-  <div aria-hidden>
-    {Array.from({ length: 6 }, (_, i) => (
-      <div key={i} className="border-b border-border px-4 py-3 last:border-b-0">
-        <div className="h-4 w-36 animate-pulse rounded bg-list" />
-        <div className="mt-1.5 h-3 w-52 animate-pulse rounded bg-list" />
-      </div>
-    ))}
-  </div>
-);
+import { ArchiverProjectsList } from '@/features/archiver/components/ArchiverProjectsList';
 
 /** Master-detail: projects on the left, the selected project's chats +
- * actions on the right (macOS Notes/Mail pattern). */
+ * actions on the right (Smoked Glass pattern). */
 export const ArchiverPage = () => {
   const projects = useClaudeProjects();
   const archived = useArchivedChats();
@@ -29,8 +19,6 @@ export const ArchiverPage = () => {
 
   const isPending = projects.isPending || archived.isPending;
 
-  // Live projects first (already newest-activity-first), then orphan archive
-  // folders whose original project no longer exists.
   const rows: ArchiverRow[] = [
     ...(projects.data ?? []).map((p) => ({
       id: p.dirName,
@@ -48,9 +36,8 @@ export const ArchiverPage = () => {
         live: null,
         archived: a,
       })),
-  ]
-    // Hide empty projects — 0 live AND 0 archived is just noise, not a project.
-    .filter((r) => (r.live?.sessions ?? 0) + (r.archived?.chats.length ?? 0) > 0);
+  ].filter((r) => (r.live?.sessions ?? 0) + (r.archived?.chats.length ?? 0) > 0);
+
   const active = rows.find((r) => r.id === selectedId) ?? rows[0] ?? null;
 
   const totalChats = rows.reduce((n, r) => n + (r.live?.sessions ?? 0), 0);
@@ -60,88 +47,52 @@ export const ArchiverPage = () => {
     : `${rows.length} projects · ${totalChats} live chats · ${formatBytes(archiveBytes)} archived`;
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-fg">Claude Chats</h1>
-          <p className="text-sm text-fg-muted tabular-nums">{subtitle}</p>
-        </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
+        <p className="sr-caption tabular-nums">{subtitle}</p>
         <Button
-          variant="ghost"
-          size="icon"
+          variant="glass"
+          size="sm"
           aria-label="Archive settings"
           title="Archive settings"
           onClick={() => setSettingsOpen(true)}
         >
-          <Settings2 className="h-4 w-4" />
+          <Settings2 className="size-4" />
+          Archive Settings
         </Button>
-      </header>
+      </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] gap-4 p-6">
-        {/* Master: projects */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
-          <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-fg">
-            Projects
-          </h2>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {isPending ? (
-              <ListSkeleton />
-            ) : rows.length === 0 ? (
-              <p className="p-4 text-sm text-fg-muted">Nothing in ~/.claude/projects.</p>
-            ) : (
-              rows.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  aria-pressed={active?.id === r.id}
-                  onClick={() => setSelectedId(r.id)}
-                  className={cn(
-                    'block w-full border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
-                    active?.id === r.id ? 'bg-accent-soft' : 'hover:bg-list',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'block truncate text-sm font-medium',
-                      active?.id === r.id ? 'text-accent' : 'text-fg',
-                    )}
-                  >
-                    {r.displayName}
-                  </span>
-                  <span className="block truncate text-xs text-fg-subtle">{r.subtitle}</span>
-                  <span className="block text-xs text-fg-muted tabular-nums">
-                    {r.live?.sessions ?? 0} live · {r.archived?.chats.length ?? 0} archived
-                    {r.live?.cacheBytes != null && ` · ${formatBytes(r.live.cacheBytes)} cache`}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 md:grid-cols-[340px_1fr]">
+        <Panel
+          title="Projects"
+          subtitle="Claude Code workspace history"
+          className="flex min-h-0 flex-col overflow-hidden p-4"
+        >
+          <ArchiverProjectsList
+            rows={rows}
+            selectedId={active?.id ?? null}
+            isPending={isPending}
+            onSelect={setSelectedId}
+          />
+        </Panel>
 
-        {/* Detail: selected project's chats + actions */}
         {isPending ? (
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
-            <div aria-hidden className="p-4">
-              <div className="h-4 w-48 animate-pulse rounded bg-list" />
-              <div className="mt-2 h-3 w-72 animate-pulse rounded bg-list" />
-              <div className="mt-6 space-y-3">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <div key={i} className="h-4 animate-pulse rounded bg-list" />
-                ))}
-              </div>
+          <Panel className="flex min-h-0 flex-col overflow-hidden p-6">
+            <div aria-hidden className="space-y-3 p-4">
+              <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-72 animate-pulse rounded bg-muted" />
             </div>
-          </section>
+          </Panel>
         ) : active ? (
           <ProjectDetail key={active.id} row={active} />
         ) : (
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
+          <Panel className="flex min-h-0 flex-col overflow-hidden p-6">
             <EmptyState
-              icon={<FolderOpen className="h-8 w-8" />}
+              icon={<FolderOpen className="size-10" />}
               title="No Claude projects"
               description="Nothing found in ~/.claude/projects on this machine."
             />
-          </section>
+          </Panel>
         )}
       </div>
 

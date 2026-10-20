@@ -74,17 +74,17 @@ export const WelcomeScreen = () => {
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-6 px-8 py-10">
         <motion.header {...rise(0)} className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <span className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-xl text-accent">
               <Boxes className="h-5 w-5" />
             </span>
-            <span className="text-sm font-medium text-fg-muted">Nexus Console</span>
+            <span className="text-sm font-medium text-fg-muted">Stackroost</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-fg">
             Choose what you&rsquo;ll use
           </h1>
           <p className="max-w-prose text-sm text-fg-muted">
-            Nexus only runs the parts you switch on. Change this any time in Settings — nothing is
-            deleted.
+            Stackroost only runs the parts you switch on. Change this any time in Settings — nothing
+            is deleted.
           </p>
         </motion.header>
 

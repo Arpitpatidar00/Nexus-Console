@@ -72,7 +72,7 @@ pub async fn kill_process(pid: u32, force: bool, sudo: bool) -> AppResult<()> {
         return Err(AppError::Forbidden("refusing to signal pid < 2".into()));
     }
     if pid == std::process::id() {
-        return Err(AppError::Forbidden("refusing to kill Nexus Console".into()));
+        return Err(AppError::Forbidden("refusing to kill Stackroost".into()));
     }
     let sig_name = if force { "KILL" } else { "TERM" };
 

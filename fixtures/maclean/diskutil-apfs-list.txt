@@ -1,0 +1,73 @@
+APFS Containers (3 found)
+|
++-- Container disk3 1BE10003-0CAC-4042-8766-26BE27E2F70E
+    ====================================================
+    APFS Container Reference:     disk3
+    Size (Capacity Ceiling):      245107195904 B (245.1 GB)
+    Capacity In Use By Volumes:   224444088320 B (224.4 GB) (91.6% used)
+    Capacity Not Allocated:       20663107584 B (20.7 GB) (8.4% free)
+    |
+    +-< Physical Store disk0s2 3CF5D865-1429-436A-934D-1D22CE211E6C
+    |   -----------------------------------------------------------
+    |   APFS Physical Store Disk:   disk0s2
+    |   Size:                       245107195904 B (245.1 GB)
+    |
+    +-> Volume disk3s1 C8944B4E-1CC8-4CD1-920F-9E6A7F70E531
+    |   ---------------------------------------------------
+    |   APFS Volume Disk (Role):   disk3s1 (No specific role)
+    |   Name:                      Macintosh HD (Case-insensitive)
+    |   Mount Point:               /Volumes/Macintosh HD 1
+    |   Capacity Consumed:         1714196480 B (1.7 GB)
+    |   Sealed:                    No
+    |   FileVault:                 No (Encrypted at rest)
+    |
+    +-> Volume disk3s2 F6BC1BD0-D96E-414F-8B19-64D1FA962166
+    |   ---------------------------------------------------
+    |   APFS Volume Disk (Role):   disk3s2 (Preboot)
+    |   Name:                      Preboot (Case-insensitive)
+    |   Mount Point:               /System/Volumes/Preboot
+    |   Capacity Consumed:         18366169088 B (18.4 GB)
+    |   Sealed:                    No
+    |   FileVault:                 No
+    |
+    +-> Volume disk3s3 E061A35C-7086-419C-B66A-1788763BCC27
+    |   ---------------------------------------------------
+    |   APFS Volume Disk (Role):   disk3s3 (Recovery)
+    |   Name:                      Recovery (Case-insensitive)
+    |   Mount Point:               /Volumes/Recovery
+    |   Capacity Consumed:         3441033216 B (3.4 GB)
+    |   Sealed:                    No
+    |   FileVault:                 No
+    |
+    +-> Volume disk3s6 790E10AC-B33D-4DE1-8FD0-ECC65ADCF92E
+    |   ---------------------------------------------------
+    |   APFS Volume Disk (Role):   disk3s6 (VM)
+    |   Name:                      VM (Case-insensitive)
+    |   Mount Point:               /System/Volumes/VM
+    |   Capacity Consumed:         3221463040 B (3.2 GB)
+    |   Sealed:                    No
+    |   FileVault:                 No
+    |
+    +-> Volume disk3s7 277FD077-0141-4027-BAA4-C14FFD896D88
+    |   ---------------------------------------------------
+    |   APFS Volume Disk (Role):   disk3s7 (Data)
+    |   Name:                      Macintosh Main (Case-insensitive)
+    |   Mount Point:               /System/Volumes/Data
+    |   Capacity Consumed:         183883743232 B (183.9 GB)
+    |   Sealed:                    No
+    |   FileVault:                 Yes (Unlocked)
+    |
+    +-> Volume disk3s8 90BC584E-34A0-4B7D-BB90-486D264DCDF7
+        ---------------------------------------------------
+        APFS Volume Disk (Role):   disk3s8 (System)
+        Name:                      Macintosh HD (Case-insensitive)
+        Mount Point:               Not Mounted
+        Capacity Consumed:         13657120768 B (13.7 GB)
+        Sealed:                    Yes
+        FileVault:                 Yes (Unlocked)
+        Encrypted:                 No
+        |
+        Snapshot:                  9800D735-C763-4844-A46F-B4B57462EDC2
+        Snapshot Disk:             disk3s8s1
+        Snapshot Mount Point:      /
+        Snapshot Sealed:           Yes

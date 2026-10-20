@@ -1,13 +1,16 @@
 pub mod archiver;
 pub mod context;
 pub mod doctor;
+pub mod maclean;
 pub mod packages;
 pub mod ports;
+pub mod pty;
 pub mod remote;
 pub mod services;
+pub mod tray;
 pub mod vscode;
 
-use crate::error::{AppError, AppResult};
+use crate::core::error::{AppError, AppResult};
 
 /// Run blocking fs/db work off the main thread — shared by all doctor commands.
 pub(crate) async fn blocking<T: Send + 'static>(
@@ -45,7 +48,7 @@ pub(crate) fn confirm_action(
             "Cancel".into(),
         ));
     // Parent to the main window → a window-modal SHEET: native macOS, but bound
-    // to the Nexus window so it never floats over another app / Space.
+    // to the Stackroost window so it never floats over another app / Space.
     if let Some(win) = app.get_webview_window("main") {
         dialog = dialog.parent(&win);
     }
@@ -64,14 +67,14 @@ pub(crate) fn confirm_action(
 #[tauri::command]
 pub async fn trust_tap(
     tap: String,
-    ctx: tauri::State<'_, crate::context::AppContext>,
+    ctx: tauri::State<'_, crate::models::context::AppContext>,
     app: tauri::AppHandle,
 ) -> AppResult<()> {
-    use crate::brew::{run_brew, BrewLock};
     use crate::commands::services::ServicesCache;
+    use crate::services::brew::{run_brew, BrewLock};
     use tauri::Manager;
 
-    crate::util::validate::validate_tap(&tap)?;
+    crate::core::util::validate::validate_tap(&tap)?;
     let bin = ctx
         .brew_bin
         .clone()
@@ -83,7 +86,7 @@ pub async fn trust_tap(
             &format!(
                 "Homebrew won't load anything from “{tap}” until you trust it once, \
                  so installs, versions and package lists fail while it's untrusted.\n\n\
-                 Nexus will run:  brew trust --tap {tap}\n\n\
+                 Stackroost will run:  brew trust --tap {tap}\n\n\
                  Only trust taps you added yourself. No administrator password is needed.",
             ),
             "Trust tap",

@@ -9,15 +9,14 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Spinner } from '@/shared/ui/Spinner';
+import { Panel } from '@/shared/ui/Panel';
+import { Badge, EnvBadge } from '@/shared/ui/Badge';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
 import { useHostConnection } from '@/features/remote/api/useHostConnection';
 import { useHostSnapshot } from '@/features/remote/api/useHostSnapshot';
 import { useHostHistory } from '@/features/remote/api/useHostHistory';
 import { useConnectHost, useDisconnectHost } from '@/features/remote/api/remoteMutations';
-import { healthOf, issueCount } from '@/features/remote/utils/health';
 import { hostAddress } from '@/features/remote/utils/host';
-import { EnvBadge } from '@/features/remote/components/EnvBadge';
-import { HostStatus, describeStatus } from '@/features/remote/components/HostStatus';
 import { ConnectionError } from '@/features/remote/components/ConnectionError';
 import { OverviewPanel } from '@/features/remote/components/OverviewPanel';
 import { ContainersTable } from '@/features/remote/components/ContainersTable';
@@ -31,8 +30,8 @@ const BodySkeleton = () => (
   <div aria-hidden className="space-y-5 p-5">
     {Array.from({ length: 4 }, (_, i) => (
       <div key={i} className="space-y-2">
-        <div className="h-4 w-40 animate-pulse rounded bg-list" />
-        <div className="h-1.5 animate-pulse rounded-full bg-list" />
+        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+        <div className="h-2 animate-pulse rounded-full bg-muted" />
       </div>
     ))}
   </div>
@@ -55,9 +54,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
   const disconnect = useDisconnectHost();
   const s = snap.data;
   const history = useHostHistory(host.id);
-  const status = describeStatus(conn.state, healthOf(s), issueCount(s), conn.error?.kind);
-  // A probe that failed for a non-ssh reason (unreadable output) is shown
-  // over the last good data; `busy` just means the previous probe is still out.
+
   const probeError =
     snap.error instanceof IpcError && snap.error.kind !== 'busy' && conn.state === 'connected'
       ? snap.error
@@ -72,82 +69,123 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
     { value: 'issues' as const, label: issues > 0 ? `Issues (${issues})` : 'Issues' },
   ];
 
+  const statusTone: 'neutral' | 'danger' | 'success' = !connected
+    ? 'neutral'
+    : issues > 0
+      ? 'danger'
+      : 'success';
+  const statusLabel = !connected
+    ? 'Not connected'
+    : issues > 0
+      ? `${issues} issue${issues === 1 ? '' : 's'}`
+      : 'Healthy';
+
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
-      {/* Fixed-height header: contents swap, the layout never jumps. */}
-      <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-border px-5">
+    <Panel className="flex min-h-0 flex-col gap-0 overflow-hidden p-0">
+      {/* Header with Title, Env badge, and Actions */}
+      <header className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-hairline px-6">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-base font-semibold text-fg">{host.label}</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="truncate font-display text-xl font-semibold text-foreground">
+              {host.label}
+            </h2>
             <EnvBadge env={host.env} />
+            <Badge tone={statusTone} dot size="sm">
+              {statusLabel}
+            </Badge>
           </div>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-muted">
-            <span className="truncate font-mono">{hostAddress(host)}</span>
-            <span aria-hidden>·</span>
-            <HostStatus {...status} />
+          <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+            <span className="truncate">{hostAddress(host)}</span>
             {s && connected && (
-              <span className="hidden text-fg-subtle tabular-nums lg:inline">
-                · updated {new Date(s.capturedAt * 1000).toLocaleTimeString()} · {s.probeMs} ms
+              <span className="hidden text-muted-foreground tabular-nums lg:inline">
+                · {s.system.os || 'Linux'} · updated{' '}
+                {new Date(s.capturedAt * 1000).toLocaleTimeString()} · {s.probeMs} ms
               </span>
             )}
           </p>
         </div>
-        {connected && (
+
+        <div className="flex shrink-0 items-center gap-2">
+          {connected && (
+            <Button
+              variant="glass"
+              size="iconSm"
+              aria-label="Refresh"
+              title="Refresh"
+              disabled={snap.isFetching}
+              onClick={() => void snap.refetch()}
+            >
+              <RotateCw
+                className={cn(
+                  'size-3.5',
+                  snap.isFetching && 'animate-spin motion-reduce:animate-none',
+                )}
+              />
+            </Button>
+          )}
           <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Refresh"
-            title="Refresh"
-            disabled={snap.isFetching}
-            onClick={() => void snap.refetch()}
-          >
-            <RotateCw
-              className={cn(
-                'h-4 w-4',
-                snap.isFetching && 'animate-spin motion-reduce:animate-none',
-              )}
-            />
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Open a shell on this server"
-          title="Terminal"
-          onClick={openShell}
-        >
-          <TerminalSquare className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" aria-label="Edit server" title="Edit" onClick={onEdit}>
-          <Pencil className="h-4 w-4" />
-        </Button>
-        {connected ? (
-          <Button
-            variant="secondary"
+            variant="glass"
             size="sm"
-            disabled={disconnect.isPending}
-            onClick={() => disconnect.mutate(host.id)}
+            aria-label="Open a shell on this server"
+            title="Terminal"
+            onClick={openShell}
           >
-            <Unplug className="h-4 w-4" />
-            Disconnect
+            <TerminalSquare className="size-4" />
+            Terminal
           </Button>
-        ) : (
-          <Button size="sm" disabled={conn.state === 'connecting'} onClick={() => connect.mutate()}>
-            {conn.state === 'connecting' ? (
-              <Spinner className="text-current" />
-            ) : (
-              <Plug className="h-4 w-4" />
-            )}
-            Connect
+          <Button
+            variant="glass"
+            size="iconSm"
+            aria-label="Edit server"
+            title="Edit"
+            onClick={onEdit}
+          >
+            <Pencil className="size-3.5" />
           </Button>
-        )}
+          {connected ? (
+            <Button
+              variant="glass"
+              size="sm"
+              disabled={disconnect.isPending}
+              onClick={() => disconnect.mutate(host.id)}
+            >
+              <Unplug className="size-3.5" />
+              Disconnect
+            </Button>
+          ) : (
+            <Button
+              variant="ember"
+              size="sm"
+              disabled={conn.state === 'connecting'}
+              onClick={() => connect.mutate()}
+            >
+              {conn.state === 'connecting' ? (
+                <Spinner className="text-current" />
+              ) : (
+                <Plug className="size-3.5" />
+              )}
+              Connect
+            </Button>
+          )}
+        </div>
       </header>
 
       {conn.state === 'notConnected' ? (
         <EmptyState
-          icon={<ServerOff className="h-8 w-8" />}
+          icon={<ServerOff className="size-10" />}
           title="Not connected"
-          description="Nexus connects with your own ssh, keys and agent, and only when you ask."
+          description="Stackroost connects securely with your own ssh keys and agent, and only when you ask."
+          action={
+            <Button
+              variant="ember"
+              size="sm"
+              disabled={connect.isPending}
+              onClick={() => connect.mutate()}
+            >
+              <Plug className="size-3.5" />
+              Connect to {host.label}
+            </Button>
+          }
         />
       ) : conn.state === 'connecting' ? (
         <BodySkeleton />
@@ -159,8 +197,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
           onOpenTerminal={openShell}
         />
       ) : (
-        <>
-          <div className="flex shrink-0 items-center border-b border-border px-5 py-2.5">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center border-b border-hairline px-6 py-2.5">
             <SegmentedControl
               ariaLabel="Server view"
               value={view}
@@ -169,7 +207,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             />
           </div>
           {probeError && (
-            <div className="shrink-0 px-5 pt-4">
+            <div className="shrink-0 px-6 pt-4">
               <ErrorPanel
                 error={probeError}
                 fallback="The check failed"
@@ -192,8 +230,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
           ) : (
             <IssuesPanel snapshot={s} />
           )}
-        </>
+        </div>
       )}
-    </section>
+    </Panel>
   );
 };

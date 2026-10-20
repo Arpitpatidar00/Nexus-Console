@@ -25,7 +25,7 @@ export const IssuesPanel = ({ snapshot: s }: { snapshot: HostSnapshot }) => (
         <EmptyState
           icon={<CircleCheck className="h-8 w-8" />}
           title="No issues"
-          description="Nothing in the checks Nexus runs needs attention."
+          description="Nothing in the checks Stackroost runs needs attention."
         />
       </div>
     ) : (

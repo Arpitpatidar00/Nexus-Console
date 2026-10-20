@@ -1,0 +1,138 @@
+{
+  "scannedAt": 1792435438,
+  "scanMs": 21798,
+  "disk": {
+    "totalBytes": 245107195904,
+    "usedBytes": 224444084224,
+    "freeBytes": 20663111680,
+    "dataUsedBytes": 183883739136
+  },
+  "map": [
+    {
+      "id": "other",
+      "label": "Other users & system data",
+      "bytes": 145550739136,
+      "note": "Not broken down yet. A deep scan explains it."
+    },
+    {
+      "id": "macos",
+      "label": "macOS volumes",
+      "bytes": 40560345088,
+      "note": "System, Preboot, Recovery and swap: see Disk volumes."
+    },
+    {
+      "id": "library",
+      "label": "Library (app data)",
+      "bytes": 25556000000,
+      "note": "x"
+    },
+    {
+      "id": "apps",
+      "label": "Applications",
+      "bytes": 12777000000,
+      "note": null
+    }
+  ],
+  "volumes": [
+    {
+      "role": "",
+      "label": "Macintosh HD",
+      "why": "Another APFS volume in this container.",
+      "bytes": 1714196480,
+      "oversized": false
+    },
+    {
+      "role": "Preboot",
+      "label": "Preboot",
+      "why": "Boot files and staged macOS updates.",
+      "bytes": 18366169088,
+      "oversized": true
+    },
+    {
+      "role": "Recovery",
+      "label": "Recovery",
+      "why": "The recovery system. Normal.",
+      "bytes": 3441033216,
+      "oversized": false
+    },
+    {
+      "role": "VM",
+      "label": "VM (swap)",
+      "why": "Swap memory. Shrinks after a restart.",
+      "bytes": 3221463040,
+      "oversized": false
+    },
+    {
+      "role": "Data",
+      "label": "Data (all your stuff)",
+      "why": "Apps, users and files: broken down above.",
+      "bytes": 183883743232,
+      "oversized": false
+    },
+    {
+      "role": "System",
+      "label": "macOS system",
+      "why": "Sealed, read-only macOS. Normal.",
+      "bytes": 13657120768,
+      "oversized": false
+    }
+  ],
+  "causes": [
+    {
+      "bytes": 18366169088,
+      "text": "The Preboot volume is oversized by a downloaded macOS update.",
+      "fix": "Install it: System Settings → General → Software Update."
+    },
+    {
+      "bytes": null,
+      "text": "2 Time Machine local snapshots on this disk.",
+      "fix": "macOS deletes them on its own when space runs low; nothing to do unless you need the space now."
+    }
+  ],
+  "items": [
+    {
+      "id": "npm",
+      "label": "npm cache",
+      "bytes": 183920000,
+      "skip": null,
+      "defaultSelected": true,
+      "note": null,
+      "detail": []
+    },
+    {
+      "id": "docker_installer",
+      "label": "Docker installer leftovers",
+      "bytes": 2340000000,
+      "skip": "Docker update may be in progress",
+      "defaultSelected": true,
+      "note": null,
+      "detail": []
+    },
+    {
+      "id": "docker_images",
+      "label": "Unused Docker images",
+      "bytes": 443900000,
+      "skip": null,
+      "defaultSelected": false,
+      "note": null,
+      "detail": [
+        "docker:29-dind · 423 MB"
+      ]
+    }
+  ],
+  "insights": [
+    {
+      "id": "brew_versions",
+      "text": "Several versions",
+      "detail": [
+        "node@20, node@22"
+      ]
+    }
+  ],
+  "largeFiles": [
+    {
+      "path": "/Users/me/Downloads/disk.iso",
+      "bytes": 4800000000
+    }
+  ]
+}

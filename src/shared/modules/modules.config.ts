@@ -1,6 +1,8 @@
 import {
   Archive,
   Clock,
+  HardDrive,
+  MemoryStick,
   LayoutGrid,
   Network,
   Package,
@@ -11,7 +13,7 @@ import {
 import type { Tab } from '@/shared/state/uiSlice';
 
 /** The four things this app actually is. Order is nav order. */
-export const MODULE_IDS = ['homebrew', 'ports', 'remote', 'doctor', 'claude'] as const;
+export const MODULE_IDS = ['homebrew', 'ports', 'remote', 'doctor', 'maclean', 'claude'] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
 /** What a module needs on this Mac to be offered at all. Only Claude Code
@@ -85,6 +87,17 @@ export const MODULES: ModuleDef[] = [
     nav: [{ tab: 'doctor', label: 'Doctor', icon: Stethoscope }],
     blurb: 'Read-only machine health checks and cleanup.',
     background: 'Optional daily VSCode cleanup while the app sits in the tray.',
+  },
+  {
+    id: 'maclean',
+    label: 'Mac Clean',
+    icon: HardDrive,
+    nav: [
+      { tab: 'storage', label: 'Storage', icon: HardDrive },
+      { tab: 'memory', label: 'Memory', icon: MemoryStick },
+    ],
+    blurb: 'Where your disk went, safe cleanup, and memory & swap.',
+    background: 'Optional: scheduled cleanup and a low-disk warning from the tray.',
   },
   {
     id: 'claude',

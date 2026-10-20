@@ -3,4 +3,5 @@ export interface SwitchProps {
   onChange: (checked: boolean) => void;
   ariaLabel: string;
   disabled?: boolean;
+  id?: string;
 }

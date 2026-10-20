@@ -1,5 +1,7 @@
 import {
   Archive,
+  Smartphone,
+  Rocket,
   Cloud,
   HardDriveDownload,
   Wifi,
@@ -39,6 +41,8 @@ export const MODULE_IDS = [
   'cloud',
   'backups',
   'network',
+  'devices',
+  'releases',
 ] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
@@ -185,6 +189,26 @@ export const MODULES: ModuleDef[] = [
     blurb: 'RDAP expiry, DNS lookup, SSL check & uptime monitoring.',
     background:
       'Optional: checks monitored URLs periodically and alerts on downtime or SSL expiry.',
+    optIn: true,
+  },
+  {
+    id: 'devices',
+    label: 'Simulators & AVDs',
+    group: 'mac',
+    icon: Smartphone,
+    nav: [{ tab: 'devices', label: 'Simulators & AVDs', icon: Smartphone, group: 'mac' }],
+    blurb: 'iOS Simulators, Android AVDs, lifecycle controls & build cache cleaner.',
+    background: null,
+    optIn: true,
+  },
+  {
+    id: 'releases',
+    label: 'App Releases',
+    group: 'tools',
+    icon: Rocket,
+    nav: [{ tab: 'releases', label: 'App Releases', icon: Rocket, group: 'tools' }],
+    blurb: 'Fastlane lanes, TestFlight / Google Play track inspector & mobile release configs.',
+    background: null,
     optIn: true,
   },
   {

@@ -63,6 +63,12 @@ export const PAGES: Record<Tab, ComponentType> = {
   network: lazy(() =>
     import('@/features/network/pages/NetworkPage').then((m) => ({ default: m.NetworkPage })),
   ),
+  devices: lazy(() =>
+    import('@/features/devices/pages/DevicesPage').then((m) => ({ default: m.DevicesPage })),
+  ),
+  releases: lazy(() =>
+    import('@/features/releases/pages/ReleasesPage').then((m) => ({ default: m.ReleasesPage })),
+  ),
   settings: lazy(() =>
     import('@/features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
   ),

@@ -171,4 +171,12 @@ export const CMD = {
   NETWORK_SAVE_HOSTS: 'network_save_hosts',
   CHAOS_START_PROXY: 'chaos_start_proxy',
   CHAOS_SIMULATE: 'chaos_simulate',
+  // Phase 13 - Mobile Devices, Releases & Local AI Explain
+  DEVICES_LIST_IOS: 'devices_list_ios',
+  DEVICES_CONTROL_IOS: 'devices_control_ios',
+  DEVICES_LIST_ANDROID: 'devices_list_android',
+  DEVICES_LAUNCH_ANDROID: 'devices_launch_android',
+  RELEASES_DETECT_CONFIG: 'releases_detect_config',
+  AI_CHECK_OLLAMA: 'ai_check_ollama',
+  AI_EXPLAIN: 'ai_explain',
 } as const;

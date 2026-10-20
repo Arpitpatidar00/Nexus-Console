@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Bot,
   Code,
   Key,
   Binary,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
+import { AiExplainModal } from '@/features/ai';
 import {
   formatJson,
   minifyJson,
@@ -41,6 +43,7 @@ type ToolCategory =
   'json' | 'jwt' | 'base64' | 'timestamp' | 'uuid' | 'regex' | 'cron' | 'hash' | 'color';
 
 export const ToolboxPage = () => {
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolCategory>('json');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -116,6 +119,15 @@ export const ToolboxPage = () => {
             persistence.
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setAiModalOpen(true)}
+          className="flex items-center gap-1.5 text-xs"
+        >
+          <Bot className="h-3.5 w-3.5 text-indigo-400" />
+          Explain with Local AI
+        </Button>
       </div>
 
       <div className="flex min-h-0 flex-1 gap-6 overflow-hidden">
@@ -673,6 +685,7 @@ export const ToolboxPage = () => {
           )}
         </div>
       </div>
+      <AiExplainModal open={aiModalOpen} onOpenChange={setAiModalOpen} />
     </div>
   );
 };

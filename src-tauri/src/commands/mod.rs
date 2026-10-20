@@ -130,3 +130,7 @@ pub async fn confirm_bulk(
         .await
         .unwrap_or(false)
 }
+
+pub mod ai;
+pub mod devices;
+pub mod releases;

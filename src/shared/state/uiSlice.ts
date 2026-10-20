@@ -20,6 +20,8 @@ export const TABS = [
   'cloud',
   'backups',
   'network',
+  'devices',
+  'releases',
   'settings',
 ] as const;
 export type Tab = (typeof TABS)[number];

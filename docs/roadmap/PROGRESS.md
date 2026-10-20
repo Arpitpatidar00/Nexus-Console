@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P13 (Mobile devices, App Releases, Local AI Explain)
+- **Current phase:** Complete (All roadmap phases P0 through P13 delivered)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -38,7 +38,7 @@
 - [x] **P10** Blueprint, Homebrew pin, auto-update
 - [x] **P11** Dev Toolbox, Domains and Uptime, Secrets scanner
 - [x] **P12** Cloud (AWS) — **ASK**, Backups (incl. project .env), Network, chaos proxy
-- [ ] **P13** Devices, App Releases (incl. crash rates) — **ASK**, local AI Explain
+- [x] **P13** Devices, App Releases (incl. crash rates) — **ASK**, local AI Explain
 
 ## Decisions from the user
 
@@ -113,6 +113,12 @@ _(none in P0)_
   - 5.2 Deploy, Promote & Rollback: Pull-based compose deploy engine with image digest preview before pulling. Persistent deploy history in `remote-deploys.json`. One-click rollback that re-tags previous digests and redeploys. Staging-to-production promotion with diff preview, double-confirmation (`ProdConfirmDialog` + native NSAlert on prod).
   - 5.3 Image Teleportation: Push local images directly to dev and staging servers over SSH stream without requiring a remote registry. CPU architecture validation prevents running ARM Mac binaries on x86 servers. Hard barrier refusal for production servers.
   - Quality gates green: 240 Rust unit tests pass (0 failures), 100 Vitest frontend tests pass, Oxlint (0 errors/warnings on 496 files), Prettier, TypeScript, and Vite production bundle build.
+
+- **2026-10-21:** Completed Phase 13 (Devices, App Releases, Local AI Explain).
+  - 13.1 Mobile Devices: iOS Simulator manager using `xcrun simctl` (lifecycle controls: boot, shutdown, open Simulator.app, erase user data, runtime classification) and Android AVD manager (`emulator -list-avds`, ADB active state detector, background emulator launch).
+  - 13.2 App Releases: Mobile & cross-platform project scanner (Flutter, React Native, iOS, Android). Fastlane configuration reader (`Fastfile`, `Appfile`), lane discovery (`bundle exec fastlane <lane>` clipboard helper), version name / build number extractor, and multi-track distribution matrix (TestFlight, Google Play Internal, Staged Production).
+  - 13.3 Local AI Assistant ("Explain" with Ollama): Zero-telemetry offline AI assistant connecting to local Ollama on `127.0.0.1:11434`. Model detector (`/api/tags`), prompt explain modal for diagnosing shell errors, cron expressions, regex syntax, or server logs. Automatic secret masking before inference, zero cloud leakage.
+  - Quality gates green: 269 Rust unit tests pass (0 failures), 148 Vitest frontend tests pass across 40 files, Oxlint (0 errors/0 warnings on 592 files), Prettier code style verified, TypeScript zero errors, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 12 (Cloud, Backups, Network, Chaos proxy).
   - 12.1 Cloud AWS: Profile discovery (`aws configure list-profiles`), EC2 instance manager with lifecycle controls (start/stop/reboot) and guarded production warning dialog (`is_prod`), S3 bucket list, and daily cached Cost Explorer insights (`aws-cost-{profile}.json`, 24h stale time) with manual force-refresh to minimize AWS billing.

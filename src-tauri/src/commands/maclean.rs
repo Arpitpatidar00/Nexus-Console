@@ -198,6 +198,7 @@ pub async fn maclean_clean(app: AppHandle, ids: Vec<String>) -> AppResult<CleanR
                     .filter(|i| !i.ok)
                     .map(|i| format!("{}: {}", i.label, i.message))
                     .collect(),
+                auto: false,
             });
             Ok(())
         });

@@ -97,7 +97,7 @@ export const MODULES: ModuleDef[] = [
       { tab: 'memory', label: 'Memory', icon: MemoryStick },
     ],
     blurb: 'Where your disk went, safe cleanup, and memory & swap.',
-    background: null,
+    background: 'Optional: scheduled cleanup and a low-disk warning from the tray.',
   },
   {
     id: 'claude',

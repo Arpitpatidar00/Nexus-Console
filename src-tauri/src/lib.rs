@@ -63,6 +63,8 @@ pub fn run() {
             doctor::scheduler::start(app.handle().clone());
             // Servers background health (opt-in; never connects on its own).
             remote::background::start(app.handle().clone());
+            // Mac Clean scheduled cleanup + low-disk warning (opt-in).
+            maclean::background::start(app.handle().clone());
             // brew --version costs 100-500ms — resolve it off the startup path so
             // it never blocks first paint. Consumers render "v—" until it lands.
             if let Some(bin) = brew_bin {

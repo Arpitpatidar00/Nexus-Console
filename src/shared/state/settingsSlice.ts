@@ -14,6 +14,9 @@ interface SettingsState {
   /** Tray re-check of connected servers, in minutes; 0 = off. Read by Rust
    * (`remote::background`) from the same store file. */
   remoteBackgroundMinutes: number;
+  /** Mac Clean tray automation, read by Rust (`maclean::background`); 0 = off. */
+  macleanAutoCleanDays: number;
+  macleanLowDiskGb: number;
   quitBehavior: QuitBehavior;
   /** User drag-reorder of service cards, by formula. Unknown/new formulas sort last. */
   cardOrder: string[];
@@ -37,6 +40,8 @@ export type PersistedSettings = Pick<
   | 'pollIntervalMs'
   | 'remotePollIntervalMs'
   | 'remoteBackgroundMinutes'
+  | 'macleanAutoCleanDays'
+  | 'macleanLowDiskGb'
   | 'quitBehavior'
   | 'cardOrder'
   | 'enabledModules'
@@ -51,6 +56,8 @@ const initialState: SettingsState = {
   pollIntervalMs: 4000,
   remotePollIntervalMs: 10_000,
   remoteBackgroundMinutes: 0,
+  macleanAutoCleanDays: 0,
+  macleanLowDiskGb: 0,
   quitBehavior: 'stopUnlinked',
   cardOrder: [],
   enabledModules: null,
@@ -78,6 +85,12 @@ const settingsSlice = createSlice({
     },
     setRemoteBackgroundMinutes(state, action: PayloadAction<number>) {
       state.remoteBackgroundMinutes = action.payload;
+    },
+    setMacleanAutoCleanDays(state, action: PayloadAction<number>) {
+      state.macleanAutoCleanDays = action.payload;
+    },
+    setMacleanLowDiskGb(state, action: PayloadAction<number>) {
+      state.macleanLowDiskGb = action.payload;
     },
     setQuitBehavior(state, action: PayloadAction<QuitBehavior>) {
       state.quitBehavior = action.payload;
@@ -115,6 +128,8 @@ export const {
   setPollInterval,
   setRemotePollInterval,
   setRemoteBackgroundMinutes,
+  setMacleanAutoCleanDays,
+  setMacleanLowDiskGb,
   setQuitBehavior,
   setCardOrder,
   setEnabledModules,

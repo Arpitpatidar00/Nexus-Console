@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
+import { setMacleanAutoCleanDays, setMacleanLowDiskGb } from '@/shared/state/settingsSlice';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Button } from '@/shared/ui/Button';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 // Deep imports: the maclean barrel would chain StoragePage into Settings' chunk.
@@ -91,6 +94,60 @@ const Form = ({ rules }: { rules: CleanRules }) => {
   );
 };
 
+const AUTO_OPTIONS = [
+  { value: '0', label: 'Off' },
+  { value: '7', label: 'Weekly' },
+  { value: '14', label: '2 weeks' },
+  { value: '30', label: 'Monthly' },
+];
+const LOW_DISK_OPTIONS = [
+  { value: '0', label: 'Off' },
+  { value: '5', label: '5 GB' },
+  { value: '10', label: '10 GB' },
+  { value: '20', label: '20 GB' },
+];
+
+/** Tray automation: stored in settings.json, read by Rust every tick. */
+const Automation = () => {
+  const dispatch = useAppDispatch();
+  const days = useAppSelector((s) => s.settings.macleanAutoCleanDays);
+  const gb = useAppSelector((s) => s.settings.macleanLowDiskGb);
+  return (
+    <div className="mt-2 divide-y divide-border border-t border-border">
+      <div className="flex items-center justify-between gap-4 py-3.5">
+        <div>
+          <p className="text-sm font-medium text-fg">Scheduled cleanup</p>
+          <p className="text-xs text-fg-muted">
+            From the menu bar: the default items only (never unused Docker images), skipping
+            anything in use, then a notification with what it freed. The first run starts within
+            minutes.
+          </p>
+        </div>
+        <SegmentedControl
+          ariaLabel="Scheduled cleanup"
+          value={String(days)}
+          options={AUTO_OPTIONS}
+          onChange={(v) => dispatch(setMacleanAutoCleanDays(Number(v)))}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-4 py-3.5">
+        <div>
+          <p className="text-sm font-medium text-fg">Low-disk warning</p>
+          <p className="text-xs text-fg-muted">
+            One notification when free space drops below this, not one every few minutes.
+          </p>
+        </div>
+        <SegmentedControl
+          ariaLabel="Low-disk warning"
+          value={String(gb)}
+          options={LOW_DISK_OPTIONS}
+          onChange={(v) => dispatch(setMacleanLowDiskGb(Number(v)))}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const MacCleanSettingsCard = () => {
   const rules = useCleanRules();
   return (
@@ -99,6 +156,7 @@ export const MacCleanSettingsCard = () => {
       <p className="mt-1 text-xs text-fg-muted">
         The same rules as mac-clean.sh. Checked again in Rust on every clean.
       </p>
+      <Automation />
       {rules.data ? (
         <Form rules={rules.data} />
       ) : (

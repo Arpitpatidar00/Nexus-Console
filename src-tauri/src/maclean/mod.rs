@@ -3,6 +3,7 @@
 // Reading is free; every deletion is a whitelisted item id, confirmed natively
 // and journaled.
 
+pub mod background;
 pub mod catalog;
 pub mod clean;
 pub mod deep;

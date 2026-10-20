@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="240" height="240" role="img" aria-label="Stackroost mark, light">
-<rect x="16" y="80" width="88" height="18" rx="9" fill="#0C0C0E" fill-opacity="0.40"/>
-<rect x="28" y="57" width="64" height="18" rx="9" fill="#0C0C0E" fill-opacity="0.70"/>
-<rect x="40" y="34" width="40" height="18" rx="9" fill="#0C0C0E"/>
-<circle cx="60" cy="16" r="14" fill="none" stroke="#E2600F" stroke-opacity="0.40" stroke-width="2.5"/>
-<circle cx="60" cy="16" r="8" fill="#E2600F"/>
-</svg>

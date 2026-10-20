@@ -1,18 +1,25 @@
 // Stackroost — Tauri core.
 
-mod brew;
-mod commands;
-mod context;
-mod doctor;
-mod error;
-mod maclean;
-mod pty;
-mod quit;
-mod remote;
-mod session;
-mod settings;
-mod tray;
-mod util;
+pub mod commands;
+pub mod core;
+pub mod database;
+pub mod models;
+pub mod services;
+
+// Backward-compatible crate root aliases for internal references
+pub use core::error::{self, AppError, AppResult};
+pub use core::util;
+pub use database::settings_store as settings;
+pub use models::context::{self, AppContext, BrewVersion};
+pub use models::tray::TrayService;
+pub use services::brew;
+pub use services::doctor;
+pub use services::maclean;
+pub use services::pty;
+pub use services::remote;
+pub use services::session;
+pub use services::session::quit;
+pub use services::tray;
 
 use tauri::Manager;
 
@@ -148,12 +155,12 @@ pub fn run() {
             commands::remote::remote_snapshot,
             commands::remote::remote_docker_action,
             commands::remote::remote_journal,
-            pty::pty_open,
-            pty::pty_write,
-            pty::pty_resize,
-            pty::pty_kill,
-            tray::set_tray_title,
-            tray::set_tray_services
+            commands::pty::pty_open,
+            commands::pty::pty_write,
+            commands::pty::pty_resize,
+            commands::pty::pty_kill,
+            commands::tray::set_tray_title,
+            commands::tray::set_tray_services,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Stackroost")

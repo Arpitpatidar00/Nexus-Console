@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn parses_field_mode_fixture() {
-        let rows = parse_lsof_fields(include_str!("../../../fixtures/lsof-fields.txt"));
+        let rows = parse_lsof_fields(include_str!("../../../../fixtures/lsof-fields.txt"));
         // ControlCenter (pid 620) listens on *:7000 and *:5000
         assert!(rows
             .iter()
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn parses_lsof_fixture() {
-        let m = parse_listening_ports(include_str!("../../../fixtures/lsof-listen.txt"));
+        let m = parse_listening_ports(include_str!("../../../../fixtures/lsof-listen.txt"));
         assert_eq!(m.get(&99615), Some(&6379)); // redis
         assert_eq!(m.get(&44734), Some(&5432)); // postgres
     }

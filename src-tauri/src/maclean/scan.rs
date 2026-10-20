@@ -618,6 +618,103 @@ mod tests {
 }
 
 #[cfg(test)]
+mod golden {
+    use super::*;
+
+    fn fixture(name: &str) -> String {
+        std::fs::read_to_string(format!(
+            "{}/../fixtures/maclean/{name}",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap()
+    }
+
+    /// The wire format the frontend's zod schema is tested against
+    /// (`src/features/maclean/api/maclean.schema.test.ts`), built from the real
+    /// captures. Regenerate with `UPDATE_GOLDEN=1 cargo test maclean_golden`.
+    #[test]
+    fn maclean_golden_report_json() {
+        let disk = disk::parse_df(&fixture("df.txt")).unwrap();
+        let vols = disk::parse_apfs_list(&fixture("diskutil-apfs-list.txt"));
+        let snaps = LocalSnapshots {
+            pending_update: true,
+            time_machine: 2,
+        };
+        let item =
+            |id: &'static str, label: &str, bytes: u64, skip: Option<&str>, detail: Vec<String>| {
+                CleanItem {
+                    id,
+                    label: label.into(),
+                    bytes,
+                    skip: skip.map(String::from),
+                    default_selected: id != "docker_images",
+                    note: None,
+                    detail,
+                }
+            };
+        let report = StorageReport {
+            scanned_at: 1_792_435_438,
+            scan_ms: 21_798,
+            map: finish_map(
+                vec![
+                    MapEntry {
+                        id: "library",
+                        label: "Library (app data)".into(),
+                        bytes: 25_556_000_000,
+                        note: Some("x".into()),
+                    },
+                    MapEntry {
+                        id: "apps",
+                        label: "Applications".into(),
+                        bytes: 12_777_000_000,
+                        note: None,
+                    },
+                ],
+                &disk,
+            ),
+            causes: causes(&vols, &snaps, &DockerUsage::default(), 0),
+            volumes: vols,
+            disk,
+            items: vec![
+                item("npm", "npm cache", 183_920_000, None, vec![]),
+                item(
+                    "docker_installer",
+                    "Docker installer leftovers",
+                    2_340_000_000,
+                    Some("Docker update may be in progress"),
+                    vec![],
+                ),
+                item(
+                    "docker_images",
+                    "Unused Docker images",
+                    443_900_000,
+                    None,
+                    vec!["docker:29-dind · 423 MB".into()],
+                ),
+            ],
+            insights: vec![Insight {
+                id: "brew_versions",
+                text: "Several versions".into(),
+                detail: vec!["node@20, node@22".into()],
+            }],
+        };
+        let json = serde_json::to_string_pretty(&report).unwrap() + "\n";
+        let path = format!(
+            "{}/../fixtures/maclean/report.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        if std::env::var_os("UPDATE_GOLDEN").is_some() {
+            std::fs::write(&path, &json).unwrap();
+        }
+        assert_eq!(
+            json,
+            std::fs::read_to_string(&path).unwrap_or_default(),
+            "rerun with UPDATE_GOLDEN=1"
+        );
+    }
+}
+
+#[cfg(test)]
 mod real_mac {
     use super::*;
 

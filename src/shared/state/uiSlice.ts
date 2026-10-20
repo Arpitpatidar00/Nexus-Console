@@ -7,6 +7,7 @@ export const TABS = [
   'packages',
   'ports',
   'servers',
+  'storage',
   'sessions',
   'settings',
 ] as const;

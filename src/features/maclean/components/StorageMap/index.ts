@@ -1,0 +1,1 @@
+export { StorageMap } from './StorageMap';

@@ -1,0 +1,1 @@
+export { VolumesList } from './VolumesList';

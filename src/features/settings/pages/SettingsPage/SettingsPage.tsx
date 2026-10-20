@@ -6,6 +6,7 @@ import { FeaturePicker } from '@/features/settings/components/FeaturePicker';
 import { HomebrewStatusCard } from '@/features/settings/components/HomebrewStatusCard';
 import { ManagedServicesEditor } from '@/features/settings/components/ManagedServicesEditor';
 import { ServersSettingsCard } from '@/features/settings/components/ServersSettingsCard';
+import { MacCleanSettingsCard } from '@/features/settings/components/MacCleanSettingsCard';
 import { THEME_OPTIONS, LAYOUT_OPTIONS } from './SettingsPage.config';
 
 export const SettingsPage = () => {
@@ -74,6 +75,8 @@ export const SettingsPage = () => {
           <HomebrewStatusCard />
 
           {enabledModules.includes('remote') && <ServersSettingsCard />}
+
+          {enabledModules.includes('maclean') && <MacCleanSettingsCard />}
 
           <ManagedServicesEditor />
         </div>

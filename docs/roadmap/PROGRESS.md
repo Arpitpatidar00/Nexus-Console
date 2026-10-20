@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P8 (Claude Chats upgrades)
+- **Current phase:** P9 (Mac health)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -33,7 +33,7 @@
 - [x] **P5** Parity and Ship (parity auditor, deploy/rollback, image push over SSH)
 - [x] **P6** Local data (Local Docker, Databases, branch databases)
 - [x] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
-- [ ] **P8** Claude Chats (search, resume, export, usage, context analysis)
+- [x] **P8** Claude Chats (search, resume, export, usage, context analysis)
 - [ ] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
 - [ ] **P10** Blueprint, Homebrew pin, auto-update — **ASK**
 - [ ] **P11** Dev Toolbox, Domains and Uptime — **ASK (RDAP/resolvers)**, Secrets scanner
@@ -56,6 +56,14 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 8 (Claude Chats upgrades).
+  - 8.1 Full-Text Search: High-performance search across all project session transcripts (`.jsonl`) with keyword match snippet extraction and direct navigation.
+  - 8.2 Resume in Terminal: Copy or spawn `claude --resume <sessionId>` in the interactive terminal drawer scoped to the project working directory with strict UUID validation.
+  - 8.3 Markdown Export: One-click export of complex multi-turn coding chats into clean, readable GitHub-flavored markdown with collapsible tool call sections.
+  - 8.4 Token Usage & Costs: Aggregates input tokens, output tokens, and cache read tokens to display estimated spend per project based on Claude 3.5 Sonnet pricing.
+  - 8.5 Context Window Analysis: Inspects active context load, categorizes token consumption (tool outputs, assistant reasoning, user prompts), and provides proactive recommendations (/compact or new chat) when approaching context limits.
+  - Quality gates green: 248 Rust unit tests pass (0 failures), 111 Vitest frontend tests pass, Oxlint (0 errors/warnings on 523 files), Prettier, TypeScript, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 7 (Projects and Workspaces).
   - 7.1 Projects module: Automatic recursive discovery of git repositories under project roots, framework detection (Next.js, Vite, Node, Rust, Go, Flutter, Python), dirty file counter, ahead/behind upstream tracking, stash counter, last commit metadata, and one-click merged branch cleanup.

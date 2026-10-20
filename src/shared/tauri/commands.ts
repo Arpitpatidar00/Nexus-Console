@@ -122,4 +122,8 @@ export const CMD = {
   PROJECTS_LIST_SAVED_COMMANDS: 'projects_list_saved_commands',
   PROJECTS_SAVE_COMMAND: 'projects_save_command',
   PROJECTS_DELETE_COMMAND: 'projects_delete_command',
+  CLAUDE_SEARCH_TRANSCRIPTS: 'claude_search_transcripts',
+  CLAUDE_EXPORT_MARKDOWN: 'claude_export_markdown',
+  CLAUDE_SESSION_CONTEXT: 'claude_session_context',
+  CLAUDE_PROJECT_USAGE: 'claude_project_usage',
 } as const;

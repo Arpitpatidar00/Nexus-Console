@@ -46,3 +46,40 @@ export type ClaudeSettings = z.infer<typeof claudeSettingsSchema>;
 
 /** Below this, restored/new chats risk silent deletion by Claude's cleanup. */
 export const RETENTION_WARN_DAYS = 90;
+
+export const claudeSearchResultSchema = z.object({
+  dirName: z.string(),
+  sessionFile: z.string(),
+  sessionTitle: z.string(),
+  snippet: z.string(),
+  lineNumber: z.number(),
+});
+export const claudeSearchResultsSchema = z.array(claudeSearchResultSchema);
+export type ClaudeSearchResult = z.infer<typeof claudeSearchResultSchema>;
+
+export const contextItemSchema = z.object({
+  label: z.string(),
+  tokenEstimate: z.number(),
+  pct: z.number(),
+});
+export type ContextItem = z.infer<typeof contextItemSchema>;
+
+export const sessionContextAnalysisSchema = z.object({
+  totalTokens: z.number(),
+  maxTokens: z.number(),
+  pctUsed: z.number(),
+  userTokens: z.number(),
+  assistantTokens: z.number(),
+  toolResultTokens: z.number(),
+  largeItems: z.array(contextItemSchema),
+  recommendation: z.string(),
+});
+export type SessionContextAnalysis = z.infer<typeof sessionContextAnalysisSchema>;
+
+export const projectTokenUsageSchema = z.object({
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  cacheReadTokens: z.number(),
+  estimatedCostUsd: z.number(),
+});
+export type ProjectTokenUsage = z.infer<typeof projectTokenUsageSchema>;

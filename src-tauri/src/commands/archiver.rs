@@ -167,3 +167,37 @@ pub async fn claude_set_retention(app: tauri::AppHandle, days: u32) -> AppResult
     })
     .await
 }
+
+#[tauri::command]
+pub async fn claude_search_transcripts(
+    _app: tauri::AppHandle,
+    query: String,
+) -> AppResult<Vec<claude::ClaudeSearchResult>> {
+    blocking(move || claude::search_transcripts(&query)).await
+}
+
+#[tauri::command]
+pub async fn claude_export_markdown(
+    _app: tauri::AppHandle,
+    dir_name: String,
+    session_file: String,
+) -> AppResult<String> {
+    blocking(move || claude::export_transcript_markdown(&dir_name, &session_file)).await
+}
+
+#[tauri::command]
+pub async fn claude_session_context(
+    _app: tauri::AppHandle,
+    dir_name: String,
+    session_file: String,
+) -> AppResult<claude::SessionContextAnalysis> {
+    blocking(move || claude::analyze_session_context(&dir_name, &session_file)).await
+}
+
+#[tauri::command]
+pub async fn claude_project_usage(
+    _app: tauri::AppHandle,
+    dir_name: String,
+) -> AppResult<claude::ProjectTokenUsage> {
+    blocking(move || claude::get_project_usage(&dir_name)).await
+}

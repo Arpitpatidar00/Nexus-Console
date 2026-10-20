@@ -17,6 +17,7 @@ pub use services::databases;
 pub use services::doctor;
 pub use services::local_docker;
 pub use services::maclean;
+pub use services::projects;
 pub use services::pty;
 pub use services::remote;
 pub use services::session;
@@ -69,6 +70,9 @@ pub fn run() {
             ));
             app.manage(databases::DatabaseState::load(
                 app.path().app_data_dir()?.join("local-databases.json"),
+            ));
+            app.manage(projects::ProjectsState::load(
+                app.path().app_data_dir()?.join("projects.json"),
             ));
             tray::build_tray(app.handle())?;
             // Doctor tray automation (opt-in via Archiver settings): daily
@@ -202,6 +206,18 @@ pub fn run() {
             commands::databases::db_list_snapshots,
             commands::databases::db_create_snapshot,
             commands::databases::db_restore_snapshot,
+            commands::projects::projects_discover,
+            commands::projects::projects_git_fetch,
+            commands::projects::projects_delete_merged_branches,
+            commands::projects::projects_get_github_status,
+            commands::projects::projects_list_workspaces,
+            commands::projects::projects_save_workspace,
+            commands::projects::projects_delete_workspace,
+            commands::projects::projects_start_workspace,
+            commands::projects::projects_stop_workspace,
+            commands::projects::projects_list_saved_commands,
+            commands::projects::projects_save_command,
+            commands::projects::projects_delete_command,
             commands::pty::pty_open,
             commands::pty::pty_write,
             commands::pty::pty_resize,

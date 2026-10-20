@@ -4,6 +4,7 @@ pub mod doctor;
 pub mod maclean;
 pub mod packages;
 pub mod ports;
+pub mod projects;
 pub mod pty;
 pub mod remote;
 pub mod services;

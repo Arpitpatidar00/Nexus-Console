@@ -12,6 +12,7 @@ export const TABS = [
   'sessions',
   'docker',
   'databases',
+  'projects',
   'settings',
 ] as const;
 export type Tab = (typeof TABS)[number];

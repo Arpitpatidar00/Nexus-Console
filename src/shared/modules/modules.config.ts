@@ -2,6 +2,7 @@ import {
   Archive,
   Container,
   Database,
+  FolderGit2,
   Clock,
   HardDrive,
   MemoryStick,
@@ -24,6 +25,7 @@ export const MODULE_IDS = [
   'claude',
   'docker',
   'databases',
+  'projects',
 ] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
@@ -155,6 +157,15 @@ export const MODULES: ModuleDef[] = [
     blurb: 'Local & remote database client, schema inspector, and APFS branching.',
     background: null,
     optIn: true,
+  },
+  {
+    id: 'projects',
+    label: 'Projects',
+    group: 'local',
+    icon: FolderGit2,
+    nav: [{ tab: 'projects', label: 'Projects', icon: FolderGit2, group: 'local' }],
+    blurb: 'Git status, workspaces, saved commands, and GitHub PRs.',
+    background: null,
   },
 ];
 

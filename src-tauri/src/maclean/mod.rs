@@ -4,6 +4,7 @@
 // and journaled.
 
 pub mod catalog;
+pub mod clean;
 pub mod disk;
 pub mod measure;
 pub mod scan;
@@ -17,7 +18,7 @@ use std::sync::{Mutex, MutexGuard};
 use store::Store;
 
 /// Managed state: rules + journal (mirrored to `maclean.json`), the scan's
-/// cancel flag, and a lock so only one scan runs at a time.
+/// cancel flag, and one lock shared by scans and cleans so they never overlap.
 pub struct MacleanState {
     path: PathBuf,
     store: Mutex<Store>,
@@ -41,8 +42,6 @@ impl MacleanState {
             .map_err(|_| AppError::Io("mac clean store lock poisoned".into()))
     }
 
-    // ponytail: first writer is P2 (rules editor + clean journal).
-    #[allow(dead_code)]
     pub fn write<T>(&self, f: impl FnOnce(&mut Store) -> AppResult<T>) -> AppResult<T> {
         let mut guard = self.read()?;
         let mut next = guard.clone();

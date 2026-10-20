@@ -58,7 +58,7 @@ pub struct Env<'a> {
 }
 
 impl Env<'_> {
-    fn h(&self, rel: &str) -> PathBuf {
+    pub fn h(&self, rel: &str) -> PathBuf {
         self.home.join(rel)
     }
 
@@ -297,7 +297,12 @@ pub fn idle_next_dirs(env: &Env) -> Vec<PathBuf> {
 
 // --- the catalog ----------------------------------------------------------------
 
-fn skip_for(id: &str, env: &Env, docker: &DockerUsage, brew_bin: Option<&Path>) -> Option<String> {
+pub fn skip_for(
+    id: &str,
+    env: &Env,
+    docker: &DockerUsage,
+    brew_bin: Option<&Path>,
+) -> Option<String> {
     let open = |app: &str, what: &str| tools::app_running(app).then(|| format!("{what} is open"));
     match id {
         "chrome" => open("Google Chrome", "Chrome"),
@@ -330,13 +335,16 @@ fn skip_for(id: &str, env: &Env, docker: &DockerUsage, brew_bin: Option<&Path>) 
     }
 }
 
-/// Measure one item. `None` = cancelled.
-pub fn measure_item(id: &'static str, env: &Env, docker: &DockerUsage) -> Option<CleanItem> {
-    let brew_bin = env
-        .brew_prefix
+pub fn brew_bin(env: &Env) -> Option<PathBuf> {
+    env.brew_prefix
         .as_deref()
         .map(|p| Path::new(p).join("bin/brew"))
-        .filter(|p| p.is_file());
+        .filter(|p| p.is_file())
+}
+
+/// Measure one item. `None` = cancelled.
+pub fn measure_item(id: &'static str, env: &Env, docker: &DockerUsage) -> Option<CleanItem> {
+    let brew_bin = brew_bin(env);
     let mut detail = Vec::new();
     let mut note = None;
     let bytes = if let Some(paths) = paths_of(id, env) {

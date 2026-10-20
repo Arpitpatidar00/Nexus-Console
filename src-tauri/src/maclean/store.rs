@@ -7,6 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const FILE_NAME: &str = "maclean.json";
+pub const JOURNAL_CAP: usize = 500;
 
 /// The script's settings block, same defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,6 +77,11 @@ pub struct Store {
 }
 
 impl Store {
+    pub fn append_journal(&mut self, e: JournalEntry) {
+        self.journal.insert(0, e);
+        self.journal.truncate(JOURNAL_CAP);
+    }
+
     /// Missing or corrupt → defaults (a corrupt file is kept aside as `.corrupt`).
     pub fn load(path: &Path) -> Store {
         let Ok(raw) = fs::read_to_string(path) else {

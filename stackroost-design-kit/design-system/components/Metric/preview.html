@@ -1,0 +1,40 @@
+<!-- @dsCard group="Data" height=210 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Metric — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          'div',
+          {
+            style: {
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: '28px',
+            },
+          },
+          h(S.Metric, {
+            value: '68.5',
+            unit: '%',
+            label: 'Disk used · fameo-prod',
+            tone: 'ember',
+            progress: 68.5,
+          }),
+          h(S.Metric, { value: '14', unit: 'd', label: 'Uptime', tone: 'success', progress: 100 }),
+          h(S.Metric, {
+            value: '0.42',
+            label: 'Load, 5 min',
+            spark: [0.3, 0.42, 0.38, 0.6, 0.51, 0.47, 0.39, 0.44, 0.42],
+          }),
+        ),
+      );
+    </script>
+  </body>
+</html>

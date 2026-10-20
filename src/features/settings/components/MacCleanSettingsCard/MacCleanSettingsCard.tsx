@@ -9,7 +9,7 @@ import { useCleanRules, useSetCleanRules } from '@/features/maclean/api/macleanM
 import type { CleanRules } from '@/features/maclean/api/maclean.schema';
 
 const inputCls =
-  'h-8 rounded-md border border-border bg-paper px-2.5 text-sm text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'h-9 rounded-md border border-input bg-muted px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 const list = (s: string) =>
   s
@@ -40,8 +40,8 @@ const Form = ({ rules }: { rules: CleanRules }) => {
   // a new type every render and the input would lose focus on each keystroke.
   const day = (k: keyof typeof days, label: string) => (
     <label key={k} className="flex items-center justify-between gap-4 py-2.5 text-sm">
-      <span className="text-fg">{label}</span>
-      <span className="flex items-center gap-1.5 text-xs text-fg-muted">
+      <span className="text-foreground">{label}</span>
+      <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
         <input
           inputMode="numeric"
           aria-label={label}
@@ -54,9 +54,9 @@ const Form = ({ rules }: { rules: CleanRules }) => {
     </label>
   );
   return (
-    <div className="mt-2 divide-y divide-border">
+    <div className="mt-2 divide-y divide-hairline">
       <label className="block space-y-1 py-3">
-        <span className="text-sm font-medium text-fg">Never touch paths containing</span>
+        <span className="text-sm font-medium text-foreground">Never touch paths containing</span>
         <input
           aria-label="Protected names"
           value={names}
@@ -151,9 +151,9 @@ const Automation = () => {
 export const MacCleanSettingsCard = () => {
   const rules = useCleanRules();
   return (
-    <section className="rounded-xl border border-border bg-paper p-5">
-      <h2 className="text-base font-semibold text-fg">Mac Clean</h2>
-      <p className="mt-1 text-xs text-fg-muted">
+    <section className="rounded-xl p-6 text-card-foreground shadow-edge glass">
+      <h2 className="font-display text-base font-semibold text-foreground">Mac Clean</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
         The same rules as mac-clean.sh. Checked again in Rust on every clean.
       </p>
       <Automation />

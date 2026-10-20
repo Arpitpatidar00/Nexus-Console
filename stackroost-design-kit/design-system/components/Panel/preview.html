@@ -1,0 +1,54 @@
+<!-- @dsCard group="Surfaces" height=320 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Panel — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          'div',
+          {
+            style: {
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: '20px',
+            },
+          },
+          h(
+            S.Panel,
+            {
+              title: 'Containers',
+              subtitle: '6 running · 1 restarting',
+              action: h(S.Button, { size: 'sm', variant: 'glass' }, 'View all'),
+            },
+            h(S.Progress, { label: 'Healthy', value: 86, tone: 'success', valueText: '6 of 7' }),
+          ),
+          h(
+            S.Panel,
+            {
+              variant: 'solid',
+              title: 'Opaque surface',
+              subtitle: 'For reduced transparency and dense tables.',
+            },
+            h(S.Badge, { tone: 'warning', dot: true }, 'Starting'),
+          ),
+          h(
+            S.Panel,
+            {
+              variant: 'inverse',
+              title: 'Deploy ready',
+              subtitle: 'staging is 3 images ahead of prod.',
+            },
+            h('div', null, h(S.Button, { variant: 'ember', size: 'sm' }, 'Review changes')),
+          ),
+        ),
+      );
+    </script>
+  </body>
+</html>

@@ -1,84 +1,92 @@
-/* Stackroost design tokens (Tailwind v4, CSS-first).
- * Semantic tokens flip via CSS-var overrides under [data-theme='dark'] —
- * so `bg-canvas` / `text-fg` adapt with no scattered dark: utilities.
- * Never hardcode a hex in a component; read these tokens. */
+/* Stackroost — Smoked Glass design tokens (Tailwind v4 + shadcn/ui). */
+@import 'tw-animate-css';
+@import '@fontsource-variable/outfit';
+@import '@fontsource/geist-mono/400.css';
+@import '@fontsource/geist-mono/500.css';
 
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+/* Keep the app's existing data-theme switch. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-@theme {
-  /* macOS-only app (see src-tauri/tauri.conf.json bundle targets) — lead with
-     the system font (San Francisco) for native feel instead of a web font that
-     was declared but never actually bundled/loaded. */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+:root,
+[data-theme='light'] {
+  --radius: 1rem;
+  --background: #e7e7ea;
+  --foreground: #0c0c0e;
+  --glow-warm: rgba(226, 96, 15, 0.1);
+  --glow-cool: rgba(255, 255, 255, 0.7);
+  --card: rgba(255, 255, 255, 0.62);
+  --card-foreground: #0c0c0e;
+  --glass-strong: rgba(255, 255, 255, 0.86);
+  --hairline: rgba(12, 12, 14, 0.08);
+  --popover: #ffffff;
+  --popover-foreground: #0c0c0e;
+  --primary: #0c0c0e;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.7);
+  --secondary-foreground: #0c0c0e;
+  --muted: rgba(12, 12, 14, 0.04);
+  --muted-foreground: #5a5860;
+  --accent: rgba(12, 12, 14, 0.06);
+  --accent-foreground: #0c0c0e;
+  --ember: #e2600f;
+  --ember-foreground: #1a0f08;
+  --ember-text: #9c3d08;
+  --ember-soft: rgba(226, 96, 15, 0.12);
+  --success: #11612e;
+  --success-soft: rgba(17, 97, 46, 0.1);
+  --warning: #7a4a00;
+  --warning-soft: rgba(122, 74, 0, 0.1);
+  --info: #17538c;
+  --info-soft: rgba(23, 83, 140, 0.1);
+  --destructive: #b3203a;
+  --destructive-foreground: #ffffff;
+  --danger-soft: rgba(179, 32, 58, 0.1);
+  --border: rgba(12, 12, 14, 0.1);
+  --input: rgba(12, 12, 14, 0.16);
+  --ring: #e2600f;
+  --chart-1: #e2600f;
+  --chart-2: #0c0c0e;
+  --chart-3: #5c7300;
+  --chart-4: #17538c;
+  --chart-5: #5b3fc4;
+  --sidebar: rgba(255, 255, 255, 0.72);
+  --sidebar-foreground: #5a5860;
+  --sidebar-primary: #0c0c0e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(12, 12, 14, 0.06);
+  --sidebar-accent-foreground: #0c0c0e;
+  --sidebar-border: rgba(12, 12, 14, 0.08);
+  --sidebar-ring: #e2600f;
+  --shadow-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-float: 0 24px 60px rgba(28, 24, 32, 0.14);
+  --shadow-ring-ember: 0 0 0 4px rgba(226, 96, 15, 0.18);
 
-  /* Surfaces / ink (light = default) */
-  --color-canvas: #f8fafc;
-  --color-paper: #ffffff;
-  --color-list: #f8fafc;
-  --color-border: #e2e8f0;
-  --color-fg: #0f172a;
-  --color-fg-muted: #475569;
-  --color-fg-subtle: #64748b;
+  /* Legacy tokens alias to prevent regressions */
+  --canvas: var(--background);
+  --paper: var(--card);
+  --list: rgba(255, 255, 255, 0.45);
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: #7a7880;
+  --accent-text: var(--ember-text);
+  --accent-soft: var(--ember-soft);
+  --accent-hover: #c5530d;
+  --accent-fg: var(--primary-foreground);
+  --running: var(--success);
+  --running-soft: var(--success-soft);
+  --running-dot: #11612e;
+  --stopped: var(--muted-foreground);
+  --stopped-soft: var(--muted);
+  --stopped-dot: #7a7880;
+  --warn: var(--warning);
+  --warn-soft: var(--warning-soft);
+  --warn-dot: #7a4a00;
+  --danger: var(--destructive);
+  --danger-dot: var(--destructive);
 
-  /* Accent — the one accent (buttons, active nav). ≤ ~10% of a screen. */
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
-  --color-accent-fg: #ffffff;
-  --color-accent-soft: #eff6ff;
-
-  /* Status ramp: running=success, stopped=neutral, warn, danger. {solid, soft, dot} */
-  --color-running: #059669;
-  --color-running-soft: #ecfdf5;
-  --color-running-dot: #10b981;
-  --color-stopped: #64748b;
-  --color-stopped-soft: #f1f5f9;
-  --color-stopped-dot: #94a3b8;
-  --color-warn: #d97706;
-  --color-warn-soft: #fffbeb;
-  --color-warn-dot: #f59e0b;
-  --color-danger: #dc2626;
-  --color-danger-soft: #fef2f2;
-  --color-danger-dot: #ef4444;
-
-  /* Radius */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-
-  /* Easing (150–250ms, ease-out, no bounce) */
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ease-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Dark: flat — 1px borders + tonal surfaces, no shadows. */
-[data-theme='dark'] {
-  --color-canvas: #181818;
-  --color-paper: #202020;
-  --color-list: #242424;
-  --color-border: #2f2f2f;
-  --color-fg: #e3e6eb;
-  --color-fg-muted: #b9c0c9;
-  --color-fg-subtle: #8b93a1;
-
-  --color-accent: #3b82f6;
-  --color-accent-hover: #60a5fa;
-  --color-accent-soft: #18233b;
-
-  --color-running-soft: #0e2a20;
-  --color-stopped-soft: #24272c;
-  --color-warn-soft: #2a2210;
-  --color-danger-soft: #2a1414;
-}
-
-/* Non-utility tokens: durations + semantic z-index (used via arbitrary values). */
-:root {
   --duration-fast: 120ms;
   --duration-base: 180ms;
   --duration-slow: 240ms;
-
   --z-dropdown: 1000;
   --z-sticky: 1100;
   --z-drawer: 1200;
@@ -86,4 +94,199 @@
   --z-modal: 1300;
   --z-toast: 1400;
   --z-tooltip: 1500;
+}
+
+[data-theme='dark'] {
+  --background: #141215;
+  --foreground: #f4f1ec;
+  --glow-warm: rgba(255, 122, 47, 0.16);
+  --glow-cool: rgba(196, 178, 166, 0.1);
+  --card: rgba(255, 255, 255, 0.06);
+  --card-foreground: #f4f1ec;
+  --glass-strong: rgba(255, 255, 255, 0.11);
+  --hairline: rgba(255, 255, 255, 0.09);
+  --popover: #1e1c20;
+  --popover-foreground: #f4f1ec;
+  --primary: #f4f1ec;
+  --primary-foreground: #141215;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f4f1ec;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: #a8a3a0;
+  --accent: rgba(255, 255, 255, 0.1);
+  --accent-foreground: #f4f1ec;
+  --ember: #ff7a2f;
+  --ember-foreground: #1a0f08;
+  --ember-text: #ff8a47;
+  --ember-soft: rgba(255, 122, 47, 0.16);
+  --success: #5be08f;
+  --success-soft: rgba(91, 224, 143, 0.14);
+  --warning: #f7c64b;
+  --warning-soft: rgba(247, 198, 75, 0.14);
+  --info: #7cc4ff;
+  --info-soft: rgba(124, 196, 255, 0.14);
+  --destructive: #ff5a5f;
+  --destructive-foreground: #1a0b0c;
+  --danger-soft: rgba(255, 90, 95, 0.14);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #ff7a2f;
+  --chart-1: #ff7a2f;
+  --chart-2: #f4f1ec;
+  --chart-3: #d9f26b;
+  --chart-4: #7cc4ff;
+  --chart-5: #b79cff;
+  --sidebar: rgba(10, 9, 11, 0.72);
+  --sidebar-foreground: #a8a3a0;
+  --sidebar-primary: #ff7a2f;
+  --sidebar-primary-foreground: #1a0f08;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #f4f1ec;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-ring: #ff7a2f;
+  --shadow-edge: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-float: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-ring-ember: 0 0 0 4px rgba(255, 122, 47, 0.22);
+
+  /* Legacy dark aliases */
+  --canvas: var(--background);
+  --paper: var(--card);
+  --list: rgba(255, 255, 255, 0.04);
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: #807b78;
+  --accent-text: var(--ember-text);
+  --accent-soft: var(--ember-soft);
+  --accent-hover: #ff8a47;
+  --accent-fg: var(--primary-foreground);
+  --running: var(--success);
+  --running-soft: var(--success-soft);
+  --running-dot: #5be08f;
+  --stopped: var(--muted-foreground);
+  --stopped-soft: var(--muted);
+  --stopped-dot: #807b78;
+  --warn: var(--warning);
+  --warn-soft: var(--warning-soft);
+  --warn-dot: #f7c64b;
+  --danger: var(--destructive);
+  --danger-dot: var(--destructive);
+}
+
+@theme inline {
+  --font-sans: 'Outfit Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display:
+    'Outfit Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Stackroost additions */
+  --color-ember: var(--ember);
+  --color-ember-foreground: var(--ember-foreground);
+  --color-ember-text: var(--ember-text);
+  --color-ember-soft: var(--ember-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-hairline: var(--hairline);
+  --color-glass-strong: var(--glass-strong);
+
+  /* Legacy colors mapping */
+  --color-canvas: var(--canvas);
+  --color-paper: var(--paper);
+  --color-list: var(--list);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-running: var(--running);
+  --color-running-soft: var(--running-soft);
+  --color-running-dot: var(--running-dot);
+  --color-stopped: var(--stopped);
+  --color-stopped-soft: var(--stopped-soft);
+  --color-stopped-dot: var(--stopped-dot);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-dot: var(--warn-dot);
+  --color-danger: var(--danger);
+  --color-danger-dot: var(--danger-dot);
+
+  --radius-xs: 4px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 6px);
+  --radius-xl: calc(var(--radius) + 12px);
+  --radius-2xl: calc(var(--radius) + 20px);
+
+  --shadow-edge: var(--shadow-edge);
+  --shadow-float: var(--shadow-float);
+  --shadow-ring-ember: var(--shadow-ring-ember);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility ground {
+  background:
+    radial-gradient(60% 70% at 88% 0%, var(--glow-warm), transparent 70%),
+    radial-gradient(55% 65% at 0% 100%, var(--glow-cool), transparent 70%), var(--background);
+}
+
+@utility glass {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: var(--shadow-edge);
+}
+
+@utility glass-strong {
+  background: var(--glass-strong);
+  border: 1px solid var(--hairline);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: var(--shadow-edge);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--popover);
+  }
 }

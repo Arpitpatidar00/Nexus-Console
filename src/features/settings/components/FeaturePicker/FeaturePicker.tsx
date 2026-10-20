@@ -55,7 +55,7 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                 className={cn(
                   'flex h-full flex-col gap-3 rounded-xl border p-4 transition-colors duration-[var(--duration-fast)]',
                   'peer-focus-visible:ring-2 peer-focus-visible:ring-accent',
-                  checked ? 'border-accent bg-accent-soft' : 'border-border bg-paper',
+                  checked ? 'bg-accent-soft border-accent' : 'border-border bg-paper',
                   available ? 'hover:border-accent/60' : 'opacity-60',
                 )}
               >
@@ -63,7 +63,7 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                   <span
                     className={cn(
                       'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                      checked ? 'bg-accent text-accent-fg' : 'bg-list text-fg-muted',
+                      checked ? 'text-accent-fg bg-accent' : 'bg-list text-fg-muted',
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -79,7 +79,7 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                       checked ? 'border-accent bg-accent' : 'border-fg-subtle/50',
                     )}
                   >
-                    {checked && <Check className="h-3 w-3 text-accent-fg" strokeWidth={3} />}
+                    {checked && <Check className="text-accent-fg h-3 w-3" strokeWidth={3} />}
                   </span>
                 </span>
 

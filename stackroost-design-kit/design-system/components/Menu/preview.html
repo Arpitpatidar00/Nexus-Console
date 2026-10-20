@@ -1,0 +1,28 @@
+<!-- @dsCard group="Surfaces" height=300 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Menu — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(S.Menu, {
+          label: 'Container actions',
+          items: [
+            { label: 'Live logs', icon: 'list', shortcut: '⌘L' },
+            { label: 'Shell inside', icon: 'terminal' },
+            { label: 'Restart', icon: 'restart' },
+            { separator: true },
+            { label: 'Stop', icon: 'stop', danger: true },
+            { label: 'Remove', icon: 'x', danger: true },
+          ],
+        }),
+      );
+    </script>
+  </body>
+</html>

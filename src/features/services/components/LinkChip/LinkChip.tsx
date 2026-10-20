@@ -10,7 +10,7 @@ export const LinkChip = ({ linkState }: { linkState: LinkState }) => {
         <span
           className={
             linked
-              ? 'inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent'
+              ? 'bg-accent-soft inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium text-accent'
               : 'inline-flex items-center gap-1.5 rounded-full bg-stopped-soft px-2 py-0.5 text-xs font-medium text-stopped'
           }
         >

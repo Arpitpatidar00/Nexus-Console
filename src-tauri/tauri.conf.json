@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
@@ -20,7 +21,8 @@
         "minHeight": 660,
         "dragDropEnabled": false,
         "visible": false,
-        "backgroundColor": "#181818",
+        "transparent": true,
+        "backgroundColor": "#141215",
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
       }

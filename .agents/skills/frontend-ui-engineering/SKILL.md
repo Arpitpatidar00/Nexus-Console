@@ -246,9 +246,9 @@ function TaskList({ tasks }: { tasks: Task[] }) {
   if (tasks.length === 0) {
     return (
       <div role="status" className="py-12 text-center">
-        <TasksEmptyIcon className="text-muted mx-auto h-12 w-12" />
+        <TasksEmptyIcon className="mx-auto h-12 w-12 text-muted" />
         <h3 className="mt-2 text-sm font-medium">No tasks</h3>
-        <p className="text-muted mt-1 text-sm">Get started by creating a new task.</p>
+        <p className="mt-1 text-sm text-muted">Get started by creating a new task.</p>
         <Button className="mt-4" onClick={onCreateTask}>
           Create Task
         </Button>
@@ -284,7 +284,7 @@ function TaskListSkeleton() {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Loading tasks">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="bg-muted h-12 animate-pulse rounded" />
+        <div key={i} className="h-12 animate-pulse rounded bg-muted" />
       ))}
     </div>
   );

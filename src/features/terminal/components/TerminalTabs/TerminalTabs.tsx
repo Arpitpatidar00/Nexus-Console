@@ -9,25 +9,31 @@ export const TerminalTabs = () => {
   const activeId = useAppSelector((s) => s.terminals.activeId);
 
   return (
-    <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+    <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
       {sessions.map((s) => (
         <div
           key={s.id}
           className={cn(
-            'flex shrink-0 items-center gap-1.5 rounded-md py-1 pr-1 pl-2.5 text-xs transition-colors',
-            s.id === activeId ? 'bg-list text-fg' : 'text-fg-muted hover:text-fg',
+            'flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-1.5 pl-3 font-mono text-xs transition-colors select-none',
+            s.id === activeId
+              ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
+              : 'border-hairline bg-muted text-muted-foreground hover:text-foreground',
           )}
         >
-          <button type="button" onClick={() => dispatch(setActiveTerminal(s.id))}>
+          <button
+            type="button"
+            className="max-w-[140px] cursor-pointer truncate"
+            onClick={() => dispatch(setActiveTerminal(s.id))}
+          >
             {s.title}
           </button>
           <button
             type="button"
             aria-label={`Close ${s.title}`}
             onClick={() => dispatch(closeTerminal(s.id))}
-            className="rounded p-0.5 hover:bg-border"
+            className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-black/20 dark:hover:bg-white/20"
           >
-            <X className="h-3 w-3" />
+            <X className="size-3" />
           </button>
         </div>
       ))}

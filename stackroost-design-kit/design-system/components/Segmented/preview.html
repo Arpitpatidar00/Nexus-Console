@@ -1,0 +1,30 @@
+<!-- @dsCard group="Inputs" height=140 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Segmented — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          'div',
+          { className: 'sr-stack', style: { gap: '16px', alignItems: 'flex-start' } },
+          h(S.Segmented, {
+            label: 'Section',
+            options: ['Overview', 'Containers', 'Services', 'Ports', 'Issues'],
+          }),
+          h(S.Segmented, {
+            label: 'Range',
+            options: ['1H', '24H', '7D', '30D'],
+            defaultValue: '24H',
+          }),
+        ),
+      );
+    </script>
+  </body>
+</html>

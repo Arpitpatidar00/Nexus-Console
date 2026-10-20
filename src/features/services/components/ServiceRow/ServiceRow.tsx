@@ -11,23 +11,26 @@ export const ServiceRow = ({ service }: { service: ReconciledService }) => {
   const isRunning = service.status === 'running' || service.status === 'starting';
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-paper px-4 py-2.5 transition-colors hover:bg-list/60">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-list text-fg-muted">
-        <Icon className="h-4 w-4" />
+    <div className="sr-row flex min-h-14 items-center gap-3 rounded-lg px-3.5 py-2.5 shadow-edge glass transition-colors hover:bg-glass-strong">
+      <div className="sr-row__icon flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+        <Icon className="size-4" />
       </div>
-      {/* Name grows to fill slack, truncates, but keeps a floor so it never
-          collapses to zero behind the action cluster. */}
+
       <div className="min-w-[6rem] flex-1">
-        <p className="truncate text-sm font-semibold text-fg">{service.displayName}</p>
-        <p className="truncate font-mono text-xs text-fg-muted">
+        <p className="sr-row__title truncate text-sm font-medium text-foreground">
+          {service.displayName}
+        </p>
+        <p className="sr-row__sub truncate font-mono text-xs text-muted-foreground">
           {service.formula}
           {service.port ? ` · :${service.port}` : ''}
         </p>
       </div>
+
       <StatusChip status={service.status} />
       {service.status !== 'notInstalled' && <LinkChip linkState={service.linkState} />}
+
       {isRunning && (
-        <div className="hidden shrink-0 xl:block">
+        <div className="hidden shrink-0 font-mono text-xs text-muted-foreground xl:block">
           <ServiceStatsInline
             cpu={service.cpu}
             memoryBytes={service.memoryBytes}
@@ -35,6 +38,7 @@ export const ServiceRow = ({ service }: { service: ReconciledService }) => {
           />
         </div>
       )}
+
       <div className="flex shrink-0 items-center gap-2">
         <ServiceActions service={service} compact />
         <ServiceMenu service={service} />

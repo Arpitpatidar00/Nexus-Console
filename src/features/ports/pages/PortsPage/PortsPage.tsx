@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Network, SearchX } from 'lucide-react';
+import { Network, RefreshCw, SearchX } from 'lucide-react';
 import { usePorts } from '@/features/ports/api/usePorts';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import { PortsToolbar } from '@/features/ports/components/PortsToolbar';
+import { Panel } from '@/shared/ui/Panel';
+import { Button } from '@/shared/ui/Button';
+import { SearchField } from '@/shared/ui/SearchField';
+import { Switch } from '@/shared/ui/Switch';
 import { PortsTable } from '@/features/ports/components/PortsTable';
 import { PortsTableSkeleton } from '@/features/ports/components/PortsTableSkeleton';
+import { cn } from '@/shared/lib/cn';
 
 export const PortsPage = () => {
   const [query, setQuery] = useState('');
@@ -32,52 +36,65 @@ export const PortsPage = () => {
       : `${total} ${listeningOnly ? 'listening' : 'active'} port${total === 1 ? '' : 's'}`;
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-fg">Ports</h1>
-          <p className="text-sm text-fg-muted tabular-nums">{subtitle}</p>
-        </div>
-        <PortsToolbar
-          query={query}
-          onQueryChange={setQuery}
-          listeningOnly={listeningOnly}
-          onListeningChange={setListeningOnly}
-          onRefresh={() => void refetch()}
-          isFetching={isFetching}
-        />
-      </header>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* Top action header */}
+      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
+        <p className="sr-caption tabular-nums">{subtitle}</p>
 
-      {/* Padded content + a bordered card frame, matching Services/Settings. */}
-      <div className="min-h-0 flex-1 overflow-hidden p-6">
-        <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-paper">
-          {isPending ? (
-            <PortsTableSkeleton />
-          ) : isError ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
-                {error instanceof Error ? error.message : 'Failed to list ports'}
-              </div>
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              icon={query ? <SearchX className="h-8 w-8" /> : <Network className="h-8 w-8" />}
-              title={
-                query ? 'No matches' : listeningOnly ? 'No listening ports' : 'No active ports'
-              }
-              description={
-                query
-                  ? `Nothing matches “${query.trim()}”.`
-                  : listeningOnly
-                    ? 'Nothing is listening right now. Apps that open a port will show up here.'
-                    : 'No processes are holding a network connection.'
-              }
+        <div className="flex items-center gap-3">
+          <SearchField
+            placeholder="Search port, process, PID..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-11 w-64 max-w-full"
+          />
+
+          <label
+            htmlFor="ports-listening-only-toggle"
+            className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground select-none"
+          >
+            <Switch
+              id="ports-listening-only-toggle"
+              checked={listeningOnly}
+              onChange={setListeningOnly}
+              ariaLabel="Listening ports only"
             />
-          ) : (
-            <PortsTable ports={filtered} />
-          )}
+            <span>Listening only</span>
+          </label>
+
+          <Button variant="glass" size="sm" onClick={() => void refetch()} disabled={isFetching}>
+            <RefreshCw className={cn('size-3.5', isFetching && 'animate-spin')} />
+            Refresh
+          </Button>
         </div>
       </div>
+
+      {/* Main Table panel */}
+      <Panel className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden p-0">
+        {isPending ? (
+          <PortsTableSkeleton />
+        ) : isError ? (
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="rounded-lg border border-destructive/30 bg-danger-soft px-4 py-3 text-sm text-destructive">
+              {error instanceof Error ? error.message : 'Failed to list ports'}
+            </div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={query ? <SearchX className="size-10" /> : <Network className="size-10" />}
+            title={query ? 'No matches' : listeningOnly ? 'No listening ports' : 'No active ports'}
+            description={
+              query
+                ? `Nothing matches “${query.trim()}”.`
+                : listeningOnly
+                  ? 'Nothing is listening right now. Apps that open a port will show up here.'
+                  : 'No processes are holding a network connection.'
+            }
+          />
+        ) : (
+          <PortsTable ports={filtered} />
+        )}
+      </Panel>
     </div>
   );
 };

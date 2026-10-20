@@ -11,29 +11,27 @@ export const TerminalDrawer = () => {
   const activeId = useAppSelector((s) => s.terminals.activeId);
   const drawerOpen = useAppSelector((s) => s.terminals.drawerOpen);
 
-  // Unmount only when there are no sessions. "Hide" is CSS-only — unmounting
-  // XtermViews would kill their PTYs (running shells silently destroyed).
   if (sessions.length === 0) return null;
 
   return (
     <div
       className={cn(
-        'flex h-72 shrink-0 flex-col border-t border-border bg-paper',
+        'z-40 flex h-72 shrink-0 flex-col rounded-t-3xl border-x border-t border-hairline shadow-float glass backdrop-blur-2xl transition-all duration-200',
         !drawerOpen && 'hidden',
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <TerminalSquare className="h-4 w-4 shrink-0 text-fg-muted" />
+      <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <TerminalSquare className="size-4 shrink-0 text-muted-foreground" />
           <TerminalTabs />
         </div>
         <button
           type="button"
           aria-label="Hide terminal"
           onClick={() => dispatch(setDrawerOpen(false))}
-          className="shrink-0 rounded-md p-1 text-fg-muted hover:bg-list hover:text-fg"
+          className="flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </button>
       </div>
       {/* All sessions stay mounted (PTYs persist) — inactive ones hidden via visibility. */}
@@ -41,7 +39,7 @@ export const TerminalDrawer = () => {
         {sessions.map((s) => (
           <div
             key={s.id}
-            className="absolute inset-0 p-2"
+            className="absolute inset-0 p-2.5"
             style={{ visibility: s.id === activeId ? 'visible' : 'hidden' }}
           >
             <XtermView session={s} active={s.id === activeId} visible={drawerOpen} />

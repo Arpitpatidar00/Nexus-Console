@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDuration, formatTime } from '@/shared/lib/format';
 import { useLiveUptime } from '@/features/sessions/hooks/useLiveUptime';
 import { iconFor } from '@/features/services/components/ServiceCard';
+import { Badge } from '@/shared/ui/Badge';
 import type { Run } from '@/shared/state/sessionsSlice';
 
 interface Props {
@@ -21,56 +22,56 @@ export const SessionCard = ({ formula, displayName, runs }: Props) => {
   const Icon = iconFor(formula);
 
   return (
-    <div className="rounded-xl border border-border bg-paper">
+    <div className="rounded-xl shadow-edge glass transition-all hover:bg-glass-strong">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 p-4 text-left"
+        className="flex w-full cursor-pointer items-center gap-3 p-4 text-left select-none"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-list text-fg-muted">
-          <Icon className="h-4 w-4" />
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+          <Icon className="size-4" />
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate font-semibold text-fg">{displayName}</span>
+          <span className="truncate font-semibold text-foreground">{displayName}</span>
           {liveUptime !== null && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-running-soft px-2 py-0.5 text-xs text-running">
-              <Clock className="h-3 w-3" />
+            <Badge tone="success" size="sm" dot>
               up {formatDuration(liveUptime)}
-            </span>
+            </Badge>
           )}
         </div>
-        <div className="shrink-0 text-right text-xs text-fg-muted tabular-nums">
-          <div className="font-semibold text-fg">{formatDuration(totalSecs)}</div>
+        <div className="shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
+          <div className="font-semibold text-foreground">{formatDuration(totalSecs)}</div>
           <div>Total uptime</div>
         </div>
-        <div className="w-10 shrink-0 text-right text-xs text-fg-muted tabular-nums">
-          <div className="font-semibold text-fg">{runs.length}</div>
+        <div className="w-12 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
+          <div className="font-semibold text-foreground">{runs.length}</div>
           <div>Runs</div>
         </div>
         {runs.length > 0 ? (
           open ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-fg-subtle" />
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-fg-subtle" />
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
           )
         ) : (
-          <span className="w-4 shrink-0" />
+          <span className="size-4 shrink-0" />
         )}
       </button>
 
       {open && runs.length > 0 && (
-        <div className="selectable border-t border-border px-4 py-2">
-          {[...runs].reverse().map((r) => (
-            <div
-              key={r.startMs}
-              className="flex items-center justify-between py-1 text-xs text-fg-muted tabular-nums"
-            >
-              <span>
-                {formatTime(r.startMs)} → {r.endMs ? formatTime(r.endMs) : 'now'}
-              </span>
-              <span>{formatDuration(Math.floor(((r.endMs ?? now) - r.startMs) / 1000))}</span>
-            </div>
-          ))}
+        <div className="border-t border-hairline px-4 py-3">
+          <div className="space-y-1.5 font-mono text-xs">
+            {runs.map((r, i) => (
+              <div key={i} className="flex items-center justify-between text-muted-foreground">
+                <span>{formatTime(r.startMs)}</span>
+                <span>
+                  {r.endMs
+                    ? `ran for ${formatDuration((r.endMs - r.startMs) / 1000)}`
+                    : 'currently running'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

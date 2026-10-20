@@ -1,0 +1,60 @@
+<!-- @dsCard group="Brand" height=240 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mark — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          'div',
+          { className: 'sr-flex', style: { gap: '28px', alignItems: 'flex-end' } },
+          h(S.Mark, { size: 96 }),
+          h(S.Mark, { size: 56 }),
+          h(S.Mark, { size: 32 }),
+          h(S.Mark, { size: 20 }),
+          h('img', {
+            src: '/_blob/e426ac4ffa970e006e1333cdcc74a784',
+            width: 128,
+            height: 128,
+            alt: 'App icon',
+          }),
+          h('img', {
+            src: '/_blob/a62ccb753d2a15b9ae025b287a2618a6',
+            width: 128,
+            height: 128,
+            alt: 'App icon, dial variant',
+          }),
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                height: '32px',
+                padding: '0 14px',
+                borderRadius: '10px',
+                background: '#E9EAEE',
+                color: '#000',
+                font: '13px -apple-system, system-ui',
+              },
+            },
+            h('img', {
+              src: '/_blob/b758ace914bb85ca50989262275953f1',
+              width: 18,
+              height: 18,
+              alt: 'Menu bar icon',
+            }),
+            '3/5',
+          ),
+        ),
+      );
+    </script>
+  </body>
+</html>

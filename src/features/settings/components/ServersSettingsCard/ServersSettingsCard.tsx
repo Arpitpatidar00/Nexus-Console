@@ -2,7 +2,6 @@ import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setRemoteBackgroundMinutes, setRemotePollInterval } from '@/shared/state/settingsSlice';
 import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
-// Deep imports: the remote barrel would chain RemotePage into Settings' chunk.
 import { useRemoteState } from '@/features/remote/api/useRemoteState';
 import { useSetConsent } from '@/features/remote/api/remoteMutations';
 import { formatTime } from '@/shared/lib/format';
@@ -18,13 +17,13 @@ export const ServersSettingsCard = () => {
   const since = state.data?.consent.grantedAtEpoch;
 
   return (
-    <section className="rounded-xl border border-border bg-paper p-5">
-      <h2 className="text-base font-semibold text-fg">Servers</h2>
-      <div className="mt-2 divide-y divide-border">
+    <section className="rounded-xl p-6 text-card-foreground shadow-edge glass">
+      <h2 className="font-display text-base font-semibold text-foreground">Servers</h2>
+      <div className="mt-2 divide-y divide-hairline">
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-fg">Refresh</p>
-            <p className="text-xs text-fg-muted">
+            <p className="text-sm font-medium text-foreground">Refresh</p>
+            <p className="text-xs text-muted-foreground">
               How often the open server is re-checked while the window is focused.
             </p>
           </div>
@@ -37,8 +36,8 @@ export const ServersSettingsCard = () => {
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-fg">Check in the background</p>
-            <p className="text-xs text-fg-muted">
+            <p className="text-sm font-medium text-foreground">Check in the background</p>
+            <p className="text-xs text-muted-foreground">
               While Stackroost is in the menu bar, re-check servers that are already connected and
               notify only about new critical issues. Never connects on its own.
             </p>
@@ -52,8 +51,8 @@ export const ServersSettingsCard = () => {
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-fg">SSH config access</p>
-            <p className="text-xs text-fg-muted">
+            <p className="text-sm font-medium text-foreground">SSH config access</p>
+            <p className="text-xs text-muted-foreground">
               {granted
                 ? `Allowed${since ? ` since ${formatTime(since * 1000)}` : ''}. Revoking disconnects every server; your list stays.`
                 : 'Not allowed. Stackroost reads nothing in ~/.ssh until you allow it on the Servers tab.'}

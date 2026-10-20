@@ -1,0 +1,23 @@
+<!-- @dsCard group="Inputs" height=120 -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Switch — preview</title>
+  </head>
+  <body>
+    <div id="root" class="sr-ground"></div>
+    <script>
+      var S = window.Stackroost,
+        h = React.createElement;
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        h(
+          'div',
+          { className: 'sr-stack', style: { gap: '16px' } },
+          h(S.Switch, { label: 'Check in the background', defaultChecked: true }),
+          h(S.Switch, { label: 'Connect when Stackroost opens' }),
+        ),
+      );
+    </script>
+  </body>
+</html>

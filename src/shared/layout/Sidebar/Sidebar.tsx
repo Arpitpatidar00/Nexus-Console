@@ -21,7 +21,7 @@ export const Sidebar = () => {
           work normally, only this element's own background + non-interactive
           children become drag handles. */}
       <div data-tauri-drag-region="deep" className="flex items-center gap-3 px-2 pt-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+        <div className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-xl text-accent">
           <Boxes className="h-5 w-5" />
         </div>
         <div>
@@ -49,7 +49,7 @@ export const Sidebar = () => {
                 <motion.span
                   aria-hidden
                   layoutId="sidebar-active"
-                  className="absolute inset-0 rounded-lg bg-accent-soft"
+                  className="bg-accent-soft absolute inset-0 rounded-lg"
                   transition={
                     reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }
                   }

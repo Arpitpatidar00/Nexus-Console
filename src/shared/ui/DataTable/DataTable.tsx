@@ -11,13 +11,13 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import type { DataTableProps } from './DataTable.types';
 
-/** Generic virtualized table: react-table (sort) + react-virtual (rows). Div-based
- * so virtualization is clean. Reused by Ports / Packages / Sessions. */
+/** Generic virtualized table: react-table (sort) + react-virtual (rows).
+ * Smoked Glass styled with hairline dividers and frosted header. */
 export function DataTable<T>({
   data,
   columns,
   getRowId,
-  estimateRowHeight = 44,
+  estimateRowHeight = 48,
   emptyMessage = 'Nothing to show.',
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -42,7 +42,7 @@ export function DataTable<T>({
 
   return (
     <div ref={parentRef} className="h-full overflow-auto">
-      <div className="sticky top-0 z-[1] flex border-b border-border bg-canvas">
+      <div className="sticky top-0 z-[1] flex border-b border-hairline bg-popover/80 backdrop-blur-md">
         {table.getFlatHeaders().map((h) => {
           const sorted = h.column.getIsSorted();
           const alignRight = h.column.columnDef.meta?.align === 'right';
@@ -54,21 +54,21 @@ export function DataTable<T>({
               disabled={!h.column.getCanSort()}
               style={{ width: h.getSize(), flexGrow: h.column.columnDef.meta?.grow ? 1 : 0 }}
               className={cn(
-                'flex items-center gap-1 px-3 py-2 text-xs font-medium text-fg-muted',
-                'enabled:hover:text-fg disabled:cursor-default',
+                'flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors select-none',
+                'enabled:hover:text-foreground disabled:cursor-default',
                 alignRight ? 'justify-end text-right' : 'text-left',
               )}
             >
               {flexRender(h.column.columnDef.header, h.getContext())}
-              {sorted === 'asc' && <ChevronUp className="h-3 w-3" />}
-              {sorted === 'desc' && <ChevronDown className="h-3 w-3" />}
+              {sorted === 'asc' && <ChevronUp className="size-3.5 text-ember" />}
+              {sorted === 'desc' && <ChevronDown className="size-3.5 text-ember" />}
             </button>
           );
         })}
       </div>
 
       {rows.length === 0 ? (
-        <p className="px-3 py-6 text-center text-sm text-fg-muted">{emptyMessage}</p>
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualizer.getVirtualItems().map((vi) => {
@@ -84,7 +84,7 @@ export function DataTable<T>({
                   height: vi.size,
                   transform: `translateY(${vi.start}px)`,
                 }}
-                className="flex items-center border-b border-border hover:bg-list/50"
+                className="flex items-center border-b border-hairline transition-colors hover:bg-glass-strong"
               >
                 {row.getVisibleCells().map((cell) => (
                   <div
@@ -94,7 +94,7 @@ export function DataTable<T>({
                       flexGrow: cell.column.columnDef.meta?.grow ? 1 : 0,
                     }}
                     className={cn(
-                      'min-w-0 px-3 py-2',
+                      'min-w-0 px-4 py-2 font-mono text-xs',
                       cell.column.columnDef.meta?.align === 'right' && 'text-right',
                     )}
                   >

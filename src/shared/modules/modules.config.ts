@@ -1,5 +1,7 @@
 import {
   Archive,
+  Container,
+  Database,
   Clock,
   HardDrive,
   MemoryStick,
@@ -13,7 +15,16 @@ import {
 import type { Tab } from '@/shared/state/uiSlice';
 
 /** The core modules forming the Stackroost developer console. Order is nav order. */
-export const MODULE_IDS = ['homebrew', 'ports', 'remote', 'doctor', 'maclean', 'claude'] as const;
+export const MODULE_IDS = [
+  'homebrew',
+  'ports',
+  'remote',
+  'doctor',
+  'maclean',
+  'claude',
+  'docker',
+  'databases',
+] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
 export type ModuleGroup = 'local' | 'remote' | 'mac' | 'tools';
@@ -124,6 +135,26 @@ export const MODULES: ModuleDef[] = [
     blurb: 'Browse and archive your Claude Code history.',
     background: 'Optional daily chat archiving while the app sits in the tray.',
     requires: 'claude',
+  },
+  {
+    id: 'docker',
+    label: 'Docker',
+    group: 'local',
+    icon: Container,
+    nav: [{ tab: 'docker', label: 'Containers', icon: Container, group: 'local' }],
+    blurb: 'Local container runtime, compose stacks, and logs.',
+    background: null,
+    optIn: true,
+  },
+  {
+    id: 'databases',
+    label: 'Databases',
+    group: 'local',
+    icon: Database,
+    nav: [{ tab: 'databases', label: 'Databases', icon: Database, group: 'local' }],
+    blurb: 'Local & remote database client, schema inspector, and APFS branching.',
+    background: null,
+    optIn: true,
   },
 ];
 

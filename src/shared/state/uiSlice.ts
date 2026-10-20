@@ -10,6 +10,8 @@ export const TABS = [
   'storage',
   'memory',
   'sessions',
+  'docker',
+  'databases',
   'settings',
 ] as const;
 export type Tab = (typeof TABS)[number];

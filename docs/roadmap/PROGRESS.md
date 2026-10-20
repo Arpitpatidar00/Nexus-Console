@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P6 (Local data)
+- **Current phase:** P7 (Projects and Workspaces)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -31,7 +31,7 @@
 - [x] **P3** SSH tunnels
 - [x] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
 - [x] **P5** Parity and Ship (parity auditor, deploy/rollback, image push over SSH)
-- [ ] **P6** Local data (Local Docker, Databases, branch databases)
+- [x] **P6** Local data (Local Docker, Databases, branch databases)
 - [ ] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
 - [ ] **P8** Claude Chats (search, resume, export, usage, context analysis)
 - [ ] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
@@ -56,6 +56,12 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 6 (Local data).
+  - 6.1 Local Docker module: Probing container engines (OrbStack, Docker Desktop, Colima), native container lifecycle actions (start, stop, restart, remove), compose stacks view with project-level controls, zero system prune -a to protect Mac Clean boundaries.
+  - 6.2 Databases module: Auto-discovery of local database instances (Postgres, MySQL, Redis, MongoDB), schema & tables browser, read-only SQL query execution with AST/token classification, anti-mutation guarantees (blocking DROP/DELETE/UPDATE/ALTER/COPY and multi-statement attacks), and automatic LIMIT 500 pagination.
+  - 6.3 APFS Instant Database Branches: Instantaneous zero-copy Copy-on-Write (CoW) snapshots using macOS clonefile() on database data directories, safe service shutdown before cloning to ensure filesystem consistency, real disk size tracking with du, and one-click rollback/restore.
+  - Quality gates green: 247 Rust unit tests pass (0 failures), 102 Vitest frontend tests pass, Oxlint (0 errors/warnings on 509 files), Prettier, TypeScript, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 5 (Parity and Ship).
   - 5.1 Environment Parity Auditor: Toolchain runtime version matrix (Node, Python, Docker, Compose, Postgres, Redis) comparing local machine and remote servers. `.env` key names comparison across machines without value exposure. Ephemeral 32-byte salted HMAC-SHA256 comparison (`openssl dgst -sha256 -hmac`) detecting cross-environment secret leaks ("staging using prod keys") with instant salt disposal.

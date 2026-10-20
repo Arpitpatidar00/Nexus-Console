@@ -33,6 +33,12 @@ export const PAGES: Record<Tab, ComponentType> = {
   archiver: lazy(() =>
     import('@/features/archiver/pages/ArchiverPage').then((m) => ({ default: m.ArchiverPage })),
   ),
+  docker: lazy(() =>
+    import('@/features/docker/pages/DockerPage').then((m) => ({ default: m.DockerPage })),
+  ),
+  databases: lazy(() =>
+    import('@/features/databases/pages/DatabasesPage').then((m) => ({ default: m.DatabasesPage })),
+  ),
   settings: lazy(() =>
     import('@/features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
   ),

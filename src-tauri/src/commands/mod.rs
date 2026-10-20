@@ -10,6 +10,8 @@ pub mod services;
 pub mod tray;
 pub mod vscode;
 
+pub mod databases;
+pub mod docker;
 use crate::core::error::{AppError, AppResult};
 
 /// Run blocking fs/db work off the main thread — shared by all doctor commands.

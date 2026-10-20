@@ -13,7 +13,9 @@ pub use database::settings_store as settings;
 pub use models::context::{self, AppContext, BrewVersion};
 pub use models::tray::TrayService;
 pub use services::brew;
+pub use services::databases;
 pub use services::doctor;
+pub use services::local_docker;
 pub use services::maclean;
 pub use services::pty;
 pub use services::remote;
@@ -64,6 +66,9 @@ pub fn run() {
             )));
             app.manage(maclean::MacleanState::load(
                 app.path().app_data_dir()?.join(maclean::store::FILE_NAME),
+            ));
+            app.manage(databases::DatabaseState::load(
+                app.path().app_data_dir()?.join("local-databases.json"),
             ));
             tray::build_tray(app.handle())?;
             // Doctor tray automation (opt-in via Archiver settings): daily
@@ -184,6 +189,19 @@ pub fn run() {
             commands::remote::remote_get_deploys,
             commands::remote::remote_promote_env,
             commands::remote::remote_push_image,
+            commands::docker::docker_runtime_status,
+            commands::docker::docker_list_containers,
+            commands::docker::docker_container_action,
+            commands::docker::docker_compose_action,
+            commands::databases::db_discover_connections,
+            commands::databases::db_list_connections,
+            commands::databases::db_add_connection,
+            commands::databases::db_remove_connection,
+            commands::databases::db_introspect_schema,
+            commands::databases::db_run_query,
+            commands::databases::db_list_snapshots,
+            commands::databases::db_create_snapshot,
+            commands::databases::db_restore_snapshot,
             commands::pty::pty_open,
             commands::pty::pty_write,
             commands::pty::pty_resize,

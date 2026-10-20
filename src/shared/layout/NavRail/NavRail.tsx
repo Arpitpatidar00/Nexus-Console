@@ -22,7 +22,7 @@ export const NavRail = () => {
   return (
     <nav
       aria-label="Main Navigation"
-      className="sr-rail z-30 flex h-full w-16 shrink-0 flex-col items-center gap-5 rounded-2xl bg-sidebar/80 p-2.5 shadow-float glass select-none"
+      className="sr-rail z-30 flex min-h-0 w-16 flex-1 shrink-0 flex-col items-center gap-5 rounded-2xl bg-sidebar/80 p-2.5 shadow-float glass select-none"
     >
       {/* Brand Mark at top */}
       <div className="flex items-center justify-center pt-2 pb-1">

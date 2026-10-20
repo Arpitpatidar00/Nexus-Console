@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn parses_ps_fixture() {
-        let out = include_str!("../../../fixtures/ps-stats.txt");
+        let out = include_str!("../../../../fixtures/ps-stats.txt");
         let m = parse_ps(out);
         let s = m.get(&99615).expect("redis stats present");
         assert_eq!(s.rss_bytes, 2160 * 1024);

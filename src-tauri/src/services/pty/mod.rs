@@ -357,7 +357,6 @@ fn resolve_command(
 // All four are `async` so Tauri runs them off the main thread — a sync command
 // runs ON the main thread, so an openpty/spawn or a write into a full PTY buffer
 // would stall the UI (same pattern as the brew commands in commands/).
-#[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn pty_open(
     id: String,
@@ -373,12 +372,10 @@ pub async fn pty_open(
     mgr.open(id, program, args, cols, rows, on_event)
 }
 
-#[tauri::command]
 pub async fn pty_write(id: String, data: String, mgr: State<'_, PtyManager>) -> AppResult<()> {
     mgr.write(&id, data.as_bytes())
 }
 
-#[tauri::command]
 pub async fn pty_resize(
     id: String,
     cols: u16,
@@ -388,7 +385,6 @@ pub async fn pty_resize(
     mgr.resize(&id, cols, rows)
 }
 
-#[tauri::command]
 pub async fn pty_kill(id: String, mgr: State<'_, PtyManager>) -> AppResult<()> {
     mgr.kill(&id)
 }

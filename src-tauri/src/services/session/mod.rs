@@ -1,3 +1,5 @@
+pub mod quit;
+
 use std::collections::HashSet;
 use std::sync::Mutex;
 

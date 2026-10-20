@@ -26,7 +26,7 @@ mod tests {
 
     #[test]
     fn parses_launchctl_fixture() {
-        let m = parse_launchctl(include_str!("../../../fixtures/launchctl-list.txt"));
+        let m = parse_launchctl(include_str!("../../../../fixtures/launchctl-list.txt"));
         assert_eq!(m.get("redis"), Some(&99615));
         assert_eq!(m.get("postgresql@18"), Some(&44734));
     }

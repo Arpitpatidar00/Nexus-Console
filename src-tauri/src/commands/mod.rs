@@ -4,11 +4,13 @@ pub mod doctor;
 pub mod maclean;
 pub mod packages;
 pub mod ports;
+pub mod pty;
 pub mod remote;
 pub mod services;
+pub mod tray;
 pub mod vscode;
 
-use crate::error::{AppError, AppResult};
+use crate::core::error::{AppError, AppResult};
 
 /// Run blocking fs/db work off the main thread — shared by all doctor commands.
 pub(crate) async fn blocking<T: Send + 'static>(
@@ -65,14 +67,14 @@ pub(crate) fn confirm_action(
 #[tauri::command]
 pub async fn trust_tap(
     tap: String,
-    ctx: tauri::State<'_, crate::context::AppContext>,
+    ctx: tauri::State<'_, crate::models::context::AppContext>,
     app: tauri::AppHandle,
 ) -> AppResult<()> {
-    use crate::brew::{run_brew, BrewLock};
     use crate::commands::services::ServicesCache;
+    use crate::services::brew::{run_brew, BrewLock};
     use tauri::Manager;
 
-    crate::util::validate::validate_tap(&tap)?;
+    crate::core::util::validate::validate_tap(&tap)?;
     let bin = ctx
         .brew_bin
         .clone()

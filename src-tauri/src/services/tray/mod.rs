@@ -3,11 +3,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Wry};
 
 /// One row in the tray's Active Services section. `running` drives the checkmark.
-#[derive(serde::Deserialize)]
-pub struct TrayService {
-    name: String,
-    running: bool,
-}
+pub use crate::models::tray::TrayService;
 
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
@@ -81,7 +77,7 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         });
     // Monochrome template glyph — macOS auto-tints it white/black for the menu bar
     // (like every native menu-bar app), instead of the colorful app icon.
-    if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")) {
+    if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../../../icons/tray.png")) {
         builder = builder.icon(icon).icon_as_template(true);
     }
     builder.build(app)?;
@@ -90,7 +86,6 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 /// Rebuild the tray menu with the current service list (checkmark = running).
 /// Frontend pushes this on every reconcile so the menu mirrors the dashboard.
-#[tauri::command]
 pub fn set_tray_services(services: Vec<TrayService>, app: AppHandle) {
     if let Some(tray) = app.tray_by_id("main") {
         if let Ok(menu) = build_menu(&app, &services, homebrew_on(&app)) {
@@ -100,7 +95,6 @@ pub fn set_tray_services(services: Vec<TrayService>, app: AppHandle) {
 }
 
 /// Push the running-count label into the menu-bar (e.g. "2/4"). Empty clears it.
-#[tauri::command]
 pub fn set_tray_title(title: String, app: AppHandle) {
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_title(if title.is_empty() { None } else { Some(title) });

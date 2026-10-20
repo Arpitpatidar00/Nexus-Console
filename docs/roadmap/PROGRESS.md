@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P2 (Command palette + action registry)
+- **Current phase:** P3 (SSH tunnels)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -27,7 +27,7 @@
   - [x] 1.6 Toolchain check
   - [x] 1.7 Global hotkey
   - [x] 1.8 Servers in menu bar
-- [ ] **P2** Command palette + action registry
+- [x] **P2** Command palette + action registry
 - [ ] **P3** SSH tunnels
 - [ ] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
 - [ ] **P5** Parity and Ship (parity auditor, deploy/rollback — **ASK**, image push — **ASK**)
@@ -53,6 +53,12 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 2 (Command palette + action registry).
+  - Built centralized Action Registry in `src/shared/actions/` with `types.ts`, `scorer.ts`, `staticActions.ts`, `useDynamicActions.ts`, and `useActions.ts`.
+  - Zero-dependency fuzzy scoring algorithm with exact, prefix, word boundary, and keyword boosting (tested via Vitest).
+  - Integrated command palette in `CommandDialog.tsx` with full keyboard navigation (↑/↓/Enter/Esc), recent actions stored in `localStorage` (capped at 5), grouped section displays, and danger action styling with native confirm preservation.
+  - All quality gates green: Oxlint, Prettier, TypeScript, 94 Vitest tests, Vite build, cargo fmt, cargo clippy, and 222 Rust tests.
 
 - **2026-10-21:** Completed Phase 1 (1.1–1.8).
   - 1.1: Prod dead-man's switch implemented in `services/remote/deadman.rs` monitoring screen lock (`com.apple.screenIsLocked`), system sleep, and configurable idle timeout. PTY foreground job protection via `tcgetpgrp` vs shell pid (tested with real PTY `sleep 5`), `[PROD]` tray indicator, and header warning.

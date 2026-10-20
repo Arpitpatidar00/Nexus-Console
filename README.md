@@ -73,6 +73,58 @@ Understand where your disk space went and reclaim storage safely:
 Browse your Claude Code chat history per project and export archives to clean JSON. This module
 only appears if Claude Code is installed on your Mac.
 
+### Cloud & AWS
+
+Inspect AWS profiles, monitor EC2 instance states with guarded production lifecycle controls (Start, Stop, Reboot), browse S3 buckets, and track month-to-date AWS costs via cached Cost Explorer reports.
+
+### Automated Backups
+
+Stream database dumps (PostgreSQL, MySQL, SQLite, MongoDB) directly over encrypted SSH pipes without writing to remote disks. Automatically sets `0600` local permissions and packs project `.env` files into encrypted tarballs.
+
+### Network & Chaos Engineering
+
+Monitor live per-process bandwidth using macOS `nettop`, flush DNS caches (`dscacheutil`), manage `/etc/hosts` with automatic timestamped backups, and inject TCP proxy chaos (latency, packet drop rate, rejection).
+
+### Mobile Simulators & AVDs
+
+Discover, boot, shutdown, erase, and launch iOS Simulators (`xcrun simctl`) and Android Virtual Devices (`emulator -list-avds` & `adb`).
+
+### App Releases & Fastlane
+
+Scan project release configurations (Flutter, React Native, iOS, Android), inspect Fastlane lanes with one-click execution commands, and review multi-track release readiness (TestFlight, Google Play).
+
+### Local AI Assistant (Ollama)
+
+100% offline, privacy-guaranteed AI diagnostic assistant powered by local Ollama (`127.0.0.1:11434`). Automatically masks secrets before inference to explain shell errors, server logs, regexes, and cron syntax without cloud leakage.
+
+### Dev Toolbox
+
+Offline utility converters: JSON formatter/validator, JWT decoder with expiry claim, Base64 & URL encoder/decoder, Timestamp & Date converter, UUID v4/v7 generator, Regex tester, Cron schedule explainer, Cryptographic Hashes (MD5, SHA-1, SHA-256), and Color format converter.
+
+### Domains & Uptime
+
+RDAP domain registration expiry checker, DNS records inspector (`dig`), SSL/TLS certificate validator with SANs inspection, multi-resolver propagation checker (1.1.1.1, 8.8.8.8, 9.9.9.9), and ping latency monitor.
+
+### Secrets Scanner
+
+Scan git-tracked source repositories for leaked credentials (AWS, Stripe, GitHub PATs, Slack, private keys) and unignored `.env` files with masked previews and zero telemetry.
+
+### Docker & Databases
+
+Manage local Docker runtime, containers, and compose stacks. Introspect Postgres, MySQL, SQLite, and MongoDB databases, run safe queries, and create APFS `clonefile()` zero-copy database branches.
+
+### Projects & Workspaces
+
+Git branch status inspector, 1-click merged branch cleanup, multi-project workspaces, and saved terminal command orchestration.
+
+### Mac Health & Doctor
+
+Ghost app leftover uninstaller, per-process Energy accounting (`proc_pid_rusage`), battery cycle health & thermal throttling monitor, 90-day storage trends, and BLAKE3-accelerated duplicate file finder.
+
+### Nexus Blueprint & Homebrew Pinning
+
+Export and import your entire Mac dev setup (Homebrew packages, taps, hosts entries, workspace configurations) into portable JSON blueprints. Pin packages (`brew pin`) and rollback Cellar keg versions.
+
 ### Terminal
 
 An integrated multi-session PTY terminal drawer (supporting up to 8 concurrent sessions) with

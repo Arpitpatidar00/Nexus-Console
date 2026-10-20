@@ -31,6 +31,17 @@ disk cleanup and memory, Claude Code chats, and a built-in terminal.
 | Doctor       | Doctor                       | Read-only machine health checks and cleanup                    | Optional daily VSCode cleanup                                   | Yes           |
 | Mac Clean    | Storage, Memory              | Where your disk went, safe cleanup, memory and swap            | Optional scheduled cleanup and low-disk warning                 | Yes           |
 | Claude Chats | Claude Chats                 | Browse and archive Claude Code history                         | Optional daily archiving                                        | Yes           |
+| Docker       | Containers                   | Local container runtime, compose stacks, and logs              | Nothing                                                         | No (opt-in)   |
+| Databases    | Databases                    | Local & remote database client, schema inspector, and APFS     | Nothing                                                         | No (opt-in)   |
+| Projects     | Projects                     | Git status, workspaces, saved commands, and GitHub PRs         | Nothing                                                         | Yes           |
+| Toolbox      | Dev Toolbox                  | Offline converters, regex tester, cron, hashes & tokens        | Nothing                                                         | Yes           |
+| Domains      | Domains & Uptime             | RDAP expiry, DNS lookup, SSL check & uptime monitoring         | Optional uptime monitoring                                      | No (opt-in)   |
+| Secrets      | Secrets Scanner              | Detect committed secrets, unignored .env files & leaked keys   | Nothing                                                         | No (opt-in)   |
+| Cloud        | Cloud AWS                    | AWS profiles, EC2 instances, S3 buckets & cached cost tracking | Nothing                                                         | No (opt-in)   |
+| Backups      | Backups                      | Automated database dumps & project .env archive (0600 perm)    | Nothing                                                         | No (opt-in)   |
+| Network      | Network & Chaos              | Live per-app bandwidth, DNS flush, hosts editor & chaos proxy  | Nothing                                                         | No (opt-in)   |
+| Devices      | Simulators & AVDs            | iOS Simulators, Android AVDs, lifecycle controls               | Nothing                                                         | No (opt-in)   |
+| Releases     | App Releases                 | Fastlane lanes, TestFlight / Google Play track inspector       | Nothing                                                         | No (opt-in)   |
 
 *Note: "On by default" applies to fresh installs only; existing installs keep their enabled modules.
 

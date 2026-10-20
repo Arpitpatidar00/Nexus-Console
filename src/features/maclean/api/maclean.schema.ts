@@ -50,6 +50,7 @@ export const reportSchema = z.object({
   causes: z.array(z.object({ bytes: z.number().nullable(), text: z.string(), fix: z.string() })),
   items: z.array(cleanItemSchema),
   insights: z.array(z.object({ id: z.string(), text: z.string(), detail: z.array(z.string()) })),
+  largeFiles: z.array(z.object({ path: z.string(), bytes: z.number() })),
 });
 export type StorageReport = z.infer<typeof reportSchema>;
 
@@ -101,3 +102,15 @@ export const memorySchema = z.object({
   topApps: z.array(z.object({ name: z.string(), processes: z.number(), bytes: z.number() })),
 });
 export type MemoryReport = z.infer<typeof memorySchema>;
+
+const causeSchema = z.object({ bytes: z.number().nullable(), text: z.string(), fix: z.string() });
+
+export const deepReportSchema = z.object({
+  entries: z.array(
+    z.object({ label: z.string(), why: z.string(), bytes: z.number(), flagged: z.boolean() }),
+  ),
+  causes: z.array(causeSchema),
+});
+export type DeepReport = z.infer<typeof deepReportSchema>;
+
+export const drillSchema = z.array(z.object({ name: z.string(), bytes: z.number() }));

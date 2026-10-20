@@ -48,9 +48,13 @@ pub async fn maclean_scan(app: AppHandle) -> AppResult<StorageReport> {
             rules: &rules,
             cancel: &state.cancel,
         };
-        scan::run(&inputs, &|p| {
+        let report = scan::run(&inputs, &|p| {
             let _ = app.emit(PROGRESS_EVENT, &p);
-        })
+        })?;
+        if let Ok(mut last) = state.last_report.lock() {
+            *last = Some(report.clone());
+        }
+        Ok(report)
     })
     .await
 }
@@ -242,6 +246,74 @@ pub async fn maclean_memory(app: AppHandle) -> AppResult<crate::maclean::memory:
             crate::doctor::claude::now_epoch(),
         )
         .ok_or_else(|| AppError::Shell("couldn't read memory statistics (vm_stat)".into()))
+    })
+    .await
+}
+
+/// The script's `--deep`: one native admin prompt, a constant read-only `du`
+/// script as root, explained against the latest storage report.
+#[tauri::command]
+pub async fn maclean_deep_scan(app: AppHandle) -> AppResult<crate::maclean::deep::DeepReport> {
+    blocking(move || {
+        let state = app.state::<MacleanState>();
+        let last = state
+            .last_report
+            .lock()
+            .map_err(|_| AppError::Io("report lock poisoned".into()))?
+            .clone()
+            .ok_or_else(|| AppError::NotFound("Run a storage scan first.".into()))?;
+        let raw = crate::maclean::deep::run()?;
+        let me = std::env::var("USER").unwrap_or_default();
+        Ok(crate::maclean::deep::build(
+            &raw,
+            &me,
+            &last.map,
+            last.disk.data_used_bytes,
+        ))
+    })
+    .await
+}
+
+/// The 10 biggest children of one map row (by id; Rust picks the folders).
+#[tauri::command]
+pub async fn maclean_drill(
+    app: AppHandle,
+    id: String,
+) -> AppResult<Vec<crate::maclean::explore::Child>> {
+    blocking(move || {
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        let state = app.state::<MacleanState>();
+        let prefix = app.state::<AppContext>().brew_prefix.clone();
+        crate::maclean::explore::drill_roots(&id, &home, prefix.as_deref())
+            .ok_or_else(|| AppError::InvalidName(format!("can't look inside {id}")))?;
+        crate::maclean::explore::drill(&id, &home, prefix.as_deref(), &state.cancel)
+            .ok_or_else(|| AppError::Cancelled("Cancelled.".into()))
+    })
+    .await
+}
+
+/// Show a large file in Finder. Only paths the latest report listed.
+#[tauri::command]
+pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
+    blocking(move || {
+        let listed = app
+            .state::<MacleanState>()
+            .last_report
+            .lock()
+            .map_err(|_| AppError::Io("report lock poisoned".into()))?
+            .as_ref()
+            .is_some_and(|r| r.large_files.iter().any(|f| f.path == path));
+        if !listed {
+            return Err(AppError::Forbidden(
+                "Only files from the latest scan can be revealed.".into(),
+            ));
+        }
+        std::process::Command::new("/usr/bin/open")
+            .args(["-R", "--", &path])
+            .status()
+            .map_err(|e| AppError::Shell(format!("open failed: {e}")))?;
+        Ok(())
     })
     .await
 }

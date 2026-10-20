@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ipc, ipcVoid, CMD } from '@/shared/tauri';
 import { macleanKeys } from './keys';
-import { cleanResultSchema, journalSchema, rulesSchema, type CleanRules } from './maclean.schema';
+import {
+  cleanResultSchema,
+  deepReportSchema,
+  drillSchema,
+  journalSchema,
+  rulesSchema,
+  type CleanRules,
+} from './maclean.schema';
 
 /** Rust re-measures, asks once natively, cleans, journals. A cancel at the
  * sheet comes back as `cancelled` (no toast). The report is rescanned after. */
@@ -43,5 +50,33 @@ export function useCleanJournal(open: boolean) {
     queryKey: macleanKeys.journal(),
     queryFn: () => ipc(CMD.MACLEAN_JOURNAL, undefined, journalSchema),
     enabled: open,
+  });
+}
+
+/** Native admin prompt, then a read-only root `du` (a couple of minutes).
+ * A dismissed prompt is `cancelled`: no toast. */
+export function useDeepScan() {
+  return useMutation({
+    mutationFn: () => ipc(CMD.MACLEAN_DEEP_SCAN, undefined, deepReportSchema),
+    meta: { quiet: true },
+  });
+}
+
+/** The biggest children of one map row, fetched when the row is opened. */
+export function useDrill(id: string, open: boolean) {
+  return useQuery({
+    queryKey: ['maclean', 'drill', id],
+    queryFn: () => ipc(CMD.MACLEAN_DRILL, { id }, drillSchema),
+    enabled: open,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+export function useReveal() {
+  return useMutation({
+    mutationFn: (path: string) => ipcVoid(CMD.MACLEAN_REVEAL, { path }),
+    meta: { quiet: true },
   });
 }

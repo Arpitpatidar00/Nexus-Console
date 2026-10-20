@@ -14,6 +14,8 @@ import { CleanupPlan } from '@/features/maclean/components/CleanupPlan';
 import { WorthALook } from '@/features/maclean/components/WorthALook';
 import { CleanJournalDialog } from '@/features/maclean/components/CleanJournalDialog';
 import { UsageBar } from '@/features/maclean/components/UsageBar';
+import { DeepScanCard } from '@/features/maclean/components/DeepScanCard';
+import { LargeFiles } from '@/features/maclean/components/LargeFiles';
 
 const Skeleton = () => (
   <div aria-hidden className="space-y-4">
@@ -124,6 +126,11 @@ export const StoragePage = () => {
                 <StorageMap report={r} />
                 <VolumesList report={r} />
               </div>
+              <DeepScanCard
+                unexplainedBytes={r.map.find((m) => m.id === 'other')?.bytes ?? 0}
+                dataUsedBytes={r.disk.dataUsedBytes}
+              />
+              {r.largeFiles.length > 0 && <LargeFiles files={r.largeFiles} />}
               <WorthALook insights={r.insights} />
             </>
           )}

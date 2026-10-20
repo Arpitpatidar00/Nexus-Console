@@ -194,3 +194,147 @@ export const journalEntrySchema = z.object({
 });
 export const journalSchema = z.array(journalEntrySchema);
 export type RemoteJournalEntry = z.infer<typeof journalEntrySchema>;
+
+// --- Phase 4: Servers Depth Schemas ---
+
+export const composeActionSchema = z.enum(['start', 'stop', 'restart']);
+export type ComposeAction = z.infer<typeof composeActionSchema>;
+
+export const nginxSiteSchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  enabled: z.boolean(),
+  listenPorts: z.array(z.number()),
+  serverNames: z.array(z.string()),
+  ssl: z.boolean(),
+  proxyPasses: z.array(z.string()),
+});
+export type NginxSite = z.infer<typeof nginxSiteSchema>;
+
+export const cronJobSchema = z.object({
+  schedule: z.string(),
+  command: z.string(),
+  user: z.string(),
+  source: z.string(),
+});
+export type CronJob = z.infer<typeof cronJobSchema>;
+
+export const inspectionDataSchema = z.object({
+  nginxInstalled: z.boolean(),
+  nginxRunning: z.boolean(),
+  nginxSites: z.array(nginxSiteSchema),
+  cronJobs: z.array(cronJobSchema),
+});
+export type InspectionData = z.infer<typeof inspectionDataSchema>;
+
+export const dockerSpaceItemSchema = z.object({
+  typeName: z.string(),
+  total: z.string(),
+  active: z.string(),
+  size: z.string(),
+  reclaimable: z.string(),
+});
+export type DockerSpaceItem = z.infer<typeof dockerSpaceItemSchema>;
+
+export const serverDiskReportSchema = z.object({
+  dfItems: z.array(dockerSpaceItemSchema),
+  logSizes: z.array(z.tuple([z.string(), z.string()])),
+  buildCacheReclaimable: z.string(),
+});
+export type ServerDiskReport = z.infer<typeof serverDiskReportSchema>;
+
+export const pruneResultSchema = z.object({
+  reclaimedBytes: z.number(),
+  message: z.string(),
+});
+export type PruneResult = z.infer<typeof pruneResultSchema>;
+
+export const remoteFileEntrySchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  isDir: z.boolean(),
+  sizeBytes: z.number(),
+  modified: z.string(),
+  permissions: z.string(),
+});
+export type RemoteFileEntry = z.infer<typeof remoteFileEntrySchema>;
+
+export const remoteFileContentSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+  isSecret: z.boolean(),
+  masked: z.boolean(),
+  sizeBytes: z.number(),
+});
+export type RemoteFileContent = z.infer<typeof remoteFileContentSchema>;
+
+export const hostNoteSchema = z.object({
+  hostId: z.string(),
+  content: z.string(),
+  updatedAt: z.number(),
+});
+export type HostNote = z.infer<typeof hostNoteSchema>;
+
+export const snapshotSummarySchema = z.object({
+  capturedAt: z.number(),
+  cpuCores: z.number(),
+  cpuLoad1: z.number(),
+  memTotalBytes: z.number(),
+  memAvailBytes: z.number(),
+  containerCount: z.number(),
+  runningContainers: z.array(z.string()),
+  containerImages: z.array(z.tuple([z.string(), z.string()])),
+  diskUsage: z.array(z.tuple([z.string(), z.number(), z.number()])),
+  failedUnits: z.array(z.string()),
+  criticalFindingCount: z.number(),
+});
+export type SnapshotSummary = z.infer<typeof snapshotSummarySchema>;
+
+export const snapshotDiffSchema = z.object({
+  previousAt: z.number(),
+  currentAt: z.number(),
+  newContainers: z.array(z.string()),
+  removedContainers: z.array(z.string()),
+  restartedContainers: z.array(z.string()),
+  imageChanges: z.array(z.string()),
+  diskGrowth: z.array(z.string()),
+  newFailedUnits: z.array(z.string()),
+});
+export type SnapshotDiff = z.infer<typeof snapshotDiffSchema>;
+
+export const incidentSchema = z.object({
+  id: z.string(),
+  hostId: z.string(),
+  findingId: z.string(),
+  summary: z.string(),
+  firstSeenAt: z.number(),
+  lastSeenAt: z.number(),
+  resolvedAt: z.number().nullable(),
+});
+export type Incident = z.infer<typeof incidentSchema>;
+
+export const hostHistoryDtoSchema = z.object({
+  summaries: z.array(snapshotSummarySchema),
+  latestDiff: snapshotDiffSchema.nullable(),
+  incidents: z.array(incidentSchema),
+});
+export type HostHistoryDto = z.infer<typeof hostHistoryDtoSchema>;
+
+export const runbookItemSchema = z.object({
+  id: z.string(),
+  hostId: z.string().nullable(),
+  project: z.string().nullable(),
+  name: z.string(),
+  command: z.string(),
+  description: z.string().nullable(),
+});
+export type RunbookItem = z.infer<typeof runbookItemSchema>;
+
+export const addRunbookInputSchema = z.object({
+  hostId: z.string().nullable().optional(),
+  project: z.string().nullable().optional(),
+  name: z.string().min(1),
+  command: z.string().min(1),
+  description: z.string().nullable().optional(),
+});
+export type AddRunbookInput = z.infer<typeof addRunbookInputSchema>;

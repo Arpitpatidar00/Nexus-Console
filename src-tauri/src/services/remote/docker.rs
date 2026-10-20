@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 // Container actions (docs/remote/PLAN.md §4.8): a fixed argv built here from a
 // validated ref that the server's own latest snapshot reported. Split into
 // prepare → (native confirm, in the command) → execute, so the core is
@@ -8,7 +9,6 @@ use super::ssh::{self, SshTarget};
 use super::store::{Env, JournalEntry};
 use super::RemoteState;
 use crate::error::{AppError, AppResult};
-use serde::Deserialize;
 use std::time::Duration;
 
 /// `docker stop` waits up to 10s for a graceful exit before SIGKILL.
@@ -130,6 +130,129 @@ pub fn prepare(
 }
 
 /// Run it, then journal the outcome either way.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ComposeAction {
+    Start,
+    Stop,
+    Restart,
+}
+
+impl ComposeAction {
+    pub fn verb(self) -> &'static str {
+        match self {
+            ComposeAction::Start => "start",
+            ComposeAction::Stop => "stop",
+            ComposeAction::Restart => "restart",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ComposeAction::Start => "Start stack",
+            ComposeAction::Stop => "Stop stack",
+            ComposeAction::Restart => "Restart stack",
+        }
+    }
+}
+
+pub struct PreparedCompose {
+    pub target: SshTarget,
+    pub host_id: String,
+    pub host_label: String,
+    pub env: Env,
+    pub project: String,
+    pub action: ComposeAction,
+}
+
+impl PreparedCompose {
+    pub fn destructive(&self) -> bool {
+        self.env == Env::Prod || self.action == ComposeAction::Stop
+    }
+
+    pub fn confirm_title(&self) -> String {
+        format!("{} {}?", self.action.label(), self.project)
+    }
+
+    pub fn confirm_message(&self) -> String {
+        let env = format!("{:?}", self.env).to_uppercase();
+        format!(
+            "{} · {}
+Runs `docker compose -p {} {}` across every container in this stack.",
+            self.host_label,
+            env,
+            self.project,
+            self.action.verb()
+        )
+    }
+}
+
+pub fn prepare_compose(
+    state: &RemoteState,
+    host_id: &str,
+    project: &str,
+    action: ComposeAction,
+) -> AppResult<PreparedCompose> {
+    crate::util::validate::validate_display_text(project, "compose project")?;
+    let (host, target) = {
+        let s = state.read()?;
+        let h = s.host(host_id)?.clone();
+        let t = state.target(host_id)?;
+        (h, t)
+    };
+    Ok(PreparedCompose {
+        target,
+        host_id: host.id,
+        host_label: host.label,
+        env: host.env,
+        project: project.to_string(),
+        action,
+    })
+}
+
+pub fn execute_compose(state: &RemoteState, p: &PreparedCompose) -> AppResult<()> {
+    let argv = ["docker", "compose", "-p", &p.project, p.action.verb()];
+    let res = ssh::exec(&p.target, &argv, None, Duration::from_secs(45));
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let (result, msg) = match &res {
+        Ok(out) => {
+            if out.status.success() {
+                ("ok", String::new())
+            } else {
+                ("error", String::from_utf8_lossy(&out.stderr).to_string())
+            }
+        }
+        Err(e) => ("error", e.to_string()),
+    };
+
+    let _ = state.write(|s| {
+        s.append_journal(JournalEntry {
+            at_epoch: now,
+            host_id: p.host_id.clone(),
+            host_label: p.host_label.clone(),
+            env: p.env,
+            action: format!("compose.{}", p.action.verb()),
+            target: p.project.clone(),
+            result: result.into(),
+            message: msg,
+        });
+        Ok(())
+    });
+
+    match res {
+        Ok(out) if out.status.success() => Ok(()),
+        Ok(out) => Err(AppError::Shell(
+            String::from_utf8_lossy(&out.stderr).to_string(),
+        )),
+        Err(e) => Err(e),
+    }
+}
+
 pub fn execute(state: &RemoteState, p: &Prepared) -> AppResult<()> {
     let result = ssh::exec(
         &p.target,

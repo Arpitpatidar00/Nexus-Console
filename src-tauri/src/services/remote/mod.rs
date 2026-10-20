@@ -3,14 +3,20 @@
 // mutation is a fixed argv, confirmed natively and journaled.
 
 pub mod background;
+pub mod cleanup;
 pub mod config;
 pub mod deadman;
 pub mod docker;
+pub mod files;
 pub mod findings;
+pub mod history;
+pub mod inspection;
 #[cfg(test)]
 mod it;
+pub mod notes;
 pub mod parse;
 pub mod probe;
+pub mod runbooks;
 pub mod ssh;
 pub mod store;
 pub mod tunnel;
@@ -27,21 +33,28 @@ use store::{HostSource, Store};
 /// latest snapshot: container actions and terminals only accept a container
 /// the server itself reported.
 pub struct RemoteState {
-    path: PathBuf,
+    pub path: PathBuf,
     store: Mutex<Store>,
     host_locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     snapshots: Mutex<HashMap<String, HostSnapshot>>,
     pub tunnels: Arc<tunnel::TunnelManager>,
+    pub notes: Mutex<notes::NotesStore>,
+    pub history: Mutex<history::HostHistoryStore>,
+    pub runbooks: Mutex<runbooks::RunbookStore>,
 }
 
 impl RemoteState {
     pub fn load(path: PathBuf) -> RemoteState {
+        let parent = path.parent().unwrap_or(&path);
         RemoteState {
             store: Mutex::new(Store::load(&path)),
-            path,
+            path: path.clone(),
             host_locks: Mutex::default(),
             snapshots: Mutex::default(),
             tunnels: Arc::new(tunnel::TunnelManager::new()),
+            notes: Mutex::new(notes::NotesStore::load(parent)),
+            history: Mutex::new(history::HostHistoryStore::load(parent)),
+            runbooks: Mutex::new(runbooks::RunbookStore::load(parent)),
         }
     }
 
@@ -59,6 +72,12 @@ impl RemoteState {
     pub fn remember_snapshot(&self, id: &str, snap: &HostSnapshot) {
         if let Ok(mut m) = self.snapshots.lock() {
             m.insert(id.to_string(), snap.clone());
+        }
+        let summary = history::summarize_snapshot(snap);
+        if let Ok(mut h) = self.history.lock() {
+            let _ = h.record_snapshot(id, summary);
+            let dir = self.path.parent().unwrap_or(&self.path);
+            let _ = h.save(dir);
         }
     }
 

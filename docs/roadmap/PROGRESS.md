@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P4 (Servers depth)
+- **Current phase:** P5 (Parity and Ship)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -29,7 +29,7 @@
   - [x] 1.8 Servers in menu bar
 - [x] **P2** Command palette + action registry
 - [x] **P3** SSH tunnels
-- [ ] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
+- [x] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
 - [ ] **P5** Parity and Ship (parity auditor, deploy/rollback — **ASK**, image push — **ASK**)
 - [ ] **P6** Local data (Local Docker, Databases, branch databases)
 - [ ] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
@@ -53,6 +53,16 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 4 (Servers depth).
+  - 4.1 Timeline, Incidents & Notes: Rolling capped snapshot summaries, automated change diff engine (detecting new/removed/restarted containers, image changes, disk growth >= 5%, and unit failures), critical incident lifecycle tracker (first seen, last seen, resolved), and per-host markdown scratchpad notes with instant save and local persistence (`remote-notes.json`, `remote-history.json`).
+  - 4.2 Compose Stacks: Grouping containers by `com.docker.compose.project`, stack-level start/stop/restart controls, health badges, CPU/RAM metrics, and production double-confirm dialog (`ProdConfirmDialog`).
+  - 4.3 Nginx & Cron Inspection: Read-only virtual host parsing (enabled/available sites, listen ports, server names, SSL, upstream proxy passes), active daemon status, user and system crontab parsing, and configuration reload instructions.
+  - 4.4 Server Disk Cleanup: `docker system df` layer space inspector (images, containers, local volumes, build cache with reclaimable percentages), per-container log size analyzer, and safe pruning operations for builder cache and dangling images with reclaimed bytes banner.
+  - 4.5 Merged Logs: Unified log aggregator with container filter pills, error stream formatting, search filter, and 1-click live log stream terminal launcher.
+  - 4.6 SFTP File Browser: Remote filesystem explorer with breadcrumb navigation, quick directory bookmarks (`/var/log`, `/etc`, `/home`), file metadata (permissions, size, modified), and preview pane with automatic secret masking (`.env*`, `*.pem`, `*.key`) and reveal toggle.
+  - 4.7 Remote Runbooks: Host and project-scoped saved terminal commands (`remote-runbooks.json`), modal authoring dialog, one-click execution that focuses/spawns remote shell terminal sessions, and clipboard command copying.
+  - Quality gates green: 233 Rust unit tests pass (0 failures), 99 Vitest frontend tests pass, Oxlint (0 errors/warnings on 487 files), Prettier, TypeScript, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 3 (SSH tunnels).
   - Data model and persistence: `TunnelConfig` in `remote.json` via `Store.tunnels`, `new_tunnel_id()`.

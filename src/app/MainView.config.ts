@@ -7,6 +7,7 @@ export const PAGES: Record<Tab, ComponentType> = {
   services: lazy(() => import('@/features/services').then((m) => ({ default: m.ServicesPage }))),
   packages: lazy(() => import('@/features/packages').then((m) => ({ default: m.PackagesPage }))),
   storage: lazy(() => import('@/features/maclean').then((m) => ({ default: m.StoragePage }))),
+  memory: lazy(() => import('@/features/maclean').then((m) => ({ default: m.MemoryPage }))),
   servers: lazy(() => import('@/features/remote').then((m) => ({ default: m.RemotePage }))),
   ports: lazy(() => import('@/features/ports').then((m) => ({ default: m.PortsPage }))),
   sessions: lazy(() => import('@/features/sessions').then((m) => ({ default: m.SessionsPage }))),

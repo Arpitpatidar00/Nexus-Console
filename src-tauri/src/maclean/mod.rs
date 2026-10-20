@@ -7,6 +7,7 @@ pub mod catalog;
 pub mod clean;
 pub mod disk;
 pub mod measure;
+pub mod memory;
 pub mod scan;
 pub mod store;
 pub mod tools;
@@ -24,6 +25,7 @@ pub struct MacleanState {
     store: Mutex<Store>,
     pub cancel: AtomicBool,
     pub scanning: Mutex<()>,
+    pub memory: memory::Sampler,
 }
 
 impl MacleanState {
@@ -33,6 +35,7 @@ impl MacleanState {
             path,
             cancel: AtomicBool::new(false),
             scanning: Mutex::new(()),
+            memory: memory::Sampler::default(),
         }
     }
 

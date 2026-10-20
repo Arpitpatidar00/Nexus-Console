@@ -8,6 +8,7 @@ export const TABS = [
   'ports',
   'servers',
   'storage',
+  'memory',
   'sessions',
   'settings',
 ] as const;

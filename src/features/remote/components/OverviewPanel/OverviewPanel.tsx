@@ -3,7 +3,7 @@ import { formatBytes, formatDuration } from '@/shared/lib/format';
 import type { HostSnapshot } from '@/features/remote/api/remote.schema';
 import { usedPct } from '@/features/remote/utils/health';
 import { Meter } from '@/features/remote/components/Meter';
-import { Sparkline } from '@/features/remote/components/Sparkline';
+import { Sparkline } from '@/shared/ui/Sparkline';
 import type { Sample } from '@/features/remote/utils/history';
 
 const Row = ({ k, v }: { k: string; v: string }) => (

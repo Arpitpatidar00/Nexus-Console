@@ -52,6 +52,7 @@ export const CMD = {
   MACLEAN_RULES: 'maclean_rules',
   MACLEAN_SET_RULES: 'maclean_set_rules',
   MACLEAN_JOURNAL: 'maclean_journal',
+  MACLEAN_MEMORY: 'maclean_memory',
   REMOTE_STATE: 'remote_state',
   REMOTE_SET_CONSENT: 'remote_set_consent',
   REMOTE_SCAN_CONFIG: 'remote_scan_config',

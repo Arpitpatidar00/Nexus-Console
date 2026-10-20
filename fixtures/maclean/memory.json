@@ -1,0 +1,35 @@
+{
+  "sampledAtMs": 1792435438000,
+  "composition": {
+    "totalBytes": 8589934592,
+    "appBytes": 2338308096,
+    "wiredBytes": 2272346112,
+    "compressedBytes": 2468855808,
+    "cachedBytes": 855932928,
+    "freeBytes": 654491648,
+    "usedBytes": 7079510016
+  },
+  "pressure": "warning",
+  "swapTotalBytes": 5368709120,
+  "swapUsedBytes": 3885896826,
+  "swapoutBytesPerSec": 204800.0,
+  "uptimeSecs": 260233,
+  "restartSuggested": false,
+  "topApps": [
+    {
+      "name": "Google Chrome",
+      "processes": 20,
+      "bytes": 1439186944
+    },
+    {
+      "name": "Antigravity IDE",
+      "processes": 19,
+      "bytes": 747929600
+    },
+    {
+      "name": "claude",
+      "processes": 1,
+      "bytes": 245350400
+    }
+  ]
+}

@@ -231,3 +231,17 @@ pub async fn maclean_set_rules(app: AppHandle, rules: Rules) -> AppResult<()> {
 pub async fn maclean_journal(app: AppHandle) -> AppResult<Vec<JournalEntry>> {
     blocking(move || Ok(app.state::<MacleanState>().read()?.journal.clone())).await
 }
+
+/// Memory composition, pressure, swap (and whether it's swapping now), top
+/// apps. Read-only and cheap; the Memory tab polls it.
+#[tauri::command]
+pub async fn maclean_memory(app: AppHandle) -> AppResult<crate::maclean::memory::MemoryReport> {
+    blocking(move || {
+        crate::maclean::memory::sample(
+            &app.state::<MacleanState>().memory,
+            crate::doctor::claude::now_epoch(),
+        )
+        .ok_or_else(|| AppError::Shell("couldn't read memory statistics (vm_stat)".into()))
+    })
+    .await
+}

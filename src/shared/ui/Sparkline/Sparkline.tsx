@@ -1,4 +1,4 @@
-import { sparkPoints } from '@/features/remote/utils/history';
+import { sparkPoints } from './sparkPoints';
 
 const W = 72;
 const H = 18;

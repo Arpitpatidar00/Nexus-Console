@@ -80,3 +80,24 @@ export const journalSchema = z.array(
   }),
 );
 export type CleanJournal = z.infer<typeof journalSchema>;
+
+export const memorySchema = z.object({
+  sampledAtMs: z.number(),
+  composition: z.object({
+    totalBytes: z.number(),
+    appBytes: z.number(),
+    wiredBytes: z.number(),
+    compressedBytes: z.number(),
+    cachedBytes: z.number(),
+    freeBytes: z.number(),
+    usedBytes: z.number(),
+  }),
+  pressure: z.enum(['normal', 'warning', 'critical', 'unknown']),
+  swapTotalBytes: z.number(),
+  swapUsedBytes: z.number(),
+  swapoutBytesPerSec: z.number().nullable(),
+  uptimeSecs: z.number(),
+  restartSuggested: z.boolean(),
+  topApps: z.array(z.object({ name: z.string(), processes: z.number(), bytes: z.number() })),
+});
+export type MemoryReport = z.infer<typeof memorySchema>;

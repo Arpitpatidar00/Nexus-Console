@@ -2,6 +2,7 @@ import {
   Archive,
   Clock,
   HardDrive,
+  MemoryStick,
   LayoutGrid,
   Network,
   Package,
@@ -91,8 +92,11 @@ export const MODULES: ModuleDef[] = [
     id: 'maclean',
     label: 'Mac Clean',
     icon: HardDrive,
-    nav: [{ tab: 'storage', label: 'Storage', icon: HardDrive }],
-    blurb: 'Where your disk went, and safe cleanup of caches and build output.',
+    nav: [
+      { tab: 'storage', label: 'Storage', icon: HardDrive },
+      { tab: 'memory', label: 'Memory', icon: MemoryStick },
+    ],
+    blurb: 'Where your disk went, safe cleanup, and memory & swap.',
     background: null,
   },
   {

@@ -49,6 +49,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let ctx = context::discover();
             let brew_bin = ctx.brew_bin.clone();
@@ -70,6 +71,7 @@ pub fn run() {
             doctor::scheduler::start(app.handle().clone());
             // Servers background health (opt-in; never connects on its own).
             remote::background::start(app.handle().clone());
+            remote::deadman::start(app.handle().clone());
             // Mac Clean scheduled cleanup + low-disk warning (opt-in).
             maclean::background::start(app.handle().clone());
             // brew --version costs 100-500ms — resolve it off the startup path so
@@ -125,6 +127,7 @@ pub fn run() {
             commands::services::uninstall_formula,
             commands::ports::list_ports,
             commands::ports::kill_process,
+            commands::ports::probe_port_http,
             commands::packages::list_packages,
             commands::packages::packages_outdated,
             commands::packages::package_dependents,
@@ -161,6 +164,7 @@ pub fn run() {
             commands::pty::pty_kill,
             commands::tray::set_tray_title,
             commands::tray::set_tray_services,
+            commands::tray::set_tray_servers,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Stackroost")

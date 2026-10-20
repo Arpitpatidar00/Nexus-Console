@@ -1,5 +1,11 @@
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
-import { setTheme, setLayout, setEnabledModules } from '@/shared/state/settingsSlice';
+import {
+  setTheme,
+  setLayout,
+  setEnabledModules,
+  setGlobalHotkey,
+} from '@/shared/state/settingsSlice';
+import { Button } from '@/shared/ui/Button';
 import { useEnabledModules } from '@/shared/modules';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Panel } from '@/shared/ui/Panel';
@@ -14,6 +20,7 @@ export const SettingsPage = () => {
   const dispatch = useAppDispatch();
   const theme = useAppSelector((s) => s.settings.theme);
   const layout = useAppSelector((s) => s.settings.layout);
+  const globalHotkey = useAppSelector((s) => s.settings.globalHotkey);
   const enabledModules = useEnabledModules();
 
   return (
@@ -67,6 +74,32 @@ export const SettingsPage = () => {
                 options={LAYOUT_OPTIONS}
                 onChange={(v) => dispatch(setLayout(v))}
               />
+            </div>
+          </div>
+        </Panel>
+
+        {/* Shortcuts Panel */}
+        <Panel title="Shortcuts" subtitle="System-wide hotkeys">
+          <div className="flex items-center justify-between gap-4 py-3.5">
+            <div>
+              <p className="text-sm font-medium text-foreground">Global toggle hotkey</p>
+              <p className="text-xs text-muted-foreground">
+                Show and focus Stackroost from anywhere; press again to hide.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-muted px-2.5 py-1 font-mono text-xs text-foreground">
+                {globalHotkey ?? 'Unset (Ctrl+Option+Space)'}
+              </span>
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() =>
+                  dispatch(setGlobalHotkey(globalHotkey ? null : 'CommandOrControl+Alt+Space'))
+                }
+              >
+                {globalHotkey ? 'Disable' : 'Enable'}
+              </Button>
             </div>
           </div>
         </Panel>

@@ -1,23 +1,79 @@
 import { useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Trash2 } from 'lucide-react';
+import { ExternalLink, Star, Trash2 } from 'lucide-react';
 import { DataTable } from '@/shared/ui/DataTable';
 import { Button } from '@/shared/ui/Button';
 import { formatBytes, formatPercent } from '@/shared/lib/format';
 import { ProcessCell } from '@/features/ports/components/ProcessCell';
 import { KillConfirmDialog } from '@/features/ports/components/KillConfirmDialog';
 import type { PortDto } from '@/features/ports/api/ports.schema';
+import { cn } from '@/shared/lib/cn';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
+const FAVORITES_KEY = 'stackroost:favorite_ports';
+
+function getFavorites(): number[] {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? (JSON.parse(raw) as number[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(favs: number[]) {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+function buildColumns(
+  onKill: (p: PortDto) => void,
+  favorites: number[],
+  toggleFavorite: (port: number) => void,
+): ColumnDef<PortDto, unknown>[] {
   return [
+    {
+      id: 'favorite',
+      header: '',
+      size: 40,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const isFav = favorites.includes(row.original.port);
+        return (
+          <button
+            type="button"
+            aria-label={
+              isFav ? `Unfavorite port ${row.original.port}` : `Favorite port ${row.original.port}`
+            }
+            className="cursor-pointer p-1 text-muted-foreground transition-colors hover:text-amber-400"
+            onClick={() => toggleFavorite(row.original.port)}
+          >
+            <Star
+              className={cn(
+                'size-3.5',
+                isFav ? 'fill-amber-400 text-amber-400' : 'fill-none opacity-40 hover:opacity-100',
+              )}
+            />
+          </button>
+        );
+      },
+    },
     {
       id: 'process',
       header: 'Process',
-      size: 220,
+      size: 240,
       meta: { grow: true },
       accessorFn: (r) => r.command,
-      cell: ({ row }) => <ProcessCell command={row.original.command} user={row.original.user} />,
+      cell: ({ row }) => (
+        <ProcessCell
+          command={row.original.command}
+          user={row.original.user}
+          detached={row.original.detached}
+          project={row.original.project}
+        />
+      ),
     },
     {
       accessorKey: 'port',
@@ -25,7 +81,7 @@ function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
       size: 90,
       meta: { align: 'right' },
       cell: (c) => (
-        <span className="font-medium text-fg tabular-nums">:{c.getValue<number>()}</span>
+        <span className="font-medium text-foreground tabular-nums">:{c.getValue<number>()}</span>
       ),
     },
     {
@@ -33,7 +89,9 @@ function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
       header: 'PID',
       size: 80,
       meta: { align: 'right' },
-      cell: (c) => <span className="text-fg-muted tabular-nums">{c.getValue<number>()}</span>,
+      cell: (c) => (
+        <span className="text-muted-foreground tabular-nums">{c.getValue<number>()}</span>
+      ),
     },
     {
       accessorKey: 'cpu',
@@ -41,7 +99,7 @@ function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
       size: 72,
       meta: { align: 'right' },
       cell: (c) => (
-        <span className="text-fg-muted tabular-nums">
+        <span className="text-muted-foreground tabular-nums">
           {formatPercent(c.getValue<number | null>())}
         </span>
       ),
@@ -52,7 +110,7 @@ function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
       size: 84,
       meta: { align: 'right' },
       cell: (c) => (
-        <span className="text-fg-muted tabular-nums">
+        <span className="text-muted-foreground tabular-nums">
           {formatBytes(c.getValue<number | null>())}
         </span>
       ),
@@ -60,22 +118,34 @@ function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
     {
       id: 'actions',
       header: '',
-      size: 64,
+      size: 96,
       enableSorting: false,
       meta: { align: 'right' },
       cell: ({ row }) => {
         const isSystem = row.original.pid < 2;
+        const port = row.original.port;
         return (
-          <Button
-            variant="dangerGhost"
-            size="icon"
-            disabled={isSystem}
-            aria-label={`Kill ${row.original.command}`}
-            title={isSystem ? 'Cannot kill a system process' : 'Kill process'}
-            onClick={() => onKill(row.original)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Open http://127.0.0.1:${port} in browser`}
+              title="Open in browser"
+              onClick={() => window.open(`http://127.0.0.1:${port}`, '_blank')}
+            >
+              <ExternalLink className="size-3.5" />
+            </Button>
+            <Button
+              variant="dangerGhost"
+              size="icon"
+              disabled={isSystem}
+              aria-label={`Kill ${row.original.command}`}
+              title={isSystem ? 'Cannot kill a system process' : 'Kill process'}
+              onClick={() => onKill(row.original)}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
         );
       },
     },
@@ -84,12 +154,35 @@ function buildColumns(onKill: (p: PortDto) => void): ColumnDef<PortDto, any>[] {
 
 export const PortsTable = ({ ports }: { ports: PortDto[] }) => {
   const [killTarget, setKillTarget] = useState<PortDto | null>(null);
-  const columns = useMemo(() => buildColumns(setKillTarget), []);
+  const [favorites, setFavorites] = useState<number[]>(getFavorites);
+
+  const toggleFavorite = (port: number) => {
+    setFavorites((prev) => {
+      const next = prev.includes(port) ? prev.filter((p) => p !== port) : [...prev, port];
+      saveFavorites(next);
+      return next;
+    });
+  };
+
+  const sortedPorts = useMemo(() => {
+    return [...ports].sort((a, b) => {
+      const aFav = favorites.includes(a.port);
+      const bFav = favorites.includes(b.port);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return a.port - b.port;
+    });
+  }, [ports, favorites]);
+
+  const columns = useMemo(
+    () => buildColumns(setKillTarget, favorites, toggleFavorite),
+    [favorites],
+  );
 
   return (
     <>
       <DataTable
-        data={ports}
+        data={sortedPorts}
         columns={columns}
         getRowId={(r) => `${r.pid}-${r.port}`}
         estimateRowHeight={52}

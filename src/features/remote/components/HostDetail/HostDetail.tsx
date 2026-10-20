@@ -93,6 +93,15 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             <Badge tone={statusTone} dot size="sm">
               {statusLabel}
             </Badge>
+            {host.env === 'prod' && connected && (
+              <Badge
+                tone="warning"
+                size="sm"
+                title="Auto-disconnects after 10m idle or on screen lock. Use tmux for long prod jobs."
+              >
+                Idle guard: 10m
+              </Badge>
+            )}
           </div>
           <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
             <span className="truncate">{hostAddress(host)}</span>

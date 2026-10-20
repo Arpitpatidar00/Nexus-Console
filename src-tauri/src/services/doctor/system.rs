@@ -37,6 +37,70 @@ pub const BACKUP_RISK: Probe = Probe {
     run: run_backup_risk,
 };
 
+pub const TOOLCHAINS: Probe = Probe {
+    id: "toolchains",
+    scope: Scope::System,
+    platforms: MACOS,
+    available: always,
+    run: run_toolchains,
+};
+
+fn tool_version(cmd: &str, args: &[&str]) -> Option<String> {
+    let out = Command::new(cmd).args(args).output().ok()?;
+    if out.status.success() {
+        let text = String::from_utf8_lossy(&out.stdout);
+        let first_line = text.lines().find(|l| !l.trim().is_empty())?;
+        Some(first_line.trim().to_string())
+    } else {
+        None
+    }
+}
+
+pub fn run_toolchains() -> Vec<Finding> {
+    let tools = [
+        ("node", vec!["-v"]),
+        ("npm", vec!["-v"]),
+        ("pnpm", vec!["-v"]),
+        ("rustc", vec!["--version"]),
+        ("python3", vec!["--version"]),
+        ("docker", vec!["--version"]),
+        ("flutter", vec!["--version"]),
+        ("dart", vec!["--version"]),
+        ("pod", vec!["--version"]),
+        ("xcodebuild", vec!["-version"]),
+    ];
+
+    let mut found = Vec::new();
+    for (name, args) in tools {
+        if let Some(v) = tool_version(name, &args) {
+            found.push(format!("{name}: {v}"));
+        }
+    }
+
+    let summary = if found.is_empty() {
+        "No developer toolchains detected".to_string()
+    } else {
+        format!("{} developer toolchains detected and verified", found.len())
+    };
+
+    let explain = if found.is_empty() {
+        "None of the common developer toolchains (Node, Rust, Python, Docker, Flutter) were found in PATH.".to_string()
+    } else {
+        found.join("\n")
+    };
+
+    vec![Finding {
+        probe_id: TOOLCHAINS.id,
+        scope: TOOLCHAINS.scope,
+        severity: Severity::Green,
+        tag: Tag::Speed,
+        summary,
+        explain,
+        guide: None,
+        fix: None,
+    }]
+}
+
 pub const STARTUP_ITEMS: Probe = Probe {
     id: "startup_items",
     scope: Scope::Startup,
@@ -379,5 +443,6 @@ mod tests {
         assert_eq!(run_memory_truth().len(), 1);
         assert_eq!(run_backup_risk().len(), 1);
         assert_eq!(run_startup_items().len(), 1);
+        assert_eq!(run_toolchains().len(), 1);
     }
 }

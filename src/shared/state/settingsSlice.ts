@@ -28,6 +28,10 @@ interface SettingsState {
   autoArchiveEnabled: boolean;
   autoArchiveCutoffDays: number;
   autoVacuumEnabled: boolean;
+  /** Global hotkey string (e.g. CommandOrControl+Alt+Space) or null if unset. */
+  globalHotkey: string | null;
+  /** Minutes of idle before auto-disconnecting prod servers (0 = off, default 10). */
+  remoteDeadmanMinutes: number;
   /** false until persisted settings are loaded from tauri-store on boot. */
   hydrated: boolean;
 }
@@ -48,6 +52,8 @@ export type PersistedSettings = Pick<
   | 'autoArchiveEnabled'
   | 'autoArchiveCutoffDays'
   | 'autoVacuumEnabled'
+  | 'globalHotkey'
+  | 'remoteDeadmanMinutes'
 >;
 
 const initialState: SettingsState = {
@@ -64,6 +70,8 @@ const initialState: SettingsState = {
   autoArchiveEnabled: false,
   autoArchiveCutoffDays: 30,
   autoVacuumEnabled: false,
+  globalHotkey: null,
+  remoteDeadmanMinutes: 10,
   hydrated: false,
 };
 
@@ -115,6 +123,12 @@ const settingsSlice = createSlice({
     setAutoVacuumEnabled(state, action: PayloadAction<boolean>) {
       state.autoVacuumEnabled = action.payload;
     },
+    setGlobalHotkey(state, action: PayloadAction<string | null>) {
+      state.globalHotkey = action.payload;
+    },
+    setRemoteDeadmanMinutes(state, action: PayloadAction<number>) {
+      state.remoteDeadmanMinutes = action.payload;
+    },
     hydrateSettings(state, action: PayloadAction<Partial<PersistedSettings>>) {
       Object.assign(state, action.payload);
       state.hydrated = true;
@@ -136,6 +150,8 @@ export const {
   setAutoArchiveEnabled,
   setAutoArchiveCutoffDays,
   setAutoVacuumEnabled,
+  setGlobalHotkey,
+  setRemoteDeadmanMinutes,
   hydrateSettings,
 } = settingsSlice.actions;
 export const settingsReducer = settingsSlice.reducer;

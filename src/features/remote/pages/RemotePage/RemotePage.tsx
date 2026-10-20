@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { setTrayServers } from '@/shared/tauri/notify';
 import { useQueryClient } from '@tanstack/react-query';
 import { FileDown, History, Plus, RefreshCw, Server } from 'lucide-react';
 import { useIpcEvent } from '@/shared/tauri';
@@ -37,17 +38,36 @@ export const RemotePage = () => {
   useRecordHostHistory();
 
   // Background checks (Rust, tray) push fresh snapshots; show them here too.
+  useIpcEvent<string>('open-server', (e) => {
+    setSelectedId(e.payload);
+  });
+
   useIpcEvent<{ id: string; snapshot: unknown }>('remote://snapshot', (e) => {
     const parsed = snapshotSchema.safeParse(e.payload.snapshot);
     if (parsed.success) qc.setQueryData(remoteKeys.snapshot(e.payload.id), parsed.data);
   });
 
-  const hosts = state.data?.hosts ?? [];
+  const hosts = useMemo(() => state.data?.hosts ?? [], [state.data?.hosts]);
   const granted = state.data?.consent.granted ?? false;
   const projects = projectNames(hosts);
   const first = groupHosts(hosts)[0]?.hosts[0] ?? null;
   const active = hosts.find((h) => h.id === selectedId) ?? first;
   const connectedCount = hosts.filter((h) => status.data?.get(h.id)).length;
+
+  useEffect(() => {
+    if (!hosts.length) return;
+    const trayItems = hosts.map((h) => {
+      const isConnected = !!status.data?.get(h.id);
+      return {
+        id: h.id,
+        label: h.label,
+        env: h.env,
+        connected: isConnected,
+        status: isConnected ? 'Online' : 'Disconnected',
+      };
+    });
+    setTrayServers(trayItems);
+  }, [hosts, status.data]);
 
   const subtitle = state.isPending
     ? 'Your SSH servers'

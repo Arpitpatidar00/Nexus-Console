@@ -51,8 +51,8 @@ Settings is always reachable, whatever modules are on. The terminal is shared by
 
 ### Services
 
-- Every Homebrew service with its **real** state. A service brew calls "started" that isn't healthy
-  yet shows as **Starting**, never green.
+- Every Homebrew service with its **real** state. Real health checks probe known formulae (`redis-cli PING`, `pg_isready`, `mysqladmin ping`, `mongosh` ping) with a 2s timeout. A service brew calls "started" that isn't responding shows as **Starting** or **Not responding**, never fake green.
+- **Port conflict warning**: checks if default formula port (e.g. 5432, 6379, 3306) is already bound by another process before starting.
 - **Start, stop, restart** with one click; **Start all / Stop all** with one native confirm.
 - **Linked vs unlinked**: linked services are registered with launchd and survive quitting the app;
   unlinked ones run for this session only and are stopped when you quit (configurable).
@@ -78,6 +78,10 @@ Settings is always reachable, whatever modules are on. The terminal is shared by
 
 - Every listening port with the process, PID, user, CPU and memory. Toggle **listening only / all
   connections**; search by port, PID or process.
+- **Detached port detector**: flags orphan dev processes (Node, Bun, Vite, Python, etc. with PPID 1 and no controlling terminal) holding ports after terminal window was closed, with a clear warning badge.
+- **Project directory owner**: identifies and displays the project name from process working directory.
+- **Open in browser**: probes HTTP listener on demand with a fast 300ms HEAD check and opens in browser.
+- **Favorite ports**: pin important ports (e.g. 3000, 5173, 8080) to the top of the table.
 - **Kill** (SIGTERM), **Force** (SIGKILL), and **Kill with admin** via the native admin prompt when
   permission is denied. System-owned processes carry a warning.
 - Nothing runs in the background.
@@ -120,6 +124,9 @@ on the servers, no account, no server of ours.
 - Every container action shows a native confirm with the server name and **ENV in capitals**; on
   **prod** you first type the server's name, then confirm natively. Stop and remove are styled as
   danger.
+- **Prod dead-man's switch**: auto-disconnects idle control masters (`ssh -O exit`) when the screen locks, system sleeps, or after N minutes of inactivity (default 10m).
+- **PTY safety guarantee**: never kills a prod terminal if a foreground command (build, migration, script) is active; sends a notification instead. Copy recommends `tmux` for long prod jobs.
+- **Tray PROD indicator**: the menu bar icon displays `[PROD]` whenever any production server connection is active.
 - The app only sends a host id; Rust builds every command from constants and names the server
   itself reported.
 
@@ -134,6 +141,7 @@ Read-only health checks with honest tags: **Speed**, **Storage** or **Info**. Di
 claimed to make the Mac faster.
 
 - **Scopes**: System, Claude, VSCode, Browser, Disk, Startup.
+- **Toolchain check**: verifies installed developer toolchains (Node, npm, pnpm, Rust, Python, Docker, Flutter, Dart) and flags issues.
 - **Quick scan** streams findings as each check finishes; **Deep scan** adds a node_modules sweep and
   dev-cache sizes, with progress and Cancel.
 - Checks include free disk, load vs cores, memory pressure and swap, Low Power Mode, Time Machine

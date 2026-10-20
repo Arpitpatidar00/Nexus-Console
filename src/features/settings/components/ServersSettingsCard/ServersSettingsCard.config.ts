@@ -15,3 +15,10 @@ export const REMOTE_BACKGROUND_OPTIONS: SegmentOption<string>[] = [
   { value: '15', label: '15m' },
   { value: '30', label: '30m' },
 ];
+
+export const DEADMAN_OPTIONS: SegmentOption<string>[] = [
+  { value: '5', label: '5m' },
+  { value: '10', label: '10m' },
+  { value: '30', label: '30m' },
+  { value: '0', label: 'Off' },
+];

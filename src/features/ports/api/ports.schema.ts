@@ -8,6 +8,8 @@ export const portDtoSchema = z.object({
   proto: z.string(),
   cpu: z.number().nullable(),
   memoryBytes: z.number().nullable(),
+  detached: z.boolean().default(false),
+  project: z.string().nullable().default(null),
 });
 export const portsSchema = z.array(portDtoSchema);
 export type PortDto = z.infer<typeof portDtoSchema>;

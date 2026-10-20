@@ -1,9 +1,12 @@
+use std::sync::Mutex;
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Wry};
 
-/// One row in the tray's Active Services section. `running` drives the checkmark.
-pub use crate::models::tray::TrayService;
+pub use crate::models::tray::{TrayServer, TrayService};
+
+static CACHED_SERVICES: Mutex<Vec<TrayService>> = Mutex::new(Vec::new());
+static CACHED_SERVERS: Mutex<Vec<TrayServer>> = Mutex::new(Vec::new());
 
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
@@ -12,25 +15,25 @@ fn show_main(app: &AppHandle) {
     }
 }
 
-/// Is the Homebrew module on? Read from the frontend's settings file, because
-/// "no services to show" and "this user doesn't manage services here" must look
-/// different in the menu — an empty list alone can't tell them apart.
 fn homebrew_on(app: &AppHandle) -> bool {
     crate::settings::module_enabled(crate::settings::read(app).as_ref(), "homebrew")
 }
 
-/// Header + one (disabled, read-only) check row per service + Open Dashboard / Quit.
-/// Check items are disabled on purpose: the tick is a status indicator, not a toggle.
-/// With `show_services` false the whole section is gone — no header, no "No active
-/// services" line for a feature the user switched off.
+fn servers_on(app: &AppHandle) -> bool {
+    crate::settings::module_enabled(crate::settings::read(app).as_ref(), "remote")
+}
+
 fn build_menu(
     app: &AppHandle,
     services: &[TrayService],
+    servers: &[TrayServer],
     show_services: bool,
+    show_servers: bool,
 ) -> tauri::Result<Menu<Wry>> {
     let header = MenuItem::with_id(app, "hdr", "Active Services", false, None::<&str>)?;
     let empty = MenuItem::with_id(app, "empty", "No active services", false, None::<&str>)?;
-    let sep_top = PredefinedMenuItem::separator(app)?;
+    let sep_services = PredefinedMenuItem::separator(app)?;
+    let sep_servers = PredefinedMenuItem::separator(app)?;
     let sep_bottom = PredefinedMenuItem::separator(app)?;
     let open = MenuItem::with_id(app, "open", "Open Dashboard", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Stackroost", true, None::<&str>)?;
@@ -57,26 +60,65 @@ fn build_menu(
         } else {
             items.extend(rows.iter().map(|r| r as &dyn IsMenuItem<Wry>));
         }
-        items.push(&sep_top);
+        items.push(&sep_services);
     }
+
+    let srv_rows: Vec<MenuItem<Wry>> = if show_servers {
+        servers
+            .iter()
+            .filter(|s| s.connected)
+            .map(|s| {
+                let text = format!("● {} — {}", s.label, s.status);
+                MenuItem::with_id(app, format!("srv:{}", s.id), &text, true, None::<&str>)
+            })
+            .collect::<tauri::Result<Vec<MenuItem<Wry>>>>()?
+    } else {
+        Vec::new()
+    };
+
+    let srv_hdr = MenuItem::with_id(app, "srv_hdr", "Connected Servers", false, None::<&str>)?;
+    if !srv_rows.is_empty() {
+        items.push(&srv_hdr);
+        items.extend(srv_rows.iter().map(|r| r as &dyn IsMenuItem<Wry>));
+        items.push(&sep_servers);
+    }
+
     items.push(&open);
     items.push(&sep_bottom);
     items.push(&quit);
     Menu::with_items(app, &items)
 }
 
+fn rebuild_menu(app: &AppHandle) {
+    let svcs = CACHED_SERVICES
+        .lock()
+        .map(|g| g.clone())
+        .unwrap_or_default();
+    let srvs = CACHED_SERVERS.lock().map(|g| g.clone()).unwrap_or_default();
+    if let Some(tray) = app.tray_by_id("main") {
+        if let Ok(menu) = build_menu(app, &svcs, &srvs, homebrew_on(app), servers_on(app)) {
+            let _ = tray.set_menu(Some(menu));
+        }
+    }
+}
+
 pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let menu = build_menu(app, &[], homebrew_on(app))?;
+    let menu = build_menu(app, &[], &[], homebrew_on(app), servers_on(app))?;
     let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main(app),
             "quit" => app.exit(0),
+            id if id.starts_with("srv:") => {
+                show_main(app);
+                if let Some(host_id) = id.strip_prefix("srv:") {
+                    use tauri::Emitter;
+                    let _ = app.emit("open-server", host_id);
+                }
+            }
             _ => {} // service rows are disabled → no events
         });
-    // Monochrome template glyph — macOS auto-tints it white/black for the menu bar
-    // (like every native menu-bar app), instead of the colorful app icon.
     if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../../../icons/tray.png")) {
         builder = builder.icon(icon).icon_as_template(true);
     }
@@ -84,19 +126,38 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Rebuild the tray menu with the current service list (checkmark = running).
-/// Frontend pushes this on every reconcile so the menu mirrors the dashboard.
 pub fn set_tray_services(services: Vec<TrayService>, app: AppHandle) {
-    if let Some(tray) = app.tray_by_id("main") {
-        if let Ok(menu) = build_menu(&app, &services, homebrew_on(&app)) {
-            let _ = tray.set_menu(Some(menu));
-        }
+    if let Ok(mut guard) = CACHED_SERVICES.lock() {
+        *guard = services;
     }
+    rebuild_menu(&app);
 }
 
-/// Push the running-count label into the menu-bar (e.g. "2/4"). Empty clears it.
+pub fn set_tray_servers(servers: Vec<TrayServer>, app: AppHandle) {
+    if let Ok(mut guard) = CACHED_SERVERS.lock() {
+        *guard = servers;
+    }
+    rebuild_menu(&app);
+}
+
 pub fn set_tray_title(title: String, app: AppHandle) {
     if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_title(if title.is_empty() { None } else { Some(title) });
+        let is_prod = crate::services::remote::deadman::has_active_prod_host(
+            &app.state::<crate::services::remote::RemoteState>(),
+        );
+        let full_title = if is_prod {
+            if title.is_empty() {
+                "[PROD]".to_string()
+            } else {
+                format!("[PROD] {title}")
+            }
+        } else {
+            title
+        };
+        let _ = tray.set_title(if full_title.is_empty() {
+            None
+        } else {
+            Some(full_title)
+        });
     }
 }

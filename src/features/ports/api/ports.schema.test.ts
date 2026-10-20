@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest';
 import { portsSchema } from './ports.schema';
 
-test('parses a port row', () => {
+test('parses a port row with detached and project fields', () => {
   const raw = [
     {
       pid: 99615,
@@ -11,12 +11,17 @@ test('parses a port row', () => {
       proto: 'IPv4',
       cpu: 0.1,
       memoryBytes: 2211840,
+      detached: false,
+      project: 'redis-backend',
     },
   ];
-  expect(portsSchema.parse(raw)).toHaveLength(1);
+  const parsed = portsSchema.parse(raw);
+  expect(parsed).toHaveLength(1);
+  expect(parsed[0].detached).toBe(false);
+  expect(parsed[0].project).toBe('redis-backend');
 });
 
-test('accepts null cpu/mem', () => {
+test('accepts null cpu/mem and defaults detached/project', () => {
   const raw = [
     {
       pid: 1,
@@ -28,5 +33,8 @@ test('accepts null cpu/mem', () => {
       memoryBytes: null,
     },
   ];
-  expect(() => portsSchema.parse(raw)).not.toThrow();
+  const parsed = portsSchema.parse(raw);
+  expect(parsed).toHaveLength(1);
+  expect(parsed[0].detached).toBe(false);
+  expect(parsed[0].project).toBeNull();
 });

@@ -4,6 +4,7 @@
 
 pub mod background;
 pub mod config;
+pub mod deadman;
 pub mod docker;
 pub mod findings;
 #[cfg(test)]

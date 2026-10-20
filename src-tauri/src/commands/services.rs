@@ -83,7 +83,119 @@ pub async fn list_services(
     .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
 }
 
-/// Testable core (no Tauri State) — see `discovers_local_services`.
+/// Default network port for standard server formulae.
+pub fn default_service_port(name: &str) -> Option<u16> {
+    let bare = validate::bare_formula(name);
+    let base = bare.split('@').next().unwrap_or(bare);
+    match base {
+        "redis" | "valkey" => Some(6379),
+        "postgresql" | "postgres" => Some(5432),
+        "mysql" | "mariadb" | "percona-server" => Some(3306),
+        "mongodb" | "mongodb-community" => Some(27017),
+        "memcached" => Some(11211),
+        "rabbitmq" => Some(5672),
+        "elasticsearch" => Some(9200),
+        "influxdb" => Some(8086),
+        _ => None,
+    }
+}
+
+fn run_cmd_timeout(cmd: &str, args: &[&str], timeout: Duration) -> Option<String> {
+    use std::io::Read;
+    let mut child = Command::new(cmd)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if status.success() {
+                    let mut stdout = String::new();
+                    if let Some(mut stream) = child.stdout.take() {
+                        let _ = stream.read_to_string(&mut stdout);
+                    }
+                    return Some(stdout);
+                } else {
+                    return None;
+                }
+            }
+            Ok(None) if start.elapsed() < timeout => {
+                std::thread::sleep(Duration::from_millis(15));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    }
+}
+
+/// Real health checks for known formulae with a 2s timeout.
+pub fn check_service_health(name: &str, port: Option<u16>, brew_prefix: &str) -> Option<bool> {
+    let bare = validate::bare_formula(name);
+    let base = bare.split('@').next().unwrap_or(bare);
+    let bin = |cmd: &str| format!("{brew_prefix}/bin/{cmd}");
+
+    match base {
+        "redis" | "valkey" => {
+            let p = port.unwrap_or(6379).to_string();
+            let bin_path = bin("redis-cli");
+            if !std::path::Path::new(&bin_path).exists() {
+                return port.map(|_| true);
+            }
+            let out = run_cmd_timeout(&bin_path, &["-p", &p, "PING"], Duration::from_secs(2));
+            Some(out.is_some_and(|s| s.trim() == "PONG"))
+        }
+        "postgresql" | "postgres" => {
+            let p = port.unwrap_or(5432).to_string();
+            let bin_path = bin("pg_isready");
+            if !std::path::Path::new(&bin_path).exists() {
+                return port.map(|_| true);
+            }
+            let out = run_cmd_timeout(
+                &bin_path,
+                &["-h", "127.0.0.1", "-p", &p],
+                Duration::from_secs(2),
+            );
+            Some(out.is_some_and(|s| s.contains("accepting connections")))
+        }
+        "mysql" | "mariadb" | "percona-server" => {
+            let p = port.unwrap_or(3306).to_string();
+            let bin_path = bin("mysqladmin");
+            if !std::path::Path::new(&bin_path).exists() {
+                return port.map(|_| true);
+            }
+            let out = run_cmd_timeout(
+                &bin_path,
+                &["-h", "127.0.0.1", "-P", &p, "ping"],
+                Duration::from_secs(2),
+            );
+            Some(out.is_some_and(|s| s.to_lowercase().contains("alive")))
+        }
+        "mongodb" | "mongodb-community" => {
+            let p = port.unwrap_or(27017);
+            let bin_path = bin("mongosh");
+            if !std::path::Path::new(&bin_path).exists() {
+                return port.map(|_| true);
+            }
+            let url = format!("mongodb://127.0.0.1:{p}/admin");
+            let out = run_cmd_timeout(
+                &bin_path,
+                &["--quiet", &url, "--eval", "db.runCommand({ping:1})"],
+                Duration::from_secs(2),
+            );
+            Some(out.is_some_and(|s| {
+                s.contains("ok: 1") || s.contains(r#""ok": 1"#) || s.contains("ok:1")
+            }))
+        }
+        _ => port.map(|_| true),
+    }
+}
+
 fn collect_services(
     cache: &ServicesCache,
     lock: &BrewLock,
@@ -108,10 +220,13 @@ fn collect_services(
         .map(|e| {
             let pid = pids.get(&e.name).copied();
             let sample = pid.and_then(|p| samples.get(&p));
-            // Real listening port from lsof; its presence is the health signal.
+            // Real listening port from lsof; verified by real health ping when possible.
             let port = pid.and_then(|p| listen_ports.get(&p).copied());
+            let brew_prefix = brew_bin
+                .strip_suffix("/bin/brew")
+                .unwrap_or("/opt/homebrew");
             let healthy = if with_stats && e.status == "started" {
-                Some(port.is_some())
+                check_service_health(&e.name, port, brew_prefix)
             } else {
                 None
             };
@@ -262,6 +377,27 @@ pub async fn start_service(
             .0
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        // Pre-start port conflict check
+        if let Some(port) = default_service_port(&name) {
+            if let Ok(out) = Command::new("lsof")
+                .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
+                .output()
+            {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                if let Some(pid_str) = stdout.lines().next() {
+                    if let Ok(other_pid) = pid_str.trim().parse::<u32>() {
+                        let my_pid = app.state::<ServicesCache>().0.lock().ok()
+                            .and_then(|c| c.as_ref().and_then(|l| l.pid_map.get(&name).copied()));
+                        if Some(other_pid) != my_pid {
+                            return Err(AppError::Conflict(format!(
+                                "Port {port} is already in use by PID {other_pid}. Stop the conflicting process or review in Ports."
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+
         let action = if linked { "start" } else { "run" };
         // A wedged launchd label (bootstrapped-but-not-running) makes `brew
         // services start` fail with EIO 5 ("Bootstrap failed: 5"). brew's list
@@ -498,6 +634,16 @@ pub async fn uninstall_formula(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn maps_known_default_service_ports() {
+        assert_eq!(default_service_port("redis"), Some(6379));
+        assert_eq!(default_service_port("redis@7.0"), Some(6379));
+        assert_eq!(default_service_port("postgresql@16"), Some(5432));
+        assert_eq!(default_service_port("mysql"), Some(3306));
+        assert_eq!(default_service_port("mongodb-community"), Some(27017));
+        assert_eq!(default_service_port("unknown-tool"), None);
+    }
+
     use super::*;
 
     // Real `brew search` output, captured 2026-08-17.

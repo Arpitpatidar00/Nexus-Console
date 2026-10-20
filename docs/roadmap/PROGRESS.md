@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P3 (SSH tunnels)
+- **Current phase:** P4 (Servers depth)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -28,7 +28,7 @@
   - [x] 1.7 Global hotkey
   - [x] 1.8 Servers in menu bar
 - [x] **P2** Command palette + action registry
-- [ ] **P3** SSH tunnels
+- [x] **P3** SSH tunnels
 - [ ] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
 - [ ] **P5** Parity and Ship (parity auditor, deploy/rollback — **ASK**, image push — **ASK**)
 - [ ] **P6** Local data (Local Docker, Databases, branch databases)
@@ -53,6 +53,13 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 3 (SSH tunnels).
+  - Data model and persistence: `TunnelConfig` in `remote.json` via `Store.tunnels`, `new_tunnel_id()`.
+  - Tunnel service in `services/remote/tunnel.rs` with `TunnelManager`: local loopback port conflict validation, multiplexed forwarding via `ssh -O forward` / `ssh -O cancel` on active ControlMaster, standalone fallback via `ssh -N -L`, state tracking (`Open`, `Reconnecting`, `Failed`, `Closed`), and connection template generator (Postgres, MySQL, Redis, Mongo, HTTP).
+  - Safety & confirmations: production tunnels require native confirmation before opening; all tunnels cleanly closed on app quit; open and close events logged to journal.
+  - UI: `TunnelsPanel` integrated into Servers `HostDetail` with state badges, one-click start/stop, one-click connection string copy with checkmark feedback, `AddTunnelDialog`, and dynamic actions in Action Registry / Cmd+K.
+  - All quality gates green: 97 Vitest tests, 226 Rust tests, Oxlint, Prettier, TypeScript, Vite build, cargo fmt, and cargo clippy.
 
 - **2026-10-21:** Completed Phase 2 (Command palette + action registry).
   - Built centralized Action Registry in `src/shared/actions/` with `types.ts`, `scorer.ts`, `staticActions.ts`, `useDynamicActions.ts`, and `useActions.ts`.

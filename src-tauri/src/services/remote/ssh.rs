@@ -102,7 +102,7 @@ fn opt(kv: String) -> [String; 2] {
 }
 
 /// Multiplexing options shared by background execs and `-O` control ops.
-fn control_opts(control_dir: &std::path::Path) -> Vec<String> {
+pub fn control_opts(control_dir: &std::path::Path) -> Vec<String> {
     let path = control_dir.join("%C").to_string_lossy().into_owned();
     // ssh tokenizes `-o` values on whitespace; quote a path with spaces.
     let path = if path.contains(char::is_whitespace) {
@@ -336,6 +336,88 @@ pub fn control_check(target: &SshTarget) -> bool {
 /// Close the host's master, if any. Best-effort; returns whether one was closed.
 pub fn control_exit(target: &SshTarget) -> bool {
     control(target, "exit")
+}
+
+/// Forward a port on an active master: `ssh -O forward -L <spec> <target>`
+pub fn control_forward(target: &SshTarget, spec: &str) -> AppResult<()> {
+    let dir = control_dir()?;
+    let mut args = base_args();
+    args.extend(["-O".into(), "forward".into(), "-L".into(), spec.into()]);
+    args.extend(control_opts(&dir));
+    args.extend(target.0.iter().cloned());
+
+    let out = Command::new(SSH_BIN)
+        .args(&args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| AppError::Io(format!("executing ssh forward: {e}")))?;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr);
+        Err(AppError::Shell(format!(
+            "ssh forward failed: {}",
+            err.trim()
+        )))
+    }
+}
+
+/// Cancel a forwarded port on an active master: `ssh -O cancel -L <spec> <target>`
+pub fn control_cancel(target: &SshTarget, spec: &str) -> AppResult<()> {
+    let dir = control_dir()?;
+    let mut args = base_args();
+    args.extend(["-O".into(), "cancel".into(), "-L".into(), spec.into()]);
+    args.extend(control_opts(&dir));
+    args.extend(target.0.iter().cloned());
+
+    let out = Command::new(SSH_BIN)
+        .args(&args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| AppError::Io(format!("executing ssh cancel: {e}")))?;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr);
+        Err(AppError::Shell(format!(
+            "ssh cancel failed: {}",
+            err.trim()
+        )))
+    }
+}
+
+/// Spawn an isolated standalone tunnel: `ssh -N -L <spec> <target>`
+pub fn spawn_tunnel(target: &SshTarget, spec: &str) -> AppResult<std::process::Child> {
+    let dir = control_dir()?;
+    let mut args = base_args();
+    args.extend(["-N".into(), "-L".into(), spec.into()]);
+    args.extend(control_opts(&dir));
+    args.extend(target.0.iter().cloned());
+
+    let mut child = Command::new(SSH_BIN)
+        .args(&args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| AppError::Io(format!("spawning ssh tunnel: {e}")))?;
+
+    std::thread::sleep(Duration::from_millis(150));
+    if let Ok(Some(status)) = child.try_wait() {
+        let mut err = String::new();
+        if let Some(mut stderr) = child.stderr.take() {
+            let _ = stderr.read_to_string(&mut err);
+        }
+        return Err(AppError::Shell(format!(
+            "ssh tunnel exited immediately with status {}: {}",
+            status,
+            err.trim()
+        )));
+    }
+
+    Ok(child)
 }
 
 /// Classify ssh's own failure (exit 255) by its stderr. The first meaningful

@@ -43,6 +43,24 @@ pub struct ManualTarget {
     pub identity_file: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TunnelConfig {
+    pub id: String,
+    pub host_id: String,
+    pub name: String,
+    pub local_port: u16,
+    #[serde(default = "default_remote_host")]
+    pub remote_host: String,
+    pub remote_port: u16,
+    #[serde(default)]
+    pub auto_start: bool,
+}
+
+fn default_remote_host() -> String {
+    "127.0.0.1".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Host {
@@ -81,6 +99,8 @@ pub struct Store {
     #[serde(default)]
     pub hosts: Vec<Host>,
     #[serde(default)]
+    pub tunnels: Vec<TunnelConfig>,
+    #[serde(default)]
     pub journal: Vec<JournalEntry>,
 }
 
@@ -90,6 +110,7 @@ impl Default for Store {
             version: VERSION,
             consent: Consent::default(),
             hosts: vec![],
+            tunnels: vec![],
             journal: vec![],
         }
     }
@@ -159,6 +180,28 @@ impl Store {
         self.journal.truncate(JOURNAL_CAP);
     }
 
+    pub fn tunnel(&self, id: &str) -> AppResult<&TunnelConfig> {
+        self.tunnels
+            .iter()
+            .find(|t| t.id == id)
+            .ok_or_else(|| AppError::NotFound(format!("unknown tunnel {id}")))
+    }
+
+    pub fn tunnel_mut(&mut self, id: &str) -> AppResult<&mut TunnelConfig> {
+        self.tunnels
+            .iter_mut()
+            .find(|t| t.id == id)
+            .ok_or_else(|| AppError::NotFound(format!("unknown tunnel {id}")))
+    }
+
+    pub fn remove_tunnel(&mut self, id: &str) -> Option<TunnelConfig> {
+        if let Some(pos) = self.tunnels.iter().position(|t| t.id == id) {
+            Some(self.tunnels.remove(pos))
+        } else {
+            None
+        }
+    }
+
     pub fn next_order(&self) -> u32 {
         self.hosts.iter().map(|h| h.order + 1).max().unwrap_or(0)
     }
@@ -180,6 +223,23 @@ pub fn new_host_id() -> String {
     }
     let hex: String = buf.iter().map(|b| format!("{b:02x}")).collect();
     format!("h_{hex}")
+}
+
+/// `tun_` + 16 random hex chars.
+pub fn new_tunnel_id() -> String {
+    use std::io::Read;
+    let mut buf = [0u8; 8];
+    if fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .is_err()
+    {
+        let n = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as u64);
+        buf = n.to_le_bytes();
+    }
+    let hex: String = buf.iter().map(|b| format!("{b:02x}")).collect();
+    format!("tun_{hex}")
 }
 
 pub fn path_in(app_data_dir: PathBuf) -> PathBuf {

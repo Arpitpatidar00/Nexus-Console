@@ -30,9 +30,37 @@ export const hostSchema = z.object({
 });
 export type RemoteHost = z.infer<typeof hostSchema>;
 
+export const tunnelConfigSchema = z.object({
+  id: z.string(),
+  hostId: z.string(),
+  name: z.string(),
+  localPort: z.number().int().min(1).max(65535),
+  remoteHost: z.string().default('127.0.0.1'),
+  remotePort: z.number().int().min(1).max(65535),
+  autoStart: z.boolean().default(false),
+});
+export type TunnelConfig = z.infer<typeof tunnelConfigSchema>;
+
+export const tunnelStateSchema = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('open') }),
+  z.object({ state: z.literal('reconnecting'), attempt: z.number() }),
+  z.object({ state: z.literal('failed'), reason: z.string() }),
+  z.object({ state: z.literal('closed') }),
+]);
+export type TunnelState = z.infer<typeof tunnelStateSchema>;
+
+export const tunnelStatusSchema = z.object({
+  config: tunnelConfigSchema,
+  state: tunnelStateSchema,
+  isMultiplexed: z.boolean(),
+  connectionTemplate: z.string(),
+});
+export type TunnelStatus = z.infer<typeof tunnelStatusSchema>;
+
 export const remoteStateSchema = z.object({
   consent: consentSchema,
   hosts: z.array(hostSchema),
+  tunnels: z.array(tunnelConfigSchema).default([]),
 });
 export type RemoteState = z.infer<typeof remoteStateSchema>;
 

@@ -13,6 +13,7 @@ pub mod parse;
 pub mod probe;
 pub mod ssh;
 pub mod store;
+pub mod tunnel;
 
 use crate::error::{AppError, AppResult};
 use probe::HostSnapshot;
@@ -30,6 +31,7 @@ pub struct RemoteState {
     store: Mutex<Store>,
     host_locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     snapshots: Mutex<HashMap<String, HostSnapshot>>,
+    pub tunnels: Arc<tunnel::TunnelManager>,
 }
 
 impl RemoteState {
@@ -39,6 +41,7 @@ impl RemoteState {
             path,
             host_locks: Mutex::default(),
             snapshots: Mutex::default(),
+            tunnels: Arc::new(tunnel::TunnelManager::new()),
         }
     }
 
@@ -114,6 +117,7 @@ impl RemoteState {
 
     /// Close every live master. Used on quit and when consent is revoked.
     pub fn disconnect_all(&self) {
+        self.tunnels.shutdown_all(self);
         let targets: Vec<_> = match self.read() {
             Ok(s) => s
                 .hosts

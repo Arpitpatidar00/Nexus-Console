@@ -6,6 +6,8 @@ import { usePorts } from '@/features/ports/api/usePorts';
 import { useKillProcess } from '@/features/ports/api/useKillProcess';
 import { useRemoteState } from '@/features/remote/api/useRemoteState';
 import { useRemoteStatus } from '@/features/remote/api/useRemoteStatus';
+import { useTunnels } from '@/features/remote/api/useTunnels';
+import { useOpenTunnel, useCloseTunnel } from '@/features/remote/api/tunnelMutations';
 import { remoteKeys } from '@/features/remote/api/keys';
 import { connectionSchema } from '@/features/remote/api/remote.schema';
 import { openTerminal } from '@/shared/state/terminalsSlice';
@@ -25,6 +27,9 @@ export function useDynamicActions(): ActionItem[] {
 
   const remoteState = useRemoteState();
   const remoteStatus = useRemoteStatus();
+  const tunnelsQuery = useTunnels(false);
+  const openTunnel = useOpenTunnel();
+  const closeTunnel = useCloseTunnel();
 
   const hosts = useMemo(() => remoteState.data?.hosts ?? [], [remoteState.data?.hosts]);
 
@@ -141,6 +146,35 @@ export function useDynamicActions(): ActionItem[] {
       }
     }
 
+    // 4. SSH Tunnels actions
+    const tunnels = tunnelsQuery.data ?? [];
+    for (const t of tunnels) {
+      const isOpen = t.state.state === 'open';
+      if (isOpen) {
+        actions.push({
+          id: `tunnel:close:${t.config.id}`,
+          title: `Close tunnel: ${t.config.name}`,
+          subtitle: `127.0.0.1:${t.config.localPort} -> ${t.config.remoteHost}:${t.config.remotePort}`,
+          keywords: ['tunnel', 'close', 'ssh', t.config.name, String(t.config.localPort)],
+          group: 'remote',
+          run: () => {
+            closeTunnel.mutate(t.config.id);
+          },
+        });
+      } else {
+        actions.push({
+          id: `tunnel:open:${t.config.id}`,
+          title: `Open tunnel: ${t.config.name}`,
+          subtitle: `Forward 127.0.0.1:${t.config.localPort} to ${t.config.remoteHost}:${t.config.remotePort}`,
+          keywords: ['tunnel', 'open', 'ssh', t.config.name, String(t.config.localPort)],
+          group: 'remote',
+          run: () => {
+            openTunnel.mutate(t.config.id);
+          },
+        });
+      }
+    }
+
     return actions;
   }, [
     qc,
@@ -152,5 +186,8 @@ export function useDynamicActions(): ActionItem[] {
     killProcess,
     hosts,
     remoteStatus.data,
+    tunnelsQuery.data,
+    openTunnel,
+    closeTunnel,
   ]);
 }

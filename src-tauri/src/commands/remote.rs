@@ -8,8 +8,10 @@ use crate::remote::docker::{self, DockerAction};
 use crate::remote::probe::{self, HostSnapshot};
 use crate::remote::store::JournalEntry;
 use crate::remote::store::{
-    new_host_id, Consent, Env, Host, HostSource, ManualTarget, DEFAULT_PROJECT,
+    new_host_id, new_tunnel_id, Consent, Env, Host, HostSource, ManualTarget, TunnelConfig,
+    DEFAULT_PROJECT,
 };
+use crate::remote::tunnel::TunnelStatus;
 use crate::remote::{config, ssh, with_host_lock, RemoteState};
 use crate::util::validate::{
     validate_display_text, validate_hostname, validate_identity_file, validate_port,
@@ -23,6 +25,7 @@ use tauri::{AppHandle, Manager};
 pub struct RemoteStateDto {
     consent: Consent,
     hosts: Vec<Host>,
+    tunnels: Vec<TunnelConfig>,
 }
 
 #[tauri::command]
@@ -33,6 +36,7 @@ pub async fn remote_state(app: AppHandle) -> AppResult<RemoteStateDto> {
         Ok(RemoteStateDto {
             consent: s.consent.clone(),
             hosts: s.hosts.clone(),
+            tunnels: s.tunnels.clone(),
         })
     })
     .await
@@ -387,4 +391,165 @@ pub async fn remote_docker_action(
 #[tauri::command]
 pub async fn remote_journal(app: AppHandle) -> AppResult<Vec<JournalEntry>> {
     blocking(move || Ok(app.state::<RemoteState>().read()?.journal.clone())).await
+}
+
+#[tauri::command]
+pub async fn remote_get_tunnels(app: AppHandle) -> AppResult<Vec<TunnelStatus>> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        state.tunnels.statuses(&state)
+    })
+    .await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddTunnelInput {
+    pub host_id: String,
+    pub name: String,
+    pub local_port: u16,
+    pub remote_host: Option<String>,
+    pub remote_port: u16,
+    pub auto_start: Option<bool>,
+}
+
+#[tauri::command]
+pub async fn remote_add_tunnel(app: AppHandle, input: AddTunnelInput) -> AppResult<TunnelConfig> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        validate_display_text(&input.name, "tunnel name")?;
+        validate_port(input.local_port as u32)?;
+        validate_port(input.remote_port as u32)?;
+        let remote_host = input.remote_host.unwrap_or_else(|| "127.0.0.1".to_string());
+        validate_hostname(&remote_host)?;
+
+        let config = TunnelConfig {
+            id: new_tunnel_id(),
+            host_id: input.host_id,
+            name: input.name,
+            local_port: input.local_port,
+            remote_host,
+            remote_port: input.remote_port,
+            auto_start: input.auto_start.unwrap_or(false),
+        };
+
+        state.write(|s| {
+            s.host(&config.host_id)?;
+            s.tunnels.push(config.clone());
+            Ok(())
+        })?;
+
+        if config.auto_start {
+            let _ = state.tunnels.open(&state, &config.id);
+        }
+
+        Ok(config)
+    })
+    .await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTunnelPatch {
+    pub name: Option<String>,
+    pub local_port: Option<u16>,
+    pub remote_host: Option<String>,
+    pub remote_port: Option<u16>,
+    pub auto_start: Option<bool>,
+}
+
+#[tauri::command]
+pub async fn remote_update_tunnel(
+    app: AppHandle,
+    id: String,
+    patch: UpdateTunnelPatch,
+) -> AppResult<TunnelConfig> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        if let Some(ref name) = patch.name {
+            validate_display_text(name, "tunnel name")?;
+        }
+        if let Some(port) = patch.local_port {
+            validate_port(port as u32)?;
+        }
+        if let Some(port) = patch.remote_port {
+            validate_port(port as u32)?;
+        }
+        if let Some(ref host) = patch.remote_host {
+            validate_hostname(host)?;
+        }
+
+        state.write(|s| {
+            let t = s.tunnel_mut(&id)?;
+            if let Some(n) = patch.name {
+                t.name = n;
+            }
+            if let Some(p) = patch.local_port {
+                t.local_port = p;
+            }
+            if let Some(h) = patch.remote_host {
+                t.remote_host = h;
+            }
+            if let Some(p) = patch.remote_port {
+                t.remote_port = p;
+            }
+            if let Some(a) = patch.auto_start {
+                t.auto_start = a;
+            }
+            Ok(t.clone())
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_remove_tunnel(app: AppHandle, id: String) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let _ = state.tunnels.close(&state, &id);
+        state.write(|s| {
+            s.remove_tunnel(&id)
+                .ok_or_else(|| AppError::NotFound(format!("unknown tunnel {id}")))?;
+            Ok(())
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_open_tunnel(app: AppHandle, id: String) -> AppResult<TunnelStatus> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let (tunnel, host) = {
+            let s = state.read()?;
+            let t = s.tunnel(&id)?.clone();
+            let h = s.host(&t.host_id)?.clone();
+            (t, h)
+        };
+
+        if host.env == Env::Prod {
+            confirm_action(
+                &app,
+                &format!("Open tunnel “{}” to PROD?", tunnel.name),
+                &format!(
+                    "This forwards local port {} to {}:{} on {}. Requests sent locally will directly hit your production environment.",
+                    tunnel.local_port, tunnel.remote_host, tunnel.remote_port, host.label
+                ),
+                "Open Tunnel",
+                true,
+            )?;
+        }
+
+        state.tunnels.open(&state, &id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_close_tunnel(app: AppHandle, id: String) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        state.tunnels.close(&state, &id)
+    })
+    .await
 }

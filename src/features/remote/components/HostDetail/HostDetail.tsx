@@ -23,8 +23,9 @@ import { ContainersTable } from '@/features/remote/components/ContainersTable';
 import { ServicesPanel } from '@/features/remote/components/ServicesPanel';
 import { PortsPanel } from '@/features/remote/components/PortsPanel';
 import { IssuesPanel } from '@/features/remote/components/IssuesPanel';
+import { TunnelsPanel } from '@/features/remote/components/TunnelsPanel';
 
-type View = 'overview' | 'containers' | 'services' | 'ports' | 'issues';
+type View = 'overview' | 'containers' | 'services' | 'ports' | 'issues' | 'tunnels';
 
 const BodySkeleton = () => (
   <div aria-hidden className="space-y-5 p-5">
@@ -67,6 +68,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
     { value: 'services' as const, label: 'Services' },
     { value: 'ports' as const, label: 'Ports' },
     { value: 'issues' as const, label: issues > 0 ? `Issues (${issues})` : 'Issues' },
+    { value: 'tunnels' as const, label: 'Tunnels' },
   ];
 
   const statusTone: 'neutral' | 'danger' | 'success' = !connected
@@ -236,6 +238,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             <ServicesPanel snapshot={s} />
           ) : view === 'ports' ? (
             <PortsPanel snapshot={s} />
+          ) : view === 'tunnels' ? (
+            <TunnelsPanel host={host} />
           ) : (
             <IssuesPanel snapshot={s} />
           )}

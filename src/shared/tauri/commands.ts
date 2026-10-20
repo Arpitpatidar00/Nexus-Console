@@ -71,4 +71,10 @@ export const CMD = {
   REMOTE_SNAPSHOT: 'remote_snapshot',
   REMOTE_DOCKER_ACTION: 'remote_docker_action',
   REMOTE_JOURNAL: 'remote_journal',
+  REMOTE_GET_TUNNELS: 'remote_get_tunnels',
+  REMOTE_ADD_TUNNEL: 'remote_add_tunnel',
+  REMOTE_UPDATE_TUNNEL: 'remote_update_tunnel',
+  REMOTE_REMOVE_TUNNEL: 'remote_remove_tunnel',
+  REMOTE_OPEN_TUNNEL: 'remote_open_tunnel',
+  REMOTE_CLOSE_TUNNEL: 'remote_close_tunnel',
 } as const;

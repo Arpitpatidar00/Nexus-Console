@@ -4,7 +4,14 @@ import { test, expect } from 'vitest';
 // what Rust actually sends.
 import golden from '../../../../fixtures/maclean/report.json';
 import memoryGolden from '../../../../fixtures/maclean/memory.json';
-import { cleanResultSchema, memorySchema, reportSchema, rulesSchema } from './maclean.schema';
+import {
+  cleanResultSchema,
+  deepReportSchema,
+  drillSchema,
+  memorySchema,
+  reportSchema,
+  rulesSchema,
+} from './maclean.schema';
 
 test('parses the Rust storage report', () => {
   const r = reportSchema.parse(golden);
@@ -12,6 +19,7 @@ test('parses the Rust storage report', () => {
   expect(r.items.find((i) => i.id === 'docker_images')?.defaultSelected).toBe(false);
   expect(r.items.find((i) => i.id === 'docker_installer')?.skip).toContain('update');
   expect(r.map[0].bytes).toBeGreaterThanOrEqual(r.map.at(-1)!.bytes);
+  expect(r.largeFiles[0].path).toMatch(/^\//);
 });
 
 test('rejects a reshaped report', () => {
@@ -43,4 +51,14 @@ test('parses the Rust memory report', () => {
   expect(c.usedBytes + c.cachedBytes + c.freeBytes).toBe(c.totalBytes);
   expect(m.pressure).toBe('warning');
   expect(m.topApps[0].bytes).toBeGreaterThanOrEqual(m.topApps[1].bytes);
+});
+
+test('deep report and drill rows', () => {
+  expect(
+    deepReportSchema.parse({
+      entries: [{ label: 'User: arpit', why: 'x', bytes: 12, flagged: true }],
+      causes: [{ bytes: 12, text: 't', fix: 'f' }],
+    }).entries[0].flagged,
+  ).toBe(true);
+  expect(drillSchema.parse([{ name: 'Caches', bytes: 3 }])).toHaveLength(1);
 });

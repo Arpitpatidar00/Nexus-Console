@@ -308,7 +308,14 @@ pub fn skip_for(
         "chrome" => open("Google Chrome", "Chrome"),
         "vscode" => open("Visual Studio Code", "VS Code"),
         "antigravity" => open("Antigravity IDE", "Antigravity"),
-        "xcode" | "simulators" => open("Xcode", "Xcode"),
+        "xcode" => open("Xcode", "Xcode"),
+        "simulators" => {
+            if !super::explore::xcode_installed() {
+                Some("Xcode not installed".into())
+            } else {
+                open("Xcode", "Xcode")
+            }
+        }
         "pnpm" => tools::find_bin("pnpm", &env.home, env.brew_prefix.as_deref())
             .is_none()
             .then(|| "pnpm not found".into()),
@@ -394,8 +401,19 @@ pub fn measure_item(id: &'static str, env: &Env, docker: &DockerUsage) -> Option
                 }
                 total
             }
-            // ponytail: measured in P5 alongside the other Xcode extras.
-            "simulators" => 0,
+            "simulators" => {
+                let mut total = 0;
+                for d in super::explore::unavailable_simulators() {
+                    let b = du(&[&d], &[], env.cancel)?;
+                    detail.push(format!(
+                        "{} · {}",
+                        env.tilde(&d),
+                        crate::doctor::vscode::fmt_mb(b)
+                    ));
+                    total += b;
+                }
+                total
+            }
             _ => 0,
         }
     };

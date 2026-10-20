@@ -60,6 +60,8 @@ pub struct StorageReport {
     pub causes: Vec<Cause>,
     pub items: Vec<CleanItem>,
     pub insights: Vec<Insight>,
+    /// Files of 1 GB or more in Desktop, Documents, Downloads (reported only).
+    pub large_files: Vec<super::explore::LargeFile>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -376,6 +378,7 @@ pub fn run(inp: &ScanInputs, progress: &(dyn Fn(Progress) + Sync)) -> AppResult<
         causes,
         items,
         insights,
+        large_files: super::explore::large_files(&inp.home, super::explore::LARGE_FILE_MIN),
     })
 }
 
@@ -427,6 +430,18 @@ fn insights(inp: &ScanInputs, env: &Env, snaps: &LocalSnapshots) -> Option<Vec<I
                 });
             }
         }
+    }
+    if let Some(b) =
+        super::explore::ios_backups(&inp.home, inp.cancel).filter(|b| *b > 1024 * 1024 * 1024)
+    {
+        out.push(Insight {
+            id: "ios_backups",
+            text: format!(
+                "iPhone/iPad backups take {}. Manage them in Finder (select the device → Manage Backups).",
+                crate::doctor::vscode::fmt_mb(b)
+            ),
+            detail: vec![],
+        });
     }
     let cutoff =
         std::time::Duration::from_secs(u64::from(env.rules.stale_node_modules_days) * 86_400);
@@ -696,6 +711,10 @@ mod golden {
                 id: "brew_versions",
                 text: "Several versions".into(),
                 detail: vec!["node@20, node@22".into()],
+            }],
+            large_files: vec![super::super::explore::LargeFile {
+                path: "/Users/me/Downloads/disk.iso".into(),
+                bytes: 4_800_000_000,
             }],
         };
         let json = serde_json::to_string_pretty(&report).unwrap() + "\n";

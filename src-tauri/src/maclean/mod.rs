@@ -5,7 +5,9 @@
 
 pub mod catalog;
 pub mod clean;
+pub mod deep;
 pub mod disk;
+pub mod explore;
 pub mod measure;
 pub mod memory;
 pub mod scan;
@@ -26,6 +28,9 @@ pub struct MacleanState {
     pub cancel: AtomicBool,
     pub scanning: Mutex<()>,
     pub memory: memory::Sampler,
+    /// The latest storage report: deep scan subtracts its rows, and Reveal
+    /// only accepts a large file this report listed.
+    pub last_report: Mutex<Option<scan::StorageReport>>,
 }
 
 impl MacleanState {
@@ -36,6 +41,7 @@ impl MacleanState {
             cancel: AtomicBool::new(false),
             scanning: Mutex::new(()),
             memory: memory::Sampler::default(),
+            last_report: Mutex::new(None),
         }
     }
 

@@ -197,3 +197,68 @@ test('parses Phase 4 files, notes, history, and runbooks', () => {
   });
   expect(runbook.name).toBe('Tail Web Logs');
 });
+
+import {
+  parityReportSchema,
+  deployRecordSchema,
+  deployPreviewSchema,
+  teleportResultSchema,
+} from './remote.schema';
+
+test('parses Phase 5 parity report, deploy record, and teleport result', () => {
+  const parity = parityReportSchema.parse({
+    versions: [
+      {
+        name: 'node',
+        localVersion: 'v20.10.0',
+        remoteVersions: { h1: 'v20.10.0', h2: 'v18.17.0' },
+        matches: false,
+      },
+    ],
+    envKeys: [
+      {
+        key: 'STRIPE_SECRET',
+        inLocal: true,
+        inRemote: { h1: true, h2: false },
+        sameValueWarning: true,
+        sharedEnvironments: ['local', 'h1'],
+      },
+    ],
+    drift: [],
+  });
+  expect(parity.versions[0].name).toBe('node');
+  expect(parity.envKeys[0].sameValueWarning).toBe(true);
+
+  const deploy = deployRecordSchema.parse({
+    id: 'dep_123',
+    hostId: 'h1',
+    project: 'my-stack',
+    deployedAt: 1792435438,
+    services: [
+      {
+        service: 'web',
+        image: 'ghcr.io/org/web:latest',
+        digestBefore: 'sha256:aaa',
+        digestAfter: 'sha256:bbb',
+      },
+    ],
+    status: 'success',
+    message: 'Deploy completed',
+  });
+  expect(deploy.status).toBe('success');
+
+  const preview = deployPreviewSchema.parse({
+    project: 'my-stack',
+    servicesToUpdate: [],
+    hasChanges: false,
+  });
+  expect(preview.hasChanges).toBe(false);
+
+  const teleport = teleportResultSchema.parse({
+    image: 'app:local',
+    hostId: 'h1',
+    archMatched: true,
+    message: 'Teleported successfully',
+  });
+  expect(teleport.archMatched).toBe(true);
+});

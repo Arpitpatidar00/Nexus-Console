@@ -6,6 +6,7 @@ pub mod background;
 pub mod cleanup;
 pub mod config;
 pub mod deadman;
+pub mod deploys;
 pub mod docker;
 pub mod files;
 pub mod findings;
@@ -14,11 +15,13 @@ pub mod inspection;
 #[cfg(test)]
 mod it;
 pub mod notes;
+pub mod parity;
 pub mod parse;
 pub mod probe;
 pub mod runbooks;
 pub mod ssh;
 pub mod store;
+pub mod teleport;
 pub mod tunnel;
 
 use crate::error::{AppError, AppResult};
@@ -41,6 +44,7 @@ pub struct RemoteState {
     pub notes: Mutex<notes::NotesStore>,
     pub history: Mutex<history::HostHistoryStore>,
     pub runbooks: Mutex<runbooks::RunbookStore>,
+    pub deploys: Mutex<deploys::DeployStore>,
 }
 
 impl RemoteState {
@@ -55,6 +59,7 @@ impl RemoteState {
             notes: Mutex::new(notes::NotesStore::load(parent)),
             history: Mutex::new(history::HostHistoryStore::load(parent)),
             runbooks: Mutex::new(runbooks::RunbookStore::load(parent)),
+            deploys: Mutex::new(deploys::DeployStore::load(parent)),
         }
     }
 

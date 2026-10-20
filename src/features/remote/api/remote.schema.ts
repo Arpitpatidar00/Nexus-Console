@@ -338,3 +338,84 @@ export const addRunbookInputSchema = z.object({
   description: z.string().nullable().optional(),
 });
 export type AddRunbookInput = z.infer<typeof addRunbookInputSchema>;
+
+// --- Phase 5: Parity and Ship Schemas ---
+
+export const versionItemSchema = z.object({
+  name: z.string(),
+  localVersion: z.string().nullable(),
+  remoteVersions: z.record(z.string(), z.string().nullable()),
+  matches: z.boolean(),
+});
+export type VersionItem = z.infer<typeof versionItemSchema>;
+
+export const envKeyItemSchema = z.object({
+  key: z.string(),
+  inLocal: z.boolean(),
+  inRemote: z.record(z.string(), z.boolean()),
+  sameValueWarning: z.boolean(),
+  sharedEnvironments: z.array(z.string()),
+});
+export type EnvKeyItem = z.infer<typeof envKeyItemSchema>;
+
+export const driftItemSchema = z.object({
+  service: z.string(),
+  localImage: z.string().nullable(),
+  remoteImages: z.record(z.string(), z.string().nullable()),
+  inSync: z.boolean(),
+});
+export type DriftItem = z.infer<typeof driftItemSchema>;
+
+export const parityReportSchema = z.object({
+  versions: z.array(versionItemSchema),
+  envKeys: z.array(envKeyItemSchema),
+  drift: z.array(driftItemSchema),
+});
+export type ParityReport = z.infer<typeof parityReportSchema>;
+
+export const serviceDigestSchema = z.object({
+  service: z.string(),
+  image: z.string(),
+  digestBefore: z.string(),
+  digestAfter: z.string().nullable(),
+});
+export type ServiceDigest = z.infer<typeof serviceDigestSchema>;
+
+export const deployRecordSchema = z.object({
+  id: z.string(),
+  hostId: z.string(),
+  project: z.string(),
+  deployedAt: z.number(),
+  services: z.array(serviceDigestSchema),
+  status: z.string(),
+  message: z.string(),
+});
+export type DeployRecord = z.infer<typeof deployRecordSchema>;
+
+export const deployPreviewSchema = z.object({
+  project: z.string(),
+  servicesToUpdate: z.array(serviceDigestSchema),
+  hasChanges: z.boolean(),
+});
+export type DeployPreview = z.infer<typeof deployPreviewSchema>;
+
+export const deployResultSchema = z.object({
+  record: deployRecordSchema,
+  logs: z.string(),
+});
+export type DeployResult = z.infer<typeof deployResultSchema>;
+
+export const teleportResultSchema = z.object({
+  image: z.string(),
+  hostId: z.string(),
+  archMatched: z.boolean(),
+  message: z.string(),
+});
+export type TeleportResult = z.infer<typeof teleportResultSchema>;
+
+export const parityAuditInputSchema = z.object({
+  localProjectPath: z.string().nullable().optional(),
+  hostIds: z.array(z.string()),
+  remoteAppPaths: z.record(z.string(), z.string()),
+});
+export type ParityAuditInput = z.infer<typeof parityAuditInputSchema>;

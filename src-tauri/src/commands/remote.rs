@@ -795,3 +795,211 @@ pub async fn remote_remove_runbook(app: AppHandle, id: String) -> AppResult<()> 
     })
     .await
 }
+
+use crate::remote::deploys::{self, DeployPreview, DeployRecord, DeployResult};
+use crate::remote::parity::{self, ParityReport};
+use crate::remote::teleport::{self, TeleportResult};
+use std::collections::HashMap;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParityAuditInput {
+    pub local_project_path: Option<String>,
+    pub host_ids: Vec<String>,
+    pub remote_app_paths: HashMap<String, String>,
+}
+
+#[tauri::command]
+pub async fn remote_audit_parity(
+    app: AppHandle,
+    input: ParityAuditInput,
+) -> AppResult<ParityReport> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let store = state.read()?;
+        let mut hosts_info = Vec::new();
+        let targets = input
+            .host_ids
+            .iter()
+            .map(|id| state.target(id))
+            .collect::<AppResult<Vec<_>>>()?;
+
+        for (i, id) in input.host_ids.iter().enumerate() {
+            let host = store.host(id)?;
+            let env_str = match host.env {
+                Env::Prod => "prod",
+                Env::Staging => "staging",
+                Env::Dev => "dev",
+                Env::Other => "other",
+            };
+            let app_dir = input
+                .remote_app_paths
+                .get(id)
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            hosts_info.push((id.as_str(), &targets[i], env_str, app_dir));
+        }
+
+        parity::run_parity_audit(input.local_project_path.as_deref(), &hosts_info)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_preview_deploy(
+    app: AppHandle,
+    id: String,
+    project: String,
+) -> AppResult<DeployPreview> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        deploys::preview_deploy(&target, &project)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_execute_deploy(
+    app: AppHandle,
+    id: String,
+    project: String,
+    services: Vec<String>,
+) -> AppResult<DeployResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        if host.env == Env::Prod {
+            confirm_action(
+                &app,
+                &format!("Deploy Compose Stack on {}?", host.label),
+                &format!("This will pull updated image tags and restart services for '{project}' on production server {}.", host.label),
+                "Deploy to Production",
+                true,
+            )?;
+        }
+        let target = state.target(&id)?;
+        let res = deploys::execute_deploy(&target, &id, &project, services)?;
+
+        let mut d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        d.add(res.record.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        d.save(dir)?;
+
+        Ok(res)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_rollback_deploy(
+    app: AppHandle,
+    id: String,
+    deploy_id: String,
+) -> AppResult<DeployResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        let record = {
+            let d = state
+                .deploys
+                .lock()
+                .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+            d.get(&deploy_id)
+                .cloned()
+                .ok_or_else(|| AppError::NotFound(format!("deploy record {deploy_id}")))?
+        };
+
+        confirm_action(
+            &app,
+            &format!("Roll back {} to {}?", host.label, record.id),
+            &format!(
+                "This will restore previous image digests and restart services for stack '{}'.",
+                record.project
+            ),
+            "Roll Back",
+            host.env == Env::Prod,
+        )?;
+
+        let target = state.target(&id)?;
+        let res = deploys::rollback_deploy(&target, &record)?;
+
+        let mut d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        d.add(res.record.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        d.save(dir)?;
+
+        Ok(res)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_get_deploys(app: AppHandle, id: String) -> AppResult<Vec<DeployRecord>> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        Ok(d.history_for(&id))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_promote_env(
+    app: AppHandle,
+    source_id: String,
+    target_id: String,
+    project: String,
+) -> AppResult<DeployResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let source_host = state.read()?.host(&source_id)?.clone();
+        let target_host = state.read()?.host(&target_id)?.clone();
+
+        confirm_action(
+            &app,
+            &format!("Promote {} to {}?", source_host.label, target_host.label),
+            &format!("This will promote and deploy the image configuration of '{}' from {} ({:?}) to {} ({:?}).", project, source_host.label, source_host.env, target_host.label, target_host.env),
+            "Promote Environment",
+            target_host.env == Env::Prod,
+        )?;
+
+        let target_ssh = state.target(&target_id)?;
+        let res = deploys::execute_deploy(&target_ssh, &target_id, &project, vec![])?;
+
+        let mut d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        d.add(res.record.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        d.save(dir)?;
+
+        Ok(res)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_push_image(
+    app: AppHandle,
+    id: String,
+    image: String,
+) -> AppResult<TeleportResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        let target = state.target(&id)?;
+        teleport::teleport_image(&host, &target, &image)
+    })
+    .await
+}

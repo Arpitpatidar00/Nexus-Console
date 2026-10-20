@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P5 (Parity and Ship)
+- **Current phase:** P6 (Local data)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -30,7 +30,7 @@
 - [x] **P2** Command palette + action registry
 - [x] **P3** SSH tunnels
 - [x] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
-- [ ] **P5** Parity and Ship (parity auditor, deploy/rollback — **ASK**, image push — **ASK**)
+- [x] **P5** Parity and Ship (parity auditor, deploy/rollback, image push over SSH)
 - [ ] **P6** Local data (Local Docker, Databases, branch databases)
 - [ ] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
 - [ ] **P8** Claude Chats (search, resume, export, usage, context analysis)
@@ -42,6 +42,9 @@
 
 ## Decisions from the user
 
+- **2026-10-21 (Phase 5):** Auto-resolved ASK gates per instructions:
+  - Deploy model: Standard Compose pull & up deployment pipeline with before/after image digest tracking in `remote-deploys.json`, one-click digest rollback, and staging-to-prod promotion protected by `ProdConfirmDialog` and native NSAlert.
+  - Image push over SSH: Zero-dependency streaming pipe via `docker save | gzip | ssh ... gzip -d | docker load`. Architecture check verifies host compatibility (e.g. arm64 vs x86_64) before streaming. Strictly refused on production environments.
 - **2026-10-21:** User directed to proceed without permission gates: "dont ask for the permissons and all just commit the thing and continue commit only dont push now". For 0.4, implemented boundary: Doctor diagnoses and provides "Review in Mac Clean" for disk and memory findings, while preserving unique Doctor cleanup tasks in Doctor.
 
 ## Deviations from the plan
@@ -53,6 +56,12 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 5 (Parity and Ship).
+  - 5.1 Environment Parity Auditor: Toolchain runtime version matrix (Node, Python, Docker, Compose, Postgres, Redis) comparing local machine and remote servers. `.env` key names comparison across machines without value exposure. Ephemeral 32-byte salted HMAC-SHA256 comparison (`openssl dgst -sha256 -hmac`) detecting cross-environment secret leaks ("staging using prod keys") with instant salt disposal.
+  - 5.2 Deploy, Promote & Rollback: Pull-based compose deploy engine with image digest preview before pulling. Persistent deploy history in `remote-deploys.json`. One-click rollback that re-tags previous digests and redeploys. Staging-to-production promotion with diff preview, double-confirmation (`ProdConfirmDialog` + native NSAlert on prod).
+  - 5.3 Image Teleportation: Push local images directly to dev and staging servers over SSH stream without requiring a remote registry. CPU architecture validation prevents running ARM Mac binaries on x86 servers. Hard barrier refusal for production servers.
+  - Quality gates green: 240 Rust unit tests pass (0 failures), 100 Vitest frontend tests pass, Oxlint (0 errors/warnings on 496 files), Prettier, TypeScript, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 4 (Servers depth).
   - 4.1 Timeline, Incidents & Notes: Rolling capped snapshot summaries, automated change diff engine (detecting new/removed/restarted containers, image changes, disk growth >= 5%, and unit failures), critical incident lifecycle tracker (first seen, last seen, resolved), and per-host markdown scratchpad notes with instant save and local persistence (`remote-notes.json`, `remote-history.json`).

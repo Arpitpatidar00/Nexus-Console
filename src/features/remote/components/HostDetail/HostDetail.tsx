@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Plug, RotateCw, ServerOff, TerminalSquare, Unplug } from 'lucide-react';
+import { Pencil, Plug, RotateCw, ServerOff, TerminalSquare, Unplug, Send } from 'lucide-react';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { openTerminal } from '@/shared/state/terminalsSlice';
 import { cn } from '@/shared/lib/cn';
@@ -32,10 +32,15 @@ import { NotesTab } from '@/features/remote/components/NotesTab';
 import { TimelineTab } from '@/features/remote/components/TimelineTab';
 import { RunbooksPanel } from '@/features/remote/components/RunbooksPanel';
 import { LogsViewer } from '@/features/remote/components/LogsViewer';
+import { DeployCenterView } from '@/features/remote/components/DeployCenterView';
+import { ParityAuditorView } from '@/features/remote/components/ParityAuditorView';
+import { ImageTeleportDialog } from '@/features/remote/components/ImageTeleportDialog';
 
 type View =
   | 'overview'
   | 'stacks'
+  | 'deploy'
+  | 'parity'
   | 'containers'
   | 'services'
   | 'nginx'
@@ -62,6 +67,7 @@ const BodySkeleton = () => (
 
 export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => void }) => {
   const [view, setView] = useState<View>('overview');
+  const [teleportOpen, setTeleportOpen] = useState(false);
   const dispatch = useAppDispatch();
   const openShell = () =>
     dispatch(
@@ -87,6 +93,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
   const views = [
     { value: 'overview' as const, label: 'Overview' },
     { value: 'stacks' as const, label: 'Stacks' },
+    { value: 'deploy' as const, label: 'Deploy & Ship' },
+    { value: 'parity' as const, label: 'Parity' },
     { value: 'containers' as const, label: 'Containers' },
     { value: 'services' as const, label: 'Services' },
     { value: 'nginx' as const, label: 'Nginx & Cron' },
@@ -147,6 +155,18 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {connected && host.env !== 'prod' && (
+            <Button
+              variant="glass"
+              size="sm"
+              aria-label="Teleport local image over SSH"
+              title="Push local image over SSH"
+              onClick={() => setTeleportOpen(true)}
+            >
+              <Send className="size-3.5 text-primary" />
+              Teleport
+            </Button>
+          )}
           {connected && (
             <Button
               variant="glass"
@@ -264,6 +284,10 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             <OverviewPanel snapshot={s} history={history} />
           ) : view === 'stacks' ? (
             <ComposeStacksView host={host} snapshot={s} />
+          ) : view === 'deploy' ? (
+            <DeployCenterView host={host} snapshot={s} connected={connected} />
+          ) : view === 'parity' ? (
+            <ParityAuditorView host={host} connected={connected} />
           ) : view === 'containers' ? (
             <ContainersTable host={host} snapshot={s} />
           ) : view === 'services' ? (
@@ -291,6 +315,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
           )}
         </div>
       )}
+
+      <ImageTeleportDialog host={host} open={teleportOpen} onClose={() => setTeleportOpen(false)} />
     </Panel>
   );
 };

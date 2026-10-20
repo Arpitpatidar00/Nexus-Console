@@ -16,4 +16,8 @@ export const remoteKeys = {
     ['remote', 'fileContent', id, path, reveal] as const,
   runbooks: (hostId?: string, project?: string) =>
     ['remote', 'runbooks', hostId ?? 'all', project ?? 'all'] as const,
+  parity: (localPath?: string) => ['remote', 'parity', localPath ?? 'default'] as const,
+  deploys: (hostId: string) => ['remote', 'deploys', hostId] as const,
+  deployPreview: (hostId: string, project: string) =>
+    ['remote', 'deployPreview', hostId, project] as const,
 };

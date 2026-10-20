@@ -90,4 +90,11 @@ export const CMD = {
   REMOTE_GET_RUNBOOKS: 'remote_get_runbooks',
   REMOTE_ADD_RUNBOOK: 'remote_add_runbook',
   REMOTE_REMOVE_RUNBOOK: 'remote_remove_runbook',
+  REMOTE_AUDIT_PARITY: 'remote_audit_parity',
+  REMOTE_PREVIEW_DEPLOY: 'remote_preview_deploy',
+  REMOTE_EXECUTE_DEPLOY: 'remote_execute_deploy',
+  REMOTE_ROLLBACK_DEPLOY: 'remote_rollback_deploy',
+  REMOTE_GET_DEPLOYS: 'remote_get_deploys',
+  REMOTE_PROMOTE_ENV: 'remote_promote_env',
+  REMOTE_PUSH_IMAGE: 'remote_push_image',
 } as const;

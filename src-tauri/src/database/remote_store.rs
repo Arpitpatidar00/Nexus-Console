@@ -54,6 +54,8 @@ pub struct Host {
     pub project: String,
     pub env: Env,
     pub order: u32,
+    #[serde(default)]
+    pub auto_connect: bool,
 }
 
 /// One remote mutation; the journal is newest first, capped at JOURNAL_CAP.
@@ -205,6 +207,7 @@ mod tests {
             project: DEFAULT_PROJECT.into(),
             env: Env::Prod,
             order,
+            auto_connect: false,
         }
     }
 

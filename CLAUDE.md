@@ -5,9 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 **Stackroost** — a macOS desktop/menu-bar app: Tauri 2 (Rust) + React 19 + Vite + Tailwind v4.
-It manages local Homebrew services/packages/ports, an embedded PTY terminal, and **Stackroost Doctor**
-(read-only machine-health probes, the Claude chat Archiver, VSCode cleanup). macOS 11+, single
-window (`main`), no backend, no network API.
+It integrates six core modules:
+
+1. **Homebrew** — local services, installed packages, and session management.
+2. **Ports** — listening sockets, process inspection, and conflict resolution.
+3. **Servers** — Linux server fleet management over OpenSSH (probes, Docker containers, systemd, live logs).
+4. **Doctor** — read-only system and developer environment health diagnosis.
+5. **Mac Clean** — storage disk usage breakdown, safe dev cache cleanup, and memory/swap monitor.
+6. **Claude Chats** — Claude Code chat session browser, search, and JSON archive export.
+
+macOS 11+, single window (`main`). The network surface is strictly limited to user-added remote servers over `/usr/bin/ssh` using the user's existing `~/.ssh/config` and keys (BatchMode for non-blocking probes; interactive PTY for terminal shells). Zero telemetry, zero third-party tracking, zero external accounts.
 
 > **Ignore stack-specific `.claude/rules/*`.** Those files are auto-loaded but describe a
 > _different_ project (Nexus ERP — NestJS, Prisma, MUI, `server/` + `nexus-fe/`, none of which

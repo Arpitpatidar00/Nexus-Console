@@ -148,6 +148,7 @@ pub async fn remote_import_hosts(app: AppHandle, hosts: Vec<ImportHost>) -> AppR
                     manual: None,
                     env: h.env,
                     order: s.next_order(),
+                    auto_connect: false,
                 };
                 s.hosts.push(host);
             }
@@ -198,6 +199,7 @@ pub async fn remote_add_manual_host(app: AppHandle, input: ManualHostInput) -> A
                 project,
                 env: input.env,
                 order: s.next_order(),
+                auto_connect: false,
             };
             s.hosts.push(host.clone());
             Ok(host)
@@ -213,6 +215,7 @@ pub struct HostPatch {
     project: Option<String>,
     env: Option<Env>,
     order: Option<u32>,
+    auto_connect: Option<bool>,
 }
 
 #[tauri::command]
@@ -239,6 +242,9 @@ pub async fn remote_update_host(app: AppHandle, id: String, patch: HostPatch) ->
             }
             if let Some(v) = patch.order {
                 h.order = v;
+            }
+            if let Some(v) = patch.auto_connect {
+                h.auto_connect = v;
             }
             Ok(())
         })

@@ -66,6 +66,7 @@ export interface HostPatch {
   project?: string;
   env?: HostEnv;
   order?: number;
+  autoConnect?: boolean;
 }
 
 export function useUpdateHost() {

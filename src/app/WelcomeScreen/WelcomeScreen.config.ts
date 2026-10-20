@@ -1,8 +1,8 @@
-import type { ModuleId } from '@/shared/modules';
+import { DEFAULT_MODULES, type ModuleId } from '@/shared/modules';
 
-/** One-click starting points. Unavailable ones are filtered out at render. */
+/** One-click starting points. Derived strictly from non-opt-in modules (DEFAULT_MODULES). */
 export const PRESETS: { label: string; modules: ModuleId[] }[] = [
-  { label: 'Everything', modules: ['homebrew', 'ports', 'remote', 'doctor', 'maclean', 'claude'] },
+  { label: 'Everything', modules: [...DEFAULT_MODULES] },
   { label: 'Homebrew only', modules: ['homebrew'] },
   { label: 'Claude Chats only', modules: ['claude'] },
 ];

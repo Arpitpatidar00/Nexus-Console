@@ -70,8 +70,28 @@ pub fn notification_body(label: &str, env_caps: &str, news: &[&HostFinding]) -> 
     }
 }
 
+/// Auto-connect any host marked `auto_connect: true` on startup using BatchMode.
+/// Silent failure: never prompts and sends no notification.
+pub fn auto_connect_all(app: &tauri::AppHandle) {
+    let state = app.state::<RemoteState>();
+    let Ok(hosts) = state.read().map(|s| s.hosts.clone()) else {
+        return;
+    };
+    for h in hosts {
+        if !h.auto_connect {
+            continue;
+        }
+        let Ok(target) = state.target(&h.id) else {
+            continue;
+        };
+        let _ = ssh::exec(&target, &["true"], None, ssh::DEFAULT_TIMEOUT);
+    }
+}
+
 pub fn start(app: tauri::AppHandle) {
     std::thread::spawn(move || {
+        auto_connect_all(&app);
+
         let mut last: Option<Instant> = None;
         loop {
             if let Some(every) = interval(crate::settings::read(&app).as_ref()) {

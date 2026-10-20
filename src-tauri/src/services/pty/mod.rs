@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use tauri::ipc::Channel;
 use tauri::State;
 
-const MAX_PTYS: usize = 8;
+pub const MAX_PTYS: usize = 8;
 /// Cap per flushed Output event — bounds both IPC payloads and xterm write calls.
 const MAX_BATCH: usize = 32 * 1024;
 
@@ -433,6 +433,7 @@ mod tests {
             brew_prefix: Some("/nonexistent-prefix".into()),
             brew_bin: None,
             brew_version: None,
+            max_ptys: MAX_PTYS,
         };
         let remote = RemoteState::load(std::env::temp_dir().join("nexus-pty-unused.json"));
         let t = PtyTarget::Brew {

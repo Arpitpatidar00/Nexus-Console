@@ -6,13 +6,15 @@
 
 ## Users & Purpose
 
-- One developer on a Mac, managing their local dev environment: Homebrew services, ports,
-  work sessions — and machine health via **Stackroost Doctor** (system probes, the Claude chat
-  Archiver, VSCode cleanup, disk hygiene).
+- One developer on a Mac, managing their local dev environment and remote server infrastructure:
+  Homebrew services, listening ports, work sessions, remote Linux servers over OpenSSH (health,
+  Docker containers, systemd units, live logs), machine health via **Stackroost Doctor** (system probes,
+  VSCode cleanup), storage and memory hygiene via **Mac Clean** (disk breakdown, dev cache pruning,
+  memory/swap monitoring), and **Claude Chats** (session archive and search).
 - Context: the app lives in the menu-bar tray all day. It gets opened for seconds — check,
   act, dismiss. Zero patience for friction, zero tolerance for jank.
-- Primary jobs: start/stop services, kill a port, run a health scan, archive/restore Claude
-  chats, reclaim disk space — each in as few clicks as the action honestly needs.
+- Primary jobs: start/stop services, kill a stuck port, monitor remote hosts, restart containers,
+  run a health scan, reclaim disk space, manage memory — each in as few clicks as the action honestly needs.
 
 ## Brand personality
 

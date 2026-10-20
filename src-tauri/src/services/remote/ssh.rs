@@ -425,6 +425,7 @@ mod tests {
             project: "P".into(),
             env: Env::Dev,
             order: 0,
+            auto_connect: false,
         };
         let v = args_for(&SshTarget::from_host(&h).unwrap(), &["true"]);
         assert!(has_pair(&v, "-p", "2202"));

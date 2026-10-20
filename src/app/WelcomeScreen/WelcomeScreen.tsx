@@ -21,8 +21,8 @@ import { PRESETS } from './WelcomeScreen.config';
 /** First launch only (`settings.enabledModules === null`). One screen, one
  * question, skippable in a single keystroke — deliberately not a wizard.
  *
- * Starts with everything the machine supports switched ON, so doing nothing gives
- * the full app; the screen is about opting OUT of what you won't use. */
+ * Starts with non-opt-in modules switched ON; opt-in modules are offered in
+ * their own section. */
 export const WelcomeScreen = () => {
   const dispatch = useAppDispatch();
   const claudeInstalled = useClaudeInstalled();
@@ -106,6 +106,46 @@ export const WelcomeScreen = () => {
         <motion.div {...rise(0.12)} className="flex flex-col gap-2">
           <FeaturePicker value={selected} onChange={setSelected} />
         </motion.div>
+
+        {/* Opt-in modules row */}
+        {MODULES.some((m) => m.optIn) && (
+          <motion.div
+            {...rise(0.15)}
+            className="flex flex-col gap-2 rounded-xl border border-border bg-paper/60 p-3.5"
+          >
+            <span className="text-xs font-medium text-fg-muted">
+              Also available, turn on when you need them
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {MODULES.filter((m) => m.optIn).map((m) => {
+                const checked = selected.includes(m.id);
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() =>
+                      setSelected((prev) =>
+                        prev.includes(m.id) ? prev.filter((id) => id !== m.id) : [...prev, m.id],
+                      )
+                    }
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      checked
+                        ? 'bg-accent-soft border-accent text-accent'
+                        : 'border-border bg-paper text-fg-muted hover:bg-list hover:text-fg'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{m.label}</span>
+                    <span className="rounded bg-canvas/60 px-1 py-0.5 text-[10px] text-fg-subtle">
+                      {checked ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         <motion.footer {...rise(0.18)} className="flex items-center justify-between gap-4">
           <p className="text-xs text-fg-subtle">

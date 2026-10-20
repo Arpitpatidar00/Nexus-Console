@@ -1,7 +1,9 @@
 export {
   MODULES,
   MODULE_IDS,
+  MODULE_GROUPS,
   moduleById,
+  type ModuleGroup,
   type ModuleDef,
   type ModuleId,
   type ModuleRequirement,

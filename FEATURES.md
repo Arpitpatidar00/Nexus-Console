@@ -32,6 +32,8 @@ disk cleanup and memory, Claude Code chats, and a built-in terminal.
 | Mac Clean    | Storage, Memory              | Where your disk went, safe cleanup, memory and swap            | Optional scheduled cleanup and low-disk warning                 | Yes           |
 | Claude Chats | Claude Chats                 | Browse and archive Claude Code history                         | Optional daily archiving                                        | Yes           |
 
+*Note: "On by default" applies to fresh installs only; existing installs keep their enabled modules.
+
 Settings is always reachable, whatever modules are on. The terminal is shared by every module.
 
 ## First launch and modules
@@ -98,8 +100,7 @@ on the servers, no account, no server of ours.
 
 - Hosts are grouped by **project**, prod last. Each row shows status as a dot plus words
   ("Not connected", "Healthy", "2 issues", "Host key not trusted").
-- **Connect** is always your click; the app never auto-connects. One SSH connection per host is
-  reused (about 115 ms for the first command, about 15 ms after).
+- **Connect** is explicit by default, with an optional "Connect when Stackroost opens" toggle per host. One SSH connection per host is reused (the first command does the SSH handshake; later commands are fast).
 - **Overview**: OS, kernel, uptime, CPU and load, memory, swap, disks, with live sparklines.
 - **Containers**: state and health, CPU, memory, restarts, compose project. Per container: **live
   logs**, **shell inside**, **restart / stop / start / remove**.

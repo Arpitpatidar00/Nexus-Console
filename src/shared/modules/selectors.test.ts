@@ -1,5 +1,7 @@
 import { test, expect } from 'vitest';
 import { settingsReducer, setEnabledModules } from '@/shared/state/settingsSlice';
+import { PRESETS } from '@/app/WelcomeScreen/WelcomeScreen.config';
+import { MODULES, MODULE_GROUPS } from './modules.config';
 import { DEFAULT_MODULES, isTabVisible, sanitizeModules, visibleTabs } from './selectors';
 
 test('visibleTabs: only the enabled modules, registry order, Settings last', () => {
@@ -57,4 +59,22 @@ test('Servers is opt-in: never part of the everything-on defaults', () => {
   expect(sanitizeModules(['homebrew', 'ports', 'doctor', 'claude'], true)).not.toContain('remote');
   expect(sanitizeModules(['remote'], true)).toEqual(['remote']);
   expect(visibleTabs(['remote'])).toEqual(['servers', 'settings']);
+});
+
+test('no preset contains an optIn module', () => {
+  const optInIds = MODULES.filter((m) => m.optIn).map((m) => m.id);
+  expect(optInIds.length).toBeGreaterThan(0);
+  for (const preset of PRESETS) {
+    for (const optInId of optInIds) {
+      expect(preset.modules).not.toContain(optInId);
+    }
+  }
+});
+
+test('module groups: all modules belong to a valid group in sentence case order', () => {
+  const validGroupIds = MODULE_GROUPS.map((g) => g.id);
+  for (const m of MODULES) {
+    expect(validGroupIds).toContain(m.group);
+  }
+  expect(MODULE_GROUPS.map((g) => g.label)).toEqual(['Local', 'Remote', 'This Mac', 'Tools']);
 });

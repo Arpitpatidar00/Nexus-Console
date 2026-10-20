@@ -1,3 +1,4 @@
+import React from 'react';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setActiveTab, type Tab } from '@/shared/state/uiSlice';
 import { useModuleEnabled, useVisibleNav } from '@/shared/modules';
@@ -36,30 +37,36 @@ export const NavRail = () => {
         </button>
       </div>
 
-      {/* Main navigation icons with tooltips */}
+      {/* Main navigation icons with tooltips & group separators */}
       <div className="sr-rail__items flex w-full flex-col items-center gap-2">
-        {mainItems.map(({ tab, label, icon: Icon }) => {
+        {mainItems.map((item, idx) => {
+          const { tab, label, icon: Icon, group } = item;
+          const prevGroup = idx > 0 ? mainItems[idx - 1].group : null;
+          const isNewGroup = Boolean(group && prevGroup && group !== prevGroup);
           const isActive = tab === activeTab;
           return (
-            <Tooltip key={tab} label={label} side="right">
-              <button
-                type="button"
-                onClick={() => handleSelect(tab)}
-                aria-label={label}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'sr-rail__btn relative flex size-11 cursor-pointer items-center justify-center rounded-full text-sidebar-foreground transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isActive
-                    ? 'is-on bg-sidebar-primary text-sidebar-primary-foreground shadow-ring-ember'
-                    : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                )}
-              >
-                <Icon className="size-5 shrink-0" />
-                {tab === 'services' && homebrewOn && (
-                  <span className="sr-rail__badge absolute top-2 right-2 size-2 rounded-full bg-ember" />
-                )}
-              </button>
-            </Tooltip>
+            <React.Fragment key={tab}>
+              {isNewGroup && <div className="my-1 h-px w-6 bg-border/60" aria-hidden="true" />}
+              <Tooltip label={label} side="right">
+                <button
+                  type="button"
+                  onClick={() => handleSelect(tab)}
+                  aria-label={label}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'sr-rail__btn relative flex size-11 cursor-pointer items-center justify-center rounded-full text-sidebar-foreground transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    isActive
+                      ? 'is-on bg-sidebar-primary text-sidebar-primary-foreground shadow-ring-ember'
+                      : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  )}
+                >
+                  <Icon className="size-5 shrink-0" />
+                  {tab === 'services' && homebrewOn && (
+                    <span className="sr-rail__badge absolute top-2 right-2 size-2 rounded-full bg-ember" />
+                  )}
+                </button>
+              </Tooltip>
+            </React.Fragment>
           );
         })}
       </div>

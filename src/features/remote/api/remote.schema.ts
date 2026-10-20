@@ -26,6 +26,7 @@ export const hostSchema = z.object({
   project: z.string(),
   env: z.enum(ENVS),
   order: z.number(),
+  autoConnect: z.boolean().default(false),
 });
 export type RemoteHost = z.infer<typeof hostSchema>;
 

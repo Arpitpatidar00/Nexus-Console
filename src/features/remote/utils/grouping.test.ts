@@ -11,6 +11,7 @@ const host = (id: string, project: string, env: RemoteHost['env'], order = 0): R
   project,
   env,
   order,
+  autoConnect: false,
 });
 
 test('projects A–Z (case-insensitive), Ungrouped last', () => {

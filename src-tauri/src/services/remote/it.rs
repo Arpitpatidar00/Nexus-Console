@@ -59,6 +59,7 @@ fn state(name: &str) -> RemoteState {
                 project: "Testbed".into(),
                 env,
                 order: i as u32,
+                auto_connect: false,
             });
         }
         Ok(())

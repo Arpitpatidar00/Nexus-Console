@@ -4,9 +4,7 @@ import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { clearAllSessions } from '@/shared/state/sessionsSlice';
 import { setCardOrder } from '@/shared/state/settingsSlice';
 import { useReconciledServices } from '@/shared/brew';
-// Deep import — the services barrel re-exports ServicesPage and would chain it
-// into this chunk (defeats the per-tab lazy split).
-import { applyCardOrder } from '@/features/services/pages/ServicesPage/cardOrder';
+import { applyCardOrder } from '@/features/services/utils/cardOrder';
 import { useDragReorder } from '@/shared/lib/useDragReorder';
 import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/Button';
@@ -43,7 +41,7 @@ export const SessionsPage = () => {
 
       <div className="min-h-0 flex-1 space-y-3 overflow-auto p-6">
         <p className="text-xs text-fg-subtle">
-          Run history is recorded while Nexus Console is open. The current run&apos;s uptime is read
+          Run history is recorded while Stackroost is open. The current run&apos;s uptime is read
           from the live process.
           {ordered.length > 1 && ' Drag a card to reorder.'}
         </p>

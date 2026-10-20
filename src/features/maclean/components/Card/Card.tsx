@@ -1,18 +1,8 @@
-import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
+import type { CardProps } from './Card.types';
 
 /** One report section: a titled card. Sections sit side by side, never nested. */
-export const Card = ({
-  title,
-  aside,
-  className,
-  children,
-}: {
-  title: string;
-  aside?: ReactNode;
-  className?: string;
-  children: ReactNode;
-}) => (
+export const Card = ({ title, aside, className, children }: CardProps) => (
   <section
     className={cn('flex min-w-0 flex-col rounded-xl border border-border bg-paper', className)}
   >

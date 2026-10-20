@@ -1,5 +1,6 @@
 import { cn } from '@/shared/lib/cn';
 import type { Tone } from '@/features/maclean/utils/storage';
+import type { UsageBarProps } from './UsageBar.types';
 
 const FILL: Record<Tone | 'neutral', string> = {
   neutral: 'bg-accent',
@@ -9,15 +10,7 @@ const FILL: Record<Tone | 'neutral', string> = {
 };
 
 /** Decorative bar: the numbers next to it carry the information. */
-export const UsageBar = ({
-  pct,
-  tone = 'neutral',
-  className,
-}: {
-  pct: number;
-  tone?: Tone | 'neutral';
-  className?: string;
-}) => (
+export const UsageBar = ({ pct, tone = 'neutral', className }: UsageBarProps) => (
   <div aria-hidden className={cn('h-1.5 overflow-hidden rounded-full bg-list', className)}>
     <div
       className={cn(

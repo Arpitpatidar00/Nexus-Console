@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CircleCheck, History, RotateCw, X } from 'lucide-react';
-import { formatBytes, formatTime } from '@/shared/lib/format';
+import { History, RotateCw, X } from 'lucide-react';
+import { formatTime } from '@/shared/lib/format';
 import { IpcError } from '@/shared/tauri';
 import { Button } from '@/shared/ui/Button';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
@@ -16,16 +16,8 @@ import { CleanJournalDialog } from '@/features/maclean/components/CleanJournalDi
 import { UsageBar } from '@/features/maclean/components/UsageBar';
 import { DeepScanCard } from '@/features/maclean/components/DeepScanCard';
 import { LargeFiles } from '@/features/maclean/components/LargeFiles';
-
-const Skeleton = () => (
-  <div aria-hidden className="space-y-4">
-    <div className="h-20 animate-pulse rounded-xl bg-list" />
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <div className="h-80 animate-pulse rounded-xl bg-list" />
-      <div className="h-80 animate-pulse rounded-xl bg-list" />
-    </div>
-  </div>
-);
+import { CleanSummaryBanner } from '@/features/maclean/components/CleanSummaryBanner';
+import { StorageSkeleton } from '@/features/maclean/components/StorageSkeleton';
 
 /** `~/mac-clean.sh` as a page: the report fills in from one read-only scan;
  * the only mutation is the cleanup plan's button (native confirm in Rust). */
@@ -88,29 +80,14 @@ export const StoragePage = () => {
 
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="mx-auto w-full max-w-[90rem] space-y-4 p-6">
-          {clean.data && (
-            <div className="flex items-start gap-3 rounded-xl border border-running/30 bg-running-soft px-5 py-3">
-              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-running" />
-              <div className="space-y-0.5 text-sm">
-                <p className="font-semibold text-fg">Freed {formatBytes(clean.data.freedBytes)}</p>
-                <p className="text-fg-muted">
-                  {clean.data.items.filter((i) => i.ok).length} cleaned
-                  {clean.data.items.some((i) => !i.ok) &&
-                    `, ${clean.data.items.filter((i) => !i.ok).length} failed`}
-                  .
-                  {clean.data.items.some((i) => i.id.startsWith('docker')) &&
-                    ' Docker may take a few minutes to shrink its disk image.'}
-                </p>
-              </div>
-            </div>
-          )}
+          {clean.data && <CleanSummaryBanner result={clean.data} />}
           {report.isError && !cancelled && !r ? (
             <ErrorPanel error={report.error} fallback="The scan failed" onRetry={report.rescan} />
           ) : !r ? (
             cancelled ? (
               <p className="text-sm text-fg-muted">Scan cancelled. Nothing was measured.</p>
             ) : (
-              <Skeleton />
+              <StorageSkeleton />
             )
           ) : (
             <>

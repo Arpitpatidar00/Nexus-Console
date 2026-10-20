@@ -10,7 +10,7 @@ const ACTION_LABEL: Record<string, string> = {
   'docker.remove': 'Removed',
 };
 
-/** Every change Nexus made on a server, straight from remote.json. */
+/** Every change Stackroost made on a server, straight from remote.json. */
 export const JournalDialog = ({
   open,
   onOpenChange,
@@ -24,7 +24,7 @@ export const JournalDialog = ({
       open={open}
       onOpenChange={onOpenChange}
       title="Server history"
-      description="Every change Nexus made on a server. Checks are read-only and aren't listed."
+      description="Every change Stackroost made on a server. Checks are read-only and aren't listed."
     >
       {isPending ? (
         <div aria-hidden className="space-y-3 py-1">

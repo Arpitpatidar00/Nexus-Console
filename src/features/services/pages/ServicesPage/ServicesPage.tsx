@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { LayoutGrid, Play, Plus, Square } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setCardOrder } from '@/shared/state/settingsSlice';
-import { applyCardOrder, mergeVisibleOrder } from './cardOrder';
+import { applyCardOrder, mergeVisibleOrder } from '@/features/services/utils/cardOrder';
 import {
   useBulkPower,
   isRunning,
@@ -13,12 +13,12 @@ import {
 } from './useBulkPower';
 import { useReconciledServices, type ReconciledService } from '@/shared/brew';
 import { useAppContext, confirmBulk } from '@/shared/tauri';
-import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { ServiceGrid } from '@/features/services/components/ServiceGrid';
 import { ServiceList } from '@/features/services/components/ServiceList';
 import { ServicesToolbar } from '@/features/services/components/ServicesToolbar';
+import { ServicesActionBar } from '@/features/services/components/ServicesActionBar';
 import { ConnectServiceModal } from '@/features/services/components/ConnectServiceModal';
 
 const MAX_NAMES = 8;
@@ -102,43 +102,15 @@ export const ServicesPage = () => {
 
       <ConnectServiceModal open={connectOpen} onOpenChange={setConnectOpen} />
 
-      {/* Persistent action toolbar (service ke andar wala header) — the global
-          Start all / Stop all action + Add, always visible above the grid.
-          Per-service control lives on each card's own buttons. */}
-      {ctx?.brewVersion && (
-        <div className="flex items-center justify-end gap-2 border-b border-border bg-paper px-6 py-2.5 text-sm">
-          {runningServices.length > 0 ? (
-            <Button
-              size="sm"
-              variant="dangerOutline"
-              disabled={busy}
-              onClick={() => void onStopAll()}
-            >
-              <Square className="h-4 w-4" />
-              Stop all
-            </Button>
-          ) : (
-            allStopped && (
-              <Button
-                size="sm"
-                variant="primaryOutline"
-                disabled={busy}
-                onClick={() => void onStartAll()}
-              >
-                <Play className="h-4 w-4" />
-                Start all
-              </Button>
-            )
-          )}
-          {(runningServices.length > 0 || allStopped) && (
-            <div aria-hidden className="h-6 w-px bg-border" />
-          )}
-          <Button size="sm" onClick={() => setConnectOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add
-          </Button>
-        </div>
-      )}
+      <ServicesActionBar
+        hasBrew={Boolean(ctx?.brewVersion)}
+        runningCount={runningServices.length}
+        allStopped={allStopped}
+        busy={busy}
+        onStartAll={onStartAll}
+        onStopAll={() => void onStopAll()}
+        onAdd={() => setConnectOpen(true)}
+      />
 
       <div className="min-h-0 flex-1 overflow-auto p-6">
         {isPending ? (

@@ -1,14 +1,9 @@
 import { Dialog } from '@/shared/ui/Dialog';
 import { formatBytes, formatTime } from '@/shared/lib/format';
 import { useCleanJournal } from '@/features/maclean/api/macleanMutations';
+import type { CleanJournalDialogProps } from './CleanJournalDialog.types';
 
-export const CleanJournalDialog = ({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) => {
+export const CleanJournalDialog = ({ open, onOpenChange }: CleanJournalDialogProps) => {
   const { data, isPending } = useCleanJournal(open);
   return (
     <Dialog

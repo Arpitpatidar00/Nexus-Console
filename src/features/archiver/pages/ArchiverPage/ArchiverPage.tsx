@@ -2,22 +2,11 @@ import { useState } from 'react';
 import { FolderOpen, Settings2 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import { cn } from '@/shared/lib/cn';
 import { formatBytes } from '@/shared/lib/format';
 import { useArchivedChats, useClaudeProjects } from '@/features/archiver/api/useArchiver';
 import { ArchiveSettingsDialog } from '@/features/archiver/components/ArchiveSettingsDialog';
 import { ProjectDetail, type ArchiverRow } from '@/features/archiver/components/ProjectDetail';
-
-const ListSkeleton = () => (
-  <div aria-hidden>
-    {Array.from({ length: 6 }, (_, i) => (
-      <div key={i} className="border-b border-border px-4 py-3 last:border-b-0">
-        <div className="h-4 w-36 animate-pulse rounded bg-list" />
-        <div className="mt-1.5 h-3 w-52 animate-pulse rounded bg-list" />
-      </div>
-    ))}
-  </div>
-);
+import { ArchiverProjectsList } from '@/features/archiver/components/ArchiverProjectsList';
 
 /** Master-detail: projects on the left, the selected project's chats +
  * actions on the right (macOS Notes/Mail pattern). */
@@ -78,46 +67,12 @@ export const ArchiverPage = () => {
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] gap-4 p-6">
-        {/* Master: projects */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
-          <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-fg">
-            Projects
-          </h2>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {isPending ? (
-              <ListSkeleton />
-            ) : rows.length === 0 ? (
-              <p className="p-4 text-sm text-fg-muted">Nothing in ~/.claude/projects.</p>
-            ) : (
-              rows.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  aria-pressed={active?.id === r.id}
-                  onClick={() => setSelectedId(r.id)}
-                  className={cn(
-                    'block w-full border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
-                    active?.id === r.id ? 'bg-accent-soft' : 'hover:bg-list',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'block truncate text-sm font-medium',
-                      active?.id === r.id ? 'text-accent' : 'text-fg',
-                    )}
-                  >
-                    {r.displayName}
-                  </span>
-                  <span className="block truncate text-xs text-fg-subtle">{r.subtitle}</span>
-                  <span className="block text-xs text-fg-muted tabular-nums">
-                    {r.live?.sessions ?? 0} live · {r.archived?.chats.length ?? 0} archived
-                    {r.live?.cacheBytes != null && ` · ${formatBytes(r.live.cacheBytes)} cache`}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
+        <ArchiverProjectsList
+          rows={rows}
+          selectedId={active?.id ?? null}
+          isPending={isPending}
+          onSelect={setSelectedId}
+        />
 
         {/* Detail: selected project's chats + actions */}
         {isPending ? (

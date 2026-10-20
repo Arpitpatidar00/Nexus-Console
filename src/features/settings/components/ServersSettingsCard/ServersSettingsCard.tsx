@@ -39,8 +39,8 @@ export const ServersSettingsCard = () => {
           <div>
             <p className="text-sm font-medium text-fg">Check in the background</p>
             <p className="text-xs text-fg-muted">
-              While Nexus is in the menu bar, re-check servers that are already connected and notify
-              only about new critical issues. Never connects on its own.
+              While Stackroost is in the menu bar, re-check servers that are already connected and
+              notify only about new critical issues. Never connects on its own.
             </p>
           </div>
           <SegmentedControl
@@ -56,7 +56,7 @@ export const ServersSettingsCard = () => {
             <p className="text-xs text-fg-muted">
               {granted
                 ? `Allowed${since ? ` since ${formatTime(since * 1000)}` : ''}. Revoking disconnects every server; your list stays.`
-                : 'Not allowed. Nexus reads nothing in ~/.ssh until you allow it on the Servers tab.'}
+                : 'Not allowed. Stackroost reads nothing in ~/.ssh until you allow it on the Servers tab.'}
             </p>
           </div>
           {granted && (

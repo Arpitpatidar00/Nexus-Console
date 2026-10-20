@@ -1,4 +1,4 @@
-# Nexus Console
+# Stackroost
 
 Your Mac's local dev setup, in one window.
 
@@ -16,7 +16,7 @@ Your Mac's local dev setup, in one window.
 
 > The app has no network code of its own. It only talks to your own machine.
 
-Nexus Console is a small macOS app that manages your [Homebrew](https://brew.sh) services and
+Stackroost is a small macOS app that manages your [Homebrew](https://brew.sh) services and
 packages, shows you which ports are busy, checks the health of your machine, and gives you a
 terminal. No more remembering ten `brew` commands. Click a button instead.
 
@@ -163,12 +163,12 @@ on that error. From a terminal it is `brew trust --tap <user/repo>`.
 **App shows "Homebrew not detected".** It looks in `/opt/homebrew`, then `/usr/local`, then
 `$HOMEBREW_PREFIX`. Install brew and relaunch. There is nothing to configure.
 
-**"Nexus Console can't be opened" or "damaged" when opening a build on another Mac.**
+**"Stackroost can't be opened" or "damaged" when opening a build on another Mac.**
 The app is not signed with a paid Apple Developer certificate, so Gatekeeper quarantines a copied
 build. Right-click the app, choose **Open**, then **Open** again. Or:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Nexus Console.app"
+xattr -dr com.apple.quarantine "/Applications/Stackroost.app"
 ```
 
 Building on your own machine never hits this.

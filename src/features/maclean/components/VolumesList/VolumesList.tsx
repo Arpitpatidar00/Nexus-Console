@@ -1,12 +1,12 @@
 import { TriangleAlert } from 'lucide-react';
 import { formatBytes } from '@/shared/lib/format';
-import type { StorageReport } from '@/features/maclean/api/maclean.schema';
 import { pct } from '@/features/maclean/utils/storage';
 import { Card } from '@/features/maclean/components/Card';
 import { UsageBar } from '@/features/maclean/components/UsageBar';
+import type { VolumesListProps } from './VolumesList.types';
 
 /** How macOS splits the drive internally. Oversized = warn icon + words. */
-export const VolumesList = ({ report }: { report: StorageReport }) => (
+export const VolumesList = ({ report }: VolumesListProps) => (
   <Card title="Disk volumes">
     <ul className="divide-y divide-border">
       {report.volumes.map((v) => (

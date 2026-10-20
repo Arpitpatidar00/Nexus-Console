@@ -78,6 +78,7 @@ export const journalSchema = z.array(
     items: z.array(z.string()),
     freedBytes: z.number(),
     errors: z.array(z.string()),
+    auto: z.boolean(),
   }),
 );
 export type CleanJournal = z.infer<typeof journalSchema>;

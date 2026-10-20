@@ -30,7 +30,10 @@ export const CleanJournalDialog = ({
           {data.map((e) => (
             <li key={e.atEpoch} className="space-y-0.5 py-2">
               <p className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-fg">Freed {formatBytes(e.freedBytes)}</span>
+                <span className="text-fg">
+                  Freed {formatBytes(e.freedBytes)}
+                  {e.auto && <span className="ml-1.5 text-xs text-fg-subtle">scheduled</span>}
+                </span>
                 <span className="text-xs text-fg-subtle tabular-nums">
                   {formatTime(e.atEpoch * 1000)}
                 </span>

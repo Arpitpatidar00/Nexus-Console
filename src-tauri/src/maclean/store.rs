@@ -65,6 +65,9 @@ pub struct JournalEntry {
     pub items: Vec<String>,
     pub freed_bytes: u64,
     pub errors: Vec<String>,
+    /// A scheduled (tray) clean rather than one the user clicked.
+    #[serde(default)]
+    pub auto: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

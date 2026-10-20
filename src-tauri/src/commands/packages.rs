@@ -315,3 +315,119 @@ mod tests {
         assert!(count > 50, "expected many installed formulae");
     }
 }
+
+#[tauri::command]
+pub async fn package_pin(
+    name: String,
+    ctx: State<'_, AppContext>,
+    app: AppHandle,
+) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let bin = brew_bin(&ctx)?.to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let lock = app.state::<BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        run_brew(&bin, &["pin", &name])?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+}
+
+#[tauri::command]
+pub async fn package_unpin(
+    name: String,
+    ctx: State<'_, AppContext>,
+    app: AppHandle,
+) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let bin = brew_bin(&ctx)?.to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let lock = app.state::<BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        run_brew(&bin, &["unpin", &name])?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+}
+
+#[tauri::command]
+pub async fn package_cellar_versions(
+    name: String,
+    ctx: State<'_, AppContext>,
+) -> AppResult<Vec<String>> {
+    validate::validate_formula(&name)?;
+    let prefix = ctx.brew_prefix.as_deref().unwrap_or("/opt/homebrew");
+    let cellar = std::path::PathBuf::from(prefix).join("Cellar").join(&name);
+
+    if !cellar.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut versions = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(cellar) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                let v = entry.file_name().to_string_lossy().to_string();
+                if !v.starts_with('.') {
+                    versions.push(v);
+                }
+            }
+        }
+    }
+    versions.sort();
+    versions.reverse();
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn package_rollback(
+    name: String,
+    version: String,
+    ctx: State<'_, AppContext>,
+    app: AppHandle,
+) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let bin = brew_bin(&ctx)?.to_string();
+    let prefix = ctx.brew_prefix.as_deref().unwrap_or("/opt/homebrew");
+    let keg_path = std::path::PathBuf::from(prefix)
+        .join("Cellar")
+        .join(&name)
+        .join(&version);
+
+    if !keg_path.exists() {
+        return Err(AppError::NotFound(format!(
+            "Keg version {version} not found in Cellar for {name}. Historical versions were cleaned up."
+        )));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let lock = app.state::<BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        // Unlink current version and switch/link the chosen keg
+        let _ = run_brew(&bin, &["unlink", &name]);
+        run_brew(
+            &bin,
+            &[
+                "link",
+                "--overwrite",
+                "--force",
+                &format!("{name}@{version}"),
+            ],
+        )
+        .or_else(|_| run_brew(&bin, &["link", "--overwrite", &name]))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+}

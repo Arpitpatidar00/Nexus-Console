@@ -1,3 +1,4 @@
+pub mod blueprint;
 pub mod brew;
 pub mod databases;
 pub mod doctor;

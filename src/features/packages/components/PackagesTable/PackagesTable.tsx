@@ -4,6 +4,10 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { Button } from '@/shared/ui/Button';
 import { OutdatedBadge } from '@/features/packages/components/OutdatedBadge';
 import { PackageActions } from '@/features/packages/components/PackageActions';
+import { RollbackModal } from '@/features/packages/components/RollbackModal';
+import { useState } from 'react';
+import { Pin } from 'lucide-react';
+import { Badge } from '@/shared/ui/Badge';
 import type { PackageDto } from '@/features/packages/api/packages.schema';
 
 interface Props {
@@ -25,6 +29,7 @@ export const PackagesTable = ({
   onUpgrade,
   upgradingName,
 }: Props) => {
+  const [rollbackPkg, setRollbackPkg] = useState<string | null>(null);
   const columns = useMemo<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ColumnDef<PackageDto, any>[]
@@ -48,7 +53,12 @@ export const PackagesTable = ({
               <span className="shrink-0 rounded bg-list px-1.5 py-0.5 text-[10px] text-fg-subtle uppercase">
                 {p.kind}
               </span>
-              {p.pinned && <span className="shrink-0 text-[10px] text-fg-subtle">pinned</span>}
+              {p.pinned && (
+                <Badge variant="neutral" className="gap-1 py-0 text-[10px] text-amber-500">
+                  <Pin className="h-2.5 w-2.5" />
+                  pinned
+                </Badge>
+              )}
             </button>
           );
         },
@@ -90,6 +100,7 @@ export const PackagesTable = ({
                 isServiceCapable={serviceNames.has(p.name)}
                 onInfo={() => onSelect(p.name)}
                 onUninstall={() => onUninstall(p.name)}
+                onRollback={() => setRollbackPkg(p.name)}
               />
             </div>
           );
@@ -100,12 +111,21 @@ export const PackagesTable = ({
   );
 
   return (
-    <DataTable
-      data={packages}
-      columns={columns}
-      getRowId={(r) => r.name}
-      estimateRowHeight={48}
-      emptyMessage="No packages found."
-    />
+    <>
+      <DataTable
+        data={packages}
+        columns={columns}
+        getRowId={(r) => r.name}
+        estimateRowHeight={48}
+        emptyMessage="No packages found."
+      />
+      {rollbackPkg && (
+        <RollbackModal
+          pkgName={rollbackPkg}
+          isOpen={Boolean(rollbackPkg)}
+          onClose={() => setRollbackPkg(null)}
+        />
+      )}
+    </>
   );
 };

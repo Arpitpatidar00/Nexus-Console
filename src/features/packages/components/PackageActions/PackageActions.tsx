@@ -1,8 +1,9 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { MoreVertical, Info, PlusCircle, Trash2 } from 'lucide-react';
+import { MoreVertical, Info, PlusCircle, Trash2, Pin, PinOff, RotateCcw } from 'lucide-react';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { addManaged } from '@/shared/state/serviceIntentSlice';
 import { formulaDisplayName } from '@/shared/lib/format';
+import { usePackagePin, usePackageUnpin } from '@/features/packages/api/usePackagePin';
 import type { PackageDto } from '@/features/packages/api/packages.schema';
 
 const itemCls =
@@ -13,10 +14,29 @@ interface Props {
   isServiceCapable: boolean;
   onInfo: () => void;
   onUninstall: () => void;
+  onRollback?: () => void;
 }
 
-export const PackageActions = ({ pkg, isServiceCapable, onInfo, onUninstall }: Props) => {
+export const PackageActions = ({
+  pkg,
+  isServiceCapable,
+  onInfo,
+  onUninstall,
+  onRollback,
+}: Props) => {
   const dispatch = useAppDispatch();
+  const pinMutation = usePackagePin();
+  const unpinMutation = usePackageUnpin();
+
+  const handleTogglePin = () => {
+    if (pkg.pinned) {
+      unpinMutation.mutate(pkg.name);
+    } else {
+      pinMutation.mutate(pkg.name);
+    }
+  };
+
+  const isFormula = pkg.kind === 'formula';
 
   return (
     <DropdownMenu.Root modal={false}>
@@ -39,6 +59,30 @@ export const PackageActions = ({ pkg, isServiceCapable, onInfo, onUninstall }: P
             <Info className="h-4 w-4" />
             View info
           </DropdownMenu.Item>
+
+          {isFormula && (
+            <DropdownMenu.Item className={`${itemCls} text-fg`} onSelect={handleTogglePin}>
+              {pkg.pinned ? (
+                <>
+                  <PinOff className="h-4 w-4 text-amber-500" />
+                  Unpin formula
+                </>
+              ) : (
+                <>
+                  <Pin className="h-4 w-4" />
+                  Pin formula
+                </>
+              )}
+            </DropdownMenu.Item>
+          )}
+
+          {isFormula && onRollback && (
+            <DropdownMenu.Item className={`${itemCls} text-fg`} onSelect={onRollback}>
+              <RotateCcw className="h-4 w-4" />
+              Roll back…
+            </DropdownMenu.Item>
+          )}
+
           {isServiceCapable && (
             <DropdownMenu.Item
               className={`${itemCls} text-fg`}
@@ -52,6 +96,7 @@ export const PackageActions = ({ pkg, isServiceCapable, onInfo, onUninstall }: P
               Add to Services
             </DropdownMenu.Item>
           )}
+
           <DropdownMenu.Item className={`${itemCls} text-danger`} onSelect={onUninstall}>
             <Trash2 className="h-4 w-4" />
             Uninstall

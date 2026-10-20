@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P10 (Blueprint and maintenance)
+- **Current phase:** P11 (Dev Toolbox, Domains and Uptime, Secrets scanner)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -35,7 +35,7 @@
 - [x] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
 - [x] **P8** Claude Chats (search, resume, export, usage, context analysis)
 - [x] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
-- [ ] **P10** Blueprint, Homebrew pin, auto-update — **ASK**
+- [x] **P10** Blueprint, Homebrew pin, auto-update
 - [ ] **P11** Dev Toolbox, Domains and Uptime — **ASK (RDAP/resolvers)**, Secrets scanner
 - [ ] **P12** Cloud (AWS) — **ASK**, Backups (incl. project .env), Network, chaos proxy
 - [ ] **P13** Devices, App Releases (incl. crash rates) — **ASK**, local AI Explain
@@ -46,6 +46,11 @@
   - Deploy model: Standard Compose pull & up deployment pipeline with before/after image digest tracking in `remote-deploys.json`, one-click digest rollback, and staging-to-prod promotion protected by `ProdConfirmDialog` and native NSAlert.
   - Image push over SSH: Zero-dependency streaming pipe via `docker save | gzip | ssh ... gzip -d | docker load`. Architecture check verifies host compatibility (e.g. arm64 vs x86_64) before streaming. Strictly refused on production environments.
 - **2026-10-21:** User directed to proceed without permission gates: "dont ask for the permissons and all just commit the thing and continue commit only dont push now". For 0.4, implemented boundary: Doctor diagnoses and provides "Review in Mac Clean" for disk and memory findings, while preserving unique Doctor cleanup tasks in Doctor.
+
+- **2026-10-21 (Phase 10):** Auto-resolved ASK gates per instructions:
+  - Blueprint format: Single unified JSON containing Brewfile dump string (`brew bundle dump --file=-`), remote hosts with private keys stripped, active tunnel configurations, project workspaces, saved commands, Mac Clean custom rules, and VS Code extensions. Visual diff engine highlights missing formulae, casks, taps, hosts, extensions, and workspaces. Step-by-step applying gives full control.
+  - Homebrew pinning & rollback: Invokes native `brew pin` / `brew unpin`. Rollback scans Cellar keg directories (`/opt/homebrew/Cellar/<name>/*`) and switches keg symlinks via `brew switch` / symlink relink, with an honest warning when previous versions are not retained.
+  - Software updates: Safe queries to GitHub Releases API with no auto-installing or background binary overwrite; clear release notes and direct link to download.
 
 ## Deviations from the plan
 
@@ -79,6 +84,12 @@ _(none in P0)_
   - 7.2 Workspace Orchestration: Unified workspace definitions linking projects to Homebrew services, local Docker compose stacks, SSH tunnels, and auto-VS Code opening. Start and stop operations with strict ownership tracking so workspace shutdowns never kill pre-existing user services.
   - 7.3 Saved Commands: Project-scoped authoring and execution of shell commands in the interactive terminal drawer.
   - Quality gates green: 248 Rust unit tests pass (0 failures), 108 Vitest frontend tests pass, Oxlint (0 errors/warnings on 520 files), Prettier, TypeScript, and Vite production bundle build.
+
+- **2026-10-21:** Completed Phase 10 (Blueprint and maintenance).
+  - 10.1 Nexus Blueprint: Unified macOS & developer environment export/import (`NexusBlueprint`). Exports Brewfile, sanitized remote hosts, tunnels, workspaces, saved drawer commands, Mac Clean rules, and VS Code extensions. Diff analysis reports missing packages, taps, hosts, extensions with step-by-step application UI.
+  - 10.2 Homebrew Pinning & Keg Rollback: Formula pinning preventing accidental upgrades during `brew upgrade`. Cellar keg inspector enumerates retained local keg versions with one-click rollback.
+  - 10.3 In-App Update Checker: GitHub Releases integration displaying installed vs latest version, release notes, and release assets download link.
+  - Quality gates green: 256 Rust unit tests pass, 118 Vitest tests pass, Oxlint (0 errors/warnings on 544 files), Prettier, TypeScript, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 6 (Local data).
   - 6.1 Local Docker module: Probing container engines (OrbStack, Docker Desktop, Colima), native container lifecycle actions (start, stop, restart, remove), compose stacks view with project-level controls, zero system prune -a to protect Mac Clean boundaries.

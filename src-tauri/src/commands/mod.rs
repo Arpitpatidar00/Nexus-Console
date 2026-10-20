@@ -1,4 +1,5 @@
 pub mod archiver;
+pub mod blueprint;
 pub mod context;
 pub mod doctor;
 pub mod maclean;
@@ -9,6 +10,7 @@ pub mod pty;
 pub mod remote;
 pub mod services;
 pub mod tray;
+pub mod updater;
 pub mod vscode;
 
 pub mod databases;

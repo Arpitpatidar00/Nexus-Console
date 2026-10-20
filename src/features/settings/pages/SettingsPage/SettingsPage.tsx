@@ -14,6 +14,9 @@ import { HomebrewStatusCard } from '@/features/settings/components/HomebrewStatu
 import { ManagedServicesEditor } from '@/features/settings/components/ManagedServicesEditor';
 import { ServersSettingsCard } from '@/features/settings/components/ServersSettingsCard';
 import { MacCleanSettingsCard } from '@/features/settings/components/MacCleanSettingsCard';
+import { BlueprintCard } from '@/features/settings/components/BlueprintCard';
+import { AppUpdateCard } from '@/features/settings/components/AppUpdateCard';
+
 import { THEME_OPTIONS, LAYOUT_OPTIONS } from './SettingsPage.config';
 
 export const SettingsPage = () => {
@@ -109,6 +112,12 @@ export const SettingsPage = () => {
         {enabledModules.includes('remote') && <ServersSettingsCard />}
 
         {enabledModules.includes('maclean') && <MacCleanSettingsCard />}
+
+        <AppUpdateCard />
+
+        <div className="xl:col-span-2">
+          <BlueprintCard />
+        </div>
 
         <div className="xl:col-span-2">
           <ManagedServicesEditor />

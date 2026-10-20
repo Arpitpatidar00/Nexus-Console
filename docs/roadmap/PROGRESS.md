@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P12 (Cloud, Backups, Network, Chaos proxy)
+- **Current phase:** P13 (Mobile devices, App Releases, Local AI Explain)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -37,7 +37,7 @@
 - [x] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
 - [x] **P10** Blueprint, Homebrew pin, auto-update
 - [x] **P11** Dev Toolbox, Domains and Uptime, Secrets scanner
-- [ ] **P12** Cloud (AWS) — **ASK**, Backups (incl. project .env), Network, chaos proxy
+- [x] **P12** Cloud (AWS) — **ASK**, Backups (incl. project .env), Network, chaos proxy
 - [ ] **P13** Devices, App Releases (incl. crash rates) — **ASK**, local AI Explain
 
 ## Decisions from the user
@@ -113,6 +113,12 @@ _(none in P0)_
   - 5.2 Deploy, Promote & Rollback: Pull-based compose deploy engine with image digest preview before pulling. Persistent deploy history in `remote-deploys.json`. One-click rollback that re-tags previous digests and redeploys. Staging-to-production promotion with diff preview, double-confirmation (`ProdConfirmDialog` + native NSAlert on prod).
   - 5.3 Image Teleportation: Push local images directly to dev and staging servers over SSH stream without requiring a remote registry. CPU architecture validation prevents running ARM Mac binaries on x86 servers. Hard barrier refusal for production servers.
   - Quality gates green: 240 Rust unit tests pass (0 failures), 100 Vitest frontend tests pass, Oxlint (0 errors/warnings on 496 files), Prettier, TypeScript, and Vite production bundle build.
+
+- **2026-10-21:** Completed Phase 12 (Cloud, Backups, Network, Chaos proxy).
+  - 12.1 Cloud AWS: Profile discovery (`aws configure list-profiles`), EC2 instance manager with lifecycle controls (start/stop/reboot) and guarded production warning dialog (`is_prod`), S3 bucket list, and daily cached Cost Explorer insights (`aws-cost-{profile}.json`, 24h stale time) with manual force-refresh to minimize AWS billing.
+  - 12.2 Automated Backups: Local & remote database snapshot engine (PostgreSQL, MySQL, SQLite, MongoDB). Remote databases stream directly over encrypted SSH pipe into local storage without staging on the server; archives are created with strict `0600` permissions. Project `.env` archive generator (`.env*` packed into timestamped tarball). Backup history manager (`backups-index.json`) with size formatting and delete.
+  - 12.3 Network & Chaos Engineering: Primary network interface and DNS resolver inspector with one-click DNS flush (`dscacheutil` & `killall -HUP mDNSResponder`). Live per-app bandwidth monitor using macOS `nettop` stream. Guarded `/etc/hosts` editor with automatic timestamped backups before modification. TCP chaos proxy injecting latency (0-2000ms), packet drop rates (0-100%), and connection rejections for resilience testing.
+  - Quality gates green: 265 Rust unit tests pass (0 failures), 143 Vitest frontend tests pass across 37 files, Oxlint (0 errors/0 warnings on 577 files), Prettier code style verified, TypeScript zero errors, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 4 (Servers depth).
   - 4.1 Timeline, Incidents & Notes: Rolling capped snapshot summaries, automated change diff engine (detecting new/removed/restarted containers, image changes, disk growth >= 5%, and unit failures), critical incident lifecycle tracker (first seen, last seen, resolved), and per-host markdown scratchpad notes with instant save and local persistence (`remote-notes.json`, `remote-history.json`).

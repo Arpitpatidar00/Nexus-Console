@@ -1,5 +1,8 @@
 import {
   Archive,
+  Cloud,
+  HardDriveDownload,
+  Wifi,
   Container,
   Database,
   FolderGit2,
@@ -33,6 +36,9 @@ export const MODULE_IDS = [
   'toolbox',
   'domains',
   'secrets',
+  'cloud',
+  'backups',
+  'network',
 ] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
@@ -179,6 +185,36 @@ export const MODULES: ModuleDef[] = [
     blurb: 'RDAP expiry, DNS lookup, SSL check & uptime monitoring.',
     background:
       'Optional: checks monitored URLs periodically and alerts on downtime or SSL expiry.',
+    optIn: true,
+  },
+  {
+    id: 'cloud',
+    label: 'Cloud AWS',
+    group: 'remote',
+    icon: Cloud,
+    nav: [{ tab: 'cloud', label: 'Cloud AWS', icon: Cloud, group: 'remote' }],
+    blurb: 'AWS profiles, EC2 instances, S3 buckets & cached cost tracking.',
+    background: null,
+    optIn: true,
+  },
+  {
+    id: 'backups',
+    label: 'Backups',
+    group: 'remote',
+    icon: HardDriveDownload,
+    nav: [{ tab: 'backups', label: 'Backups', icon: HardDriveDownload, group: 'remote' }],
+    blurb: 'Automated database dumps & project .env archive with 0600 permissions.',
+    background: null,
+    optIn: true,
+  },
+  {
+    id: 'network',
+    label: 'Network & Chaos',
+    group: 'mac',
+    icon: Wifi,
+    nav: [{ tab: 'network', label: 'Network & Chaos', icon: Wifi, group: 'mac' }],
+    blurb: 'Live per-app bandwidth, DNS cache flush, hosts file editor & TCP chaos proxy.',
+    background: null,
     optIn: true,
   },
   {

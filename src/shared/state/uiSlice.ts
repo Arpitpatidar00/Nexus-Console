@@ -17,6 +17,9 @@ export const TABS = [
   'toolbox',
   'domains',
   'secrets',
+  'cloud',
+  'backups',
+  'network',
   'settings',
 ] as const;
 export type Tab = (typeof TABS)[number];

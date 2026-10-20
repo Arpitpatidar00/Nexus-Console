@@ -1,10 +1,14 @@
+pub mod backups;
 pub mod blueprint;
 pub mod brew;
+pub mod chaos;
+pub mod cloud;
 pub mod databases;
 pub mod doctor;
 pub mod domains;
 pub mod local_docker;
 pub mod maclean;
+pub mod network;
 pub mod projects;
 pub mod pty;
 pub mod remote;

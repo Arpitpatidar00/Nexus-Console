@@ -54,6 +54,15 @@ export const PAGES: Record<Tab, ComponentType> = {
   secrets: lazy(() =>
     import('@/features/secrets/pages/SecretsPage').then((m) => ({ default: m.SecretsPage })),
   ),
+  cloud: lazy(() =>
+    import('@/features/cloud/pages/CloudPage').then((m) => ({ default: m.CloudPage })),
+  ),
+  backups: lazy(() =>
+    import('@/features/backups/pages/BackupsPage').then((m) => ({ default: m.BackupsPage })),
+  ),
+  network: lazy(() =>
+    import('@/features/network/pages/NetworkPage').then((m) => ({ default: m.NetworkPage })),
+  ),
   settings: lazy(() =>
     import('@/features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
   ),

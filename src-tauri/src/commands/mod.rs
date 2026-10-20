@@ -1,9 +1,13 @@
 pub mod archiver;
+pub mod backups;
 pub mod blueprint;
+pub mod chaos;
+pub mod cloud;
 pub mod context;
 pub mod doctor;
 pub mod domains;
 pub mod maclean;
+pub mod network;
 pub mod packages;
 pub mod ports;
 pub mod projects;

@@ -3,7 +3,8 @@ import { test, expect } from 'vitest';
 // real captures in fixtures/maclean, so this checks the zod mirror against
 // what Rust actually sends.
 import golden from '../../../../fixtures/maclean/report.json';
-import { cleanResultSchema, reportSchema, rulesSchema } from './maclean.schema';
+import memoryGolden from '../../../../fixtures/maclean/memory.json';
+import { cleanResultSchema, memorySchema, reportSchema, rulesSchema } from './maclean.schema';
 
 test('parses the Rust storage report', () => {
   const r = reportSchema.parse(golden);
@@ -34,4 +35,12 @@ test('clean result and rules', () => {
       staleNodeModulesDays: 60,
     }).protectedNames,
   ).toEqual(['Fameo']);
+});
+
+test('parses the Rust memory report', () => {
+  const m = memorySchema.parse(memoryGolden);
+  const c = m.composition;
+  expect(c.usedBytes + c.cachedBytes + c.freeBytes).toBe(c.totalBytes);
+  expect(m.pressure).toBe('warning');
+  expect(m.topApps[0].bytes).toBeGreaterThanOrEqual(m.topApps[1].bytes);
 });

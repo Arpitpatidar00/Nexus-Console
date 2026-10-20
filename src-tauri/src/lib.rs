@@ -129,6 +129,7 @@ pub fn run() {
             commands::maclean::maclean_rules,
             commands::maclean::maclean_set_rules,
             commands::maclean::maclean_journal,
+            commands::maclean::maclean_memory,
             commands::remote::remote_state,
             commands::remote::remote_set_consent,
             commands::remote::remote_scan_config,

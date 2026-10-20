@@ -2,7 +2,7 @@
 name = "stackroost"
 version = "0.1.0"
 description = "Stackroost — a lightweight GUI for local Homebrew services"
-authors = ["xDAnkit <xDAnkitjain@gmail.com>"]
+authors = ["Arpit <arpitpatidarappi01@gmail.com>"]
 license = "MIT"
 edition = "2021"
 

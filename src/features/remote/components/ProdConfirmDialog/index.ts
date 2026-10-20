@@ -1,0 +1,1 @@
+export { ProdConfirmDialog } from './ProdConfirmDialog';

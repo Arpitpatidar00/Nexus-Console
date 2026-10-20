@@ -1,0 +1,4 @@
+.keys/
+ssh_config
+known_hosts
+known_hosts.unknown

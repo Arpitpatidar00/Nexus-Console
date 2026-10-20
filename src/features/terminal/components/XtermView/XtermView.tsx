@@ -44,25 +44,26 @@ export const XtermView = ({
 
     const dataSub = term.onData((d) => void writePty(session.id, d));
     void openPty(
-      {
-        id: session.id,
-        formula: session.formula,
-        kind: session.kind,
-        cols: term.cols,
-        rows: term.rows,
-      },
+      { id: session.id, target: session.target, cols: term.cols, rows: term.rows },
       (e: PtyEvent) => {
         if (e.type === 'output') term.write(e.data);
         else term.write('\r\n\x1b[90m[process exited]\x1b[0m\r\n');
       },
-    );
+    ).catch((e: unknown) => {
+      // Refused before spawning (e.g. a container that's gone since the last
+      // check): say so in the terminal itself rather than leaving it blank.
+      const msg = e instanceof Error ? e.message : 'Could not open this terminal.';
+      term.write(`\x1b[31m${msg}\x1b[0m\r\n`);
+    });
 
     return () => {
       dataSub.dispose();
       void killPty(session.id);
       term.dispose();
     };
-  }, [session.id, session.formula, session.kind]);
+    // The target is fixed for a session's lifetime (its key is derived from it).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
 
   // Fit + tell the PTY the new size whenever this terminal is shown or resized.
   // rAF-coalesced (live window drags fire many resize events per frame) and the

@@ -1,0 +1,100 @@
+@@NX:meta@@
+hostname=legacy-01
+uname=Linux 7.0.14-linuxkit aarch64
+now=1792435603
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.5 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
+@@NX:uptime@@
+uptime=531.77 4018.81
+loadavg=0.53 0.53 0.24 2/364 62
+nproc=8
+@@NX:cpu@@
+cpu  10865 0 5392 401881 3890 0 2384 0 0 0
+cpu  10881 0 5406 402251 3891 0 2387 0 0 0
+@@NX:mem@@
+MemTotal:        5034356 kB
+MemFree:          436828 kB
+MemAvailable:    4168408 kB
+Buffers:          141204 kB
+Cached:          3573356 kB
+SwapCached:            0 kB
+Active:           723160 kB
+Inactive:        3365552 kB
+Active(anon):     374840 kB
+Inactive(anon):        0 kB
+Active(file):     348320 kB
+Inactive(file):  3365552 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       4194300 kB
+SwapFree:        4194300 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:              4616 kB
+Writeback:             0 kB
+AnonPages:        339936 kB
+Mapped:           267136 kB
+Shmem:               692 kB
+KReclaimable:     209008 kB
+Slab:             269520 kB
+SReclaimable:     209008 kB
+SUnreclaim:        60512 kB
+KernelStack:        6016 kB
+PageTables:         4640 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     6711476 kB
+Committed_AS:    1687160 kB
+VmallocTotal:   135288315904 kB
+VmallocUsed:       16288 kB
+VmallocChunk:          0 kB
+Percpu:             4736 kB
+AnonHugePages:    227328 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+Balloon:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+@@NX:disk@@
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+/dev/vda1         98496756 18985636  74461624      21% /run/dind
+@@NX:reboot@@
+yes
+@@NX:docker:absent@@
+@@NX:units@@
+cron.service             loaded active running Regular background program processing daemon
+dbus.service             loaded active running D-Bus System Message Bus
+getty@tty1.service       loaded active running Getty on tty1
+ssh.service              loaded active running OpenBSD Secure Shell server
+systemd-journald.service loaded active running Journal Service
+systemd-logind.service   loaded active running User Login Management
+systemd-resolved.service loaded active running Network Name Resolution
+@@NX:failed@@
+@@NX:pm2:absent@@
+@@NX:ports@@
+LISTEN 0      4096   127.0.0.53%lo:53 0.0.0.0:*
+LISTEN 0      128          0.0.0.0:22 0.0.0.0:*
+LISTEN 0      128             [::]:22    [::]:*
+@@NX:oom:error@@
+no permission to read the system journal
+@@NX:errors:error@@
+no permission to read the system journal
+@@NX:end@@

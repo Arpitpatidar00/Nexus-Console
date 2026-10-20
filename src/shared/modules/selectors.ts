@@ -4,6 +4,10 @@ import { MODULES, MODULE_IDS, type ModuleId, type NavEntry } from './modules.con
 
 export const ALL_MODULES: ModuleId[] = [...MODULE_IDS];
 
+/** "Everything on" for defaults and fallbacks: every module except opt-in ones
+ * (Servers reads ~/.ssh and reaches other machines, so it's never on unasked). */
+export const DEFAULT_MODULES: ModuleId[] = MODULES.filter((m) => !m.optIn).map((m) => m.id);
+
 /** Belongs to no module on purpose — Settings stays reachable however the rest
  * is configured, so a bad choice is always recoverable from inside the app. */
 const SETTINGS_NAV: NavEntry = { tab: 'settings', label: 'Settings', icon: Settings };
@@ -46,7 +50,7 @@ export function availableModules(
  * screen) from "existing install, key not written yet" (→ everything on, no
  * onboarding wall for someone mid-flow). */
 export function sanitizeModules(raw: unknown, hasPersistedSettings: boolean): ModuleId[] | null {
-  if (!Array.isArray(raw)) return hasPersistedSettings ? [...ALL_MODULES] : null;
+  if (!Array.isArray(raw)) return hasPersistedSettings ? [...DEFAULT_MODULES] : null;
   const known = MODULE_IDS.filter((id) => raw.includes(id));
-  return known.length > 0 ? known : [...ALL_MODULES];
+  return known.length > 0 ? known : [...DEFAULT_MODULES];
 }

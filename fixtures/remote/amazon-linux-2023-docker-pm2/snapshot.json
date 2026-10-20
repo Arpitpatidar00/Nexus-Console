@@ -1,0 +1,162 @@
+{
+  "capturedAt": 0,
+  "probeMs": 0,
+  "system": {
+    "hostname": "shop-dev",
+    "os": "Amazon Linux 2023.12.20260930",
+    "kernel": "7.0.14-linuxkit",
+    "arch": "aarch64",
+    "uptimeSecs": 572,
+    "rebootRequired": false
+  },
+  "cpu": {
+    "cores": 8,
+    "usagePct": 0.2,
+    "load1": 0.88,
+    "load5": 0.59,
+    "load15": 0.28
+  },
+  "memory": {
+    "totalBytes": 5155180544,
+    "availableBytes": 4084658176,
+    "swapTotalBytes": 4294963200,
+    "swapFreeBytes": 4294963200
+  },
+  "disks": [
+    {
+      "mount": "/run/dind",
+      "fs": "/dev/vda1",
+      "totalBytes": 100860678144,
+      "usedBytes": 19550638080,
+      "availBytes": 76139356160
+    }
+  ],
+  "docker": {
+    "state": "ok",
+    "version": "29.9.1"
+  },
+  "containers": [
+    {
+      "id": "54479ff40afee114adc57ef6521ba05fd4be7ff70a30632d52f7e26e559d065f",
+      "name": "nexus-testbed-crashy-1",
+      "image": "alpine:3.20",
+      "state": "restarting",
+      "status": "Restarting (1) 11 seconds ago",
+      "health": null,
+      "restartCount": 8,
+      "restartPolicy": "unless-stopped",
+      "exitCode": 1,
+      "cpuPct": null,
+      "memBytes": null,
+      "ports": "",
+      "composeProject": "nexus-testbed",
+      "createdAt": "2026-10-19 18:46:59 +0000 UTC"
+    },
+    {
+      "id": "0c6d07d7a5cb65ee125dc59ca5bb5625395679d6872e08ba7cbc347ffc7347cf",
+      "name": "nexus-testbed-sick-1",
+      "image": "nginx:1.27-alpine",
+      "state": "running",
+      "status": "Up 25 seconds (unhealthy)",
+      "health": "unhealthy",
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "exitCode": null,
+      "cpuPct": 1.53,
+      "memBytes": 7348421,
+      "ports": "80/tcp",
+      "composeProject": "nexus-testbed",
+      "createdAt": "2026-10-19 18:46:59 +0000 UTC"
+    },
+    {
+      "id": "22b01e19f1aa4c5cd9b5388609e7837395353dd6ffca7eea2fb97158bdc8b1ab",
+      "name": "nexus-testbed-web-1",
+      "image": "nginx:1.27-alpine",
+      "state": "running",
+      "status": "Up 34 seconds (healthy)",
+      "health": "healthy",
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "exitCode": null,
+      "cpuPct": 1.91,
+      "memBytes": 8715764,
+      "ports": "0.0.0.0:8080->80/tcp, [::]:8080->80/tcp",
+      "composeProject": "nexus-testbed",
+      "createdAt": "2026-10-19 18:46:51 +0000 UTC"
+    }
+  ],
+  "composeProjects": [
+    {
+      "name": "nexus-testbed",
+      "status": "restarting(1), running(2)",
+      "configFiles": "-"
+    }
+  ],
+  "services": [],
+  "failedUnits": [],
+  "pm2": [
+    {
+      "name": "api",
+      "status": "online",
+      "restarts": 0,
+      "cpu": 0.7,
+      "memBytes": 54231040
+    },
+    {
+      "name": "worker",
+      "status": "errored",
+      "restarts": 2,
+      "cpu": 0.0,
+      "memBytes": 0
+    }
+  ],
+  "ports": [
+    {
+      "proto": "tcp",
+      "local": "*",
+      "port": 3000,
+      "process": "node /home/nexu"
+    }
+  ],
+  "recentErrors": [],
+  "oomKills24h": null,
+  "findings": [
+    {
+      "id": "container_restarting",
+      "severity": "red",
+      "tag": "info",
+      "target": "nexus-testbed-crashy-1",
+      "summary": "nexus-testbed-crashy-1 keeps restarting (8 restarts)",
+      "explain": "The container exits and Docker starts it again. Its last log lines usually say why.",
+      "guide": [
+        "docker logs --tail 100 nexus-testbed-crashy-1"
+      ]
+    },
+    {
+      "id": "container_unhealthy",
+      "severity": "red",
+      "tag": "info",
+      "target": "nexus-testbed-sick-1",
+      "summary": "nexus-testbed-sick-1 is failing its healthcheck",
+      "explain": "The container is running, but its own healthcheck says it isn't working.",
+      "guide": [
+        "docker inspect --format '{{json .State.Health}}' nexus-testbed-sick-1"
+      ]
+    },
+    {
+      "id": "pm2_errored",
+      "severity": "yellow",
+      "tag": "info",
+      "target": "worker",
+      "summary": "PM2 app worker is errored",
+      "explain": "PM2 stopped trying to keep this app running.",
+      "guide": [
+        "pm2 logs worker --lines 50"
+      ]
+    }
+  ],
+  "warnings": [
+    "systemd isn't running here, so services aren't listed.",
+    "No systemd journal, so recent errors aren't shown."
+  ]
+}

@@ -3,6 +3,7 @@ pub mod context;
 pub mod doctor;
 pub mod packages;
 pub mod ports;
+pub mod remote;
 pub mod services;
 pub mod vscode;
 

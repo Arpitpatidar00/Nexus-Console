@@ -1,0 +1,1 @@
+export { WeeklyTrendsCard } from './WeeklyTrendsCard';

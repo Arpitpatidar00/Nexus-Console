@@ -42,7 +42,7 @@ pub async fn maclean_scan(app: AppHandle) -> AppResult<StorageReport> {
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
         let user = std::env::var("USER").unwrap_or_default();
         let inputs = ScanInputs {
-            home,
+            home: home.clone(),
             user,
             brew_prefix: app.state::<AppContext>().brew_prefix.clone(),
             rules: &rules,
@@ -54,6 +54,32 @@ pub async fn maclean_scan(app: AppHandle) -> AppResult<StorageReport> {
         if let Ok(mut last) = state.last_report.lock() {
             *last = Some(report.clone());
         }
+
+        // Record daily trend snapshot (P9.4)
+        let hist_file = home
+            .join(".config")
+            .join("stackroost")
+            .join("maclean-history.json");
+        let mut trend_store = crate::services::maclean::trends::TrendStore::load(&hist_file);
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let date = chrono_free_date(ts / 86400);
+        let mut categories = std::collections::HashMap::new();
+        for item in &report.items {
+            categories.insert(item.id.to_string(), item.bytes);
+        }
+        let free_bytes = report.disk.free_bytes;
+        let total_bytes = report.disk.total_bytes;
+        trend_store.record(crate::services::maclean::trends::TrendRecord {
+            date,
+            timestamp: ts,
+            free_disk_bytes: free_bytes,
+            total_disk_bytes: total_bytes,
+            swap_used_bytes: 0,
+            categories,
+        });
+        let _ = trend_store.save(&hist_file);
         Ok(report)
     })
     .await
@@ -315,6 +341,119 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
             .status()
             .map_err(|e| AppError::Shell(format!("open failed: {e}")))?;
         Ok(())
+    })
+    .await
+}
+
+fn chrono_free_date(days_since_epoch: u64) -> String {
+    let z = days_since_epoch as i64 + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+#[tauri::command]
+pub async fn maclean_ghost_scan(
+    _app: AppHandle,
+) -> AppResult<crate::services::maclean::ghost::GhostScanReport> {
+    blocking(move || {
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        Ok(crate::services::maclean::ghost::scan_ghost_leftovers(&home))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn maclean_ghost_clean(_app: AppHandle, ids: Vec<String>) -> AppResult<u64> {
+    blocking(move || {
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        let report = crate::services::maclean::ghost::scan_ghost_leftovers(&home);
+        crate::services::maclean::ghost::clean_ghost_leftovers(&home, &ids, &report.leftovers)
+            .map_err(AppError::Io)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn maclean_energy_sample(
+    _app: AppHandle,
+) -> AppResult<crate::services::maclean::energy::EnergyReport> {
+    blocking(move || Ok(crate::services::maclean::energy::sample_energy_report())).await
+}
+
+#[tauri::command]
+pub async fn maclean_pause_service(service_name: String) -> AppResult<()> {
+    blocking(move || {
+        if service_name.contains("homebrew")
+            || service_name.contains("redis")
+            || service_name.contains("postgres")
+            || service_name.contains("nginx")
+        {
+            let _ = std::process::Command::new("brew")
+                .args(["services", "stop", &service_name])
+                .status();
+        } else if let Ok(pid) = service_name.parse::<i32>() {
+            let _ = std::process::Command::new("kill")
+                .args(["-STOP", &pid.to_string()])
+                .status();
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn maclean_trends(
+    _app: AppHandle,
+) -> AppResult<crate::services::maclean::trends::TrendsReport> {
+    blocking(move || {
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        let hist_file = home
+            .join(".config")
+            .join("stackroost")
+            .join("maclean-history.json");
+        let store = crate::services::maclean::trends::TrendStore::load(&hist_file);
+        Ok(store.report())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn maclean_duplicates_scan(
+    _app: AppHandle,
+    dirs: Option<Vec<String>>,
+) -> AppResult<crate::services::maclean::duplicates::DuplicateReport> {
+    blocking(move || {
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        let target_dirs = if let Some(d) = dirs {
+            d.into_iter().map(std::path::PathBuf::from).collect()
+        } else {
+            crate::services::maclean::duplicates::default_scan_directories(&home)
+        };
+        Ok(crate::services::maclean::duplicates::scan_duplicates(
+            &target_dirs,
+        ))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn maclean_duplicates_delete(_app: AppHandle, paths: Vec<String>) -> AppResult<u64> {
+    blocking(move || {
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        crate::services::maclean::duplicates::delete_duplicates(&home, &paths).map_err(AppError::Io)
     })
     .await
 }

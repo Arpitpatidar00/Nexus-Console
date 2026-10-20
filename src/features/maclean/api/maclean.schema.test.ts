@@ -11,6 +11,10 @@ import {
   memorySchema,
   reportSchema,
   rulesSchema,
+  ghostScanReportSchema,
+  energyReportSchema,
+  trendsReportSchema,
+  duplicateReportSchema,
 } from './maclean.schema';
 
 test('parses the Rust storage report', () => {
@@ -61,4 +65,119 @@ test('deep report and drill rows', () => {
     }).entries[0].flagged,
   ).toBe(true);
   expect(drillSchema.parse([{ name: 'Caches', bytes: 3 }])).toHaveLength(1);
+});
+
+test('parses ghostScanReportSchema', () => {
+  const sample = {
+    leftovers: [
+      {
+        id: 'cache_com.test.app',
+        name: 'com.test.app',
+        bundleId: 'com.test.app',
+        path: '/Users/test/Library/Caches/com.test.app',
+        sizeBytes: 15_000_000,
+        modifiedAt: 1729468800,
+        kind: 'cache',
+        isSafe: true,
+      },
+      {
+        id: 'agent_orphan',
+        name: 'orphan.plist',
+        path: '/Users/test/Library/LaunchAgents/orphan.plist',
+        sizeBytes: 1024,
+        modifiedAt: 1729468800,
+        kind: 'launch_agent',
+        isSafe: true,
+      },
+    ],
+    totalReclaimableBytes: 15_001_024,
+    scanTimeEpoch: 1729468800,
+  };
+  const parsed = ghostScanReportSchema.parse(sample);
+  expect(parsed.leftovers).toHaveLength(2);
+  expect(parsed.totalReclaimableBytes).toBe(15_001_024);
+  expect(parsed.leftovers[0].isSafe).toBe(true);
+});
+
+test('parses energyReportSchema', () => {
+  const sample = {
+    powerSource: 'battery',
+    isCharging: false,
+    batteryPercent: 82,
+    processes: [
+      {
+        pid: 1234,
+        name: 'vite',
+        category: 'watcher',
+        idleWakeups: 450,
+        interruptWakeups: 120,
+        cpuTimeMs: 15000,
+        diskWriteBytes: 2_048_000,
+        energyImpactScore: 65.5,
+      },
+    ],
+    unpluggedSuggestion: {
+      message: 'On battery: 1 background service waking CPU often.',
+      candidatePids: [1234],
+      candidateNames: ['vite'],
+    },
+  };
+  const parsed = energyReportSchema.parse(sample);
+  expect(parsed.powerSource).toBe('battery');
+  expect(parsed.processes[0].idleWakeups).toBe(450);
+  expect(parsed.unpluggedSuggestion?.candidateNames).toContain('vite');
+});
+
+test('parses trendsReportSchema', () => {
+  const sample = {
+    records: [
+      {
+        date: '2026-10-14',
+        timestamp: 1728864000,
+        freeDiskBytes: 50_000_000_000,
+        totalDiskBytes: 500_000_000_000,
+        swapUsedBytes: 0,
+        categories: { caches: 5_000_000_000 },
+      },
+    ],
+    weeklyFreeDeltaBytes: -2_000_000_000,
+    biggestGrowers: [
+      {
+        category: 'caches',
+        deltaBytes: 1_000_000_000,
+        currentBytes: 5_000_000_000,
+      },
+    ],
+  };
+  const parsed = trendsReportSchema.parse(sample);
+  expect(parsed.weeklyFreeDeltaBytes).toBe(-2_000_000_000);
+  expect(parsed.biggestGrowers[0].category).toBe('caches');
+});
+
+test('parses duplicateReportSchema', () => {
+  const sample = {
+    groups: [
+      {
+        hash: 'b3_sample_hash_123',
+        sizeBytes: 5_000_000,
+        files: [
+          {
+            path: '/Users/test/Downloads/installer.dmg',
+            sizeBytes: 5_000_000,
+            modifiedAt: 1729468800,
+          },
+          {
+            path: '/Users/test/Desktop/installer (1).dmg',
+            sizeBytes: 5_000_000,
+            modifiedAt: 1729468800,
+          },
+        ],
+      },
+    ],
+    totalReclaimableBytes: 5_000_000,
+    scannedFilesCount: 42,
+  };
+  const parsed = duplicateReportSchema.parse(sample);
+  expect(parsed.groups).toHaveLength(1);
+  expect(parsed.totalReclaimableBytes).toBe(5_000_000);
 });

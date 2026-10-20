@@ -102,6 +102,8 @@ pub const REGISTRY: &[Probe] = &[
     system::BACKUP_RISK,
     system::STARTUP_ITEMS,
     system::TOOLCHAINS,
+    system::BATTERY_HEALTH,
+    system::THERMAL_THROTTLE,
     vscode::ORPHANS,
     vscode::DB_BLOAT,
     vscode::EXTENSION_AUDIT,

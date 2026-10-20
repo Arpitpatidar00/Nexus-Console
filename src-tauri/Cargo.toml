@@ -31,5 +31,6 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 # Native NSAlert confirms for destructive ops — the gate lives in Rust, so the
 # frontend can't bypass it.
 tauri-plugin-dialog = "2"
+blake3 = "1.8.7"
 
 # ponytail: notification plugin + nix land in P5/P7 as needed — not pre-added.

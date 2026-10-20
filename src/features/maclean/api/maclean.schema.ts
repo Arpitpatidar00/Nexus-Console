@@ -115,3 +115,107 @@ export const deepReportSchema = z.object({
 export type DeepReport = z.infer<typeof deepReportSchema>;
 
 export const drillSchema = z.array(z.object({ name: z.string(), bytes: z.number() }));
+
+// --- Phase 9: Mac Health Schemas ---
+
+export const ghostKindSchema = z.enum([
+  'cache',
+  'preference',
+  'saved_state',
+  'http_storage',
+  'launch_agent',
+  'possible_app_support',
+]);
+export type GhostKind = z.infer<typeof ghostKindSchema>;
+
+export const ghostLeftoverSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  bundleId: z.string().nullable().optional(),
+  path: z.string(),
+  sizeBytes: z.number(),
+  modifiedAt: z.number(),
+  kind: ghostKindSchema,
+  isSafe: z.boolean(),
+});
+export type GhostLeftover = z.infer<typeof ghostLeftoverSchema>;
+
+export const ghostScanReportSchema = z.object({
+  leftovers: z.array(ghostLeftoverSchema),
+  totalReclaimableBytes: z.number(),
+  scanTimeEpoch: z.number(),
+});
+export type GhostScanReport = z.infer<typeof ghostScanReportSchema>;
+
+export const energyProcessSchema = z.object({
+  pid: z.number(),
+  name: z.string(),
+  category: z.string(),
+  idleWakeups: z.number(),
+  interruptWakeups: z.number(),
+  cpuTimeMs: z.number(),
+  diskWriteBytes: z.number(),
+  energyImpactScore: z.number(),
+});
+export type EnergyProcess = z.infer<typeof energyProcessSchema>;
+
+export const unpluggedSuggestionSchema = z.object({
+  message: z.string(),
+  candidatePids: z.array(z.number()),
+  candidateNames: z.array(z.string()),
+});
+export type UnpluggedSuggestion = z.infer<typeof unpluggedSuggestionSchema>;
+
+export const energyReportSchema = z.object({
+  powerSource: z.string(),
+  isCharging: z.boolean(),
+  batteryPercent: z.number().nullable().optional(),
+  processes: z.array(energyProcessSchema),
+  unpluggedSuggestion: unpluggedSuggestionSchema.nullable().optional(),
+});
+export type EnergyReport = z.infer<typeof energyReportSchema>;
+
+export const trendRecordSchema = z.object({
+  date: z.string(),
+  timestamp: z.number(),
+  freeDiskBytes: z.number(),
+  totalDiskBytes: z.number(),
+  swapUsedBytes: z.number(),
+  categories: z.record(z.string(), z.number()),
+});
+export type TrendRecord = z.infer<typeof trendRecordSchema>;
+
+export const categoryDeltaSchema = z.object({
+  category: z.string(),
+  deltaBytes: z.number(),
+  currentBytes: z.number(),
+});
+export type CategoryDelta = z.infer<typeof categoryDeltaSchema>;
+
+export const trendsReportSchema = z.object({
+  records: z.array(trendRecordSchema),
+  weeklyFreeDeltaBytes: z.number(),
+  biggestGrowers: z.array(categoryDeltaSchema),
+});
+export type TrendsReport = z.infer<typeof trendsReportSchema>;
+
+export const duplicateFileSchema = z.object({
+  path: z.string(),
+  sizeBytes: z.number(),
+  modifiedAt: z.number(),
+});
+export type DuplicateFile = z.infer<typeof duplicateFileSchema>;
+
+export const duplicateGroupSchema = z.object({
+  hash: z.string(),
+  sizeBytes: z.number(),
+  files: z.array(duplicateFileSchema),
+});
+export type DuplicateGroup = z.infer<typeof duplicateGroupSchema>;
+
+export const duplicateReportSchema = z.object({
+  groups: z.array(duplicateGroupSchema),
+  totalReclaimableBytes: z.number(),
+  scannedFilesCount: z.number(),
+});
+export type DuplicateReport = z.infer<typeof duplicateReportSchema>;

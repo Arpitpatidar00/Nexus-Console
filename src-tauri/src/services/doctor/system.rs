@@ -45,6 +45,22 @@ pub const TOOLCHAINS: Probe = Probe {
     run: run_toolchains,
 };
 
+pub const BATTERY_HEALTH: Probe = Probe {
+    id: "battery_health",
+    scope: Scope::System,
+    platforms: MACOS,
+    available: always,
+    run: run_battery_health,
+};
+
+pub const THERMAL_THROTTLE: Probe = Probe {
+    id: "thermal_throttle",
+    scope: Scope::System,
+    platforms: MACOS,
+    available: always,
+    run: run_thermal_throttle,
+};
+
 fn tool_version(cmd: &str, args: &[&str]) -> Option<String> {
     let out = Command::new(cmd).args(args).output().ok()?;
     if out.status.success() {
@@ -381,6 +397,130 @@ fn run_startup_items() -> Vec<Finding> {
     }]
 }
 
+pub fn parse_ioreg_num(text: &str, key: &str) -> Option<u64> {
+    for line in text.lines() {
+        if line.contains(key) {
+            if let Some(idx) = line.find('=') {
+                let val_str = line[idx + 1..].trim();
+                let clean: String = val_str.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if let Ok(num) = clean.parse::<u64>() {
+                    return Some(num);
+                }
+            }
+        }
+    }
+    None
+}
+
+pub fn parse_cpu_speed_limit(text: &str) -> Option<u64> {
+    for line in text.lines() {
+        if line.contains("CPU_Speed_Limit") {
+            if let Some(idx) = line.find('=') {
+                let val_str = line[idx + 1..].trim();
+                let clean: String = val_str.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if let Ok(num) = clean.parse::<u64>() {
+                    return Some(num);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn top_cpu_processes() -> String {
+    let out = Command::new("ps")
+        .args(["-A", "-r", "-o", "pid,%cpu,comm"])
+        .output();
+    if let Ok(out) = out {
+        let text = String::from_utf8_lossy(&out.stdout);
+        text.lines().take(6).collect::<Vec<_>>().join("\n")
+    } else {
+        "Unable to sample CPU processes.".into()
+    }
+}
+
+pub fn run_battery_health() -> Vec<Finding> {
+    let out = Command::new("ioreg")
+        .args(["-rn", "AppleSmartBattery"])
+        .output();
+    let Ok(out) = out else {
+        return vec![];
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    if text.trim().is_empty() {
+        return vec![];
+    }
+
+    let cycle_count = parse_ioreg_num(&text, "CycleCount").unwrap_or(0);
+    let max_capacity = parse_ioreg_num(&text, "MaxCapacity").unwrap_or(100);
+    let is_charging = text.contains("IsCharging") && text.contains("Yes");
+    let state_of_charge = parse_ioreg_num(&text, "CurrentCapacity").unwrap_or(100);
+
+    let condition = if max_capacity < 80 || cycle_count > 1000 {
+        "Service Battery"
+    } else {
+        "Normal"
+    };
+
+    let severity = if condition == "Normal" && max_capacity >= 80 {
+        Severity::Green
+    } else {
+        Severity::Yellow
+    };
+
+    let charging_str = if is_charging { " (charging)" } else { "" };
+
+    vec![Finding {
+        probe_id: BATTERY_HEALTH.id,
+        scope: BATTERY_HEALTH.scope,
+        severity,
+        tag: Tag::Info,
+        summary: format!(
+            "Battery {condition}: {max_capacity}% capacity, {cycle_count} cycles, {state_of_charge}% charge{charging_str}"
+        ),
+        explain: "Apple rates MacBook batteries to retain up to 80% of original capacity at 1,000 complete charge cycles. macOS manages charging automatically to preserve battery lifespan.".into(),
+        guide: None,
+        fix: None,
+    }]
+}
+
+pub fn run_thermal_throttle() -> Vec<Finding> {
+    let out = Command::new("pmset").args(["-g", "therm"]).output();
+    let Ok(out) = out else {
+        return vec![];
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+
+    let speed_limit = parse_cpu_speed_limit(&text).unwrap_or(100);
+
+    if speed_limit < 100 {
+        let top_procs = top_cpu_processes();
+        vec![Finding {
+            probe_id: THERMAL_THROTTLE.id,
+            scope: THERMAL_THROTTLE.scope,
+            severity: if speed_limit < 80 { Severity::Red } else { Severity::Yellow },
+            tag: Tag::Speed,
+            summary: format!("CPU throttled to {speed_limit}% speed limit due to thermal pressure"),
+            explain: format!(
+                "macOS has reduced CPU performance to prevent overheating. Allow airflow or pause heavy processes.\nTop CPU consumers:\n{top_procs}"
+            ),
+            guide: None,
+            fix: None,
+        }]
+    } else {
+        vec![Finding {
+            probe_id: THERMAL_THROTTLE.id,
+            scope: THERMAL_THROTTLE.scope,
+            severity: Severity::Green,
+            tag: Tag::Speed,
+            summary: "Thermal state nominal (100% CPU speed, no throttling)".into(),
+            explain: "Thermal sensors and power management report no CPU frequency reduction or overheating.".into(),
+            guide: None,
+            fix: None,
+        }]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -438,11 +578,24 @@ mod tests {
     // Real machine, read-only: every probe returns at most one finding and
     // never panics (LPM may return zero on Macs without the setting).
     #[test]
+    fn parses_ioreg_and_therm() {
+        let ioreg_sample = "CycleCount = 542\nMaxCapacity = 88\nCurrentCapacity = 95\n";
+        assert_eq!(parse_ioreg_num(ioreg_sample, "CycleCount"), Some(542));
+        assert_eq!(parse_ioreg_num(ioreg_sample, "MaxCapacity"), Some(88));
+        assert_eq!(parse_ioreg_num(ioreg_sample, "CurrentCapacity"), Some(95));
+
+        let therm_sample = "Note: CPU_Speed_Limit = 75\n";
+        assert_eq!(parse_cpu_speed_limit(therm_sample), Some(75));
+    }
+
+    #[test]
     fn probes_run_on_real_machine() {
         assert!(run_low_power().len() <= 1);
         assert_eq!(run_memory_truth().len(), 1);
         assert_eq!(run_backup_risk().len(), 1);
         assert_eq!(run_startup_items().len(), 1);
         assert_eq!(run_toolchains().len(), 1);
+        assert!(run_battery_health().len() <= 1);
+        assert_eq!(run_thermal_throttle().len(), 1);
     }
 }

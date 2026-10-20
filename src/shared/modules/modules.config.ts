@@ -6,6 +6,7 @@ import {
   Clock,
   HardDrive,
   MemoryStick,
+  Zap,
   LayoutGrid,
   Network,
   Package,
@@ -124,6 +125,7 @@ export const MODULES: ModuleDef[] = [
     nav: [
       { tab: 'storage', label: 'Storage', icon: HardDrive, group: 'mac' },
       { tab: 'memory', label: 'Memory', icon: MemoryStick, group: 'mac' },
+      { tab: 'energy', label: 'Energy', icon: Zap, group: 'mac' },
     ],
     blurb: 'Where your disk went, safe cleanup, and memory & swap.',
     background: 'Optional: scheduled cleanup and a low-disk warning from the tray.',

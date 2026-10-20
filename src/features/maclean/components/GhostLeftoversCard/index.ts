@@ -1,0 +1,1 @@
+export { GhostLeftoversCard } from './GhostLeftoversCard';

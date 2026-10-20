@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P9 (Mac health)
+- **Current phase:** P10 (Blueprint and maintenance)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -34,7 +34,7 @@
 - [x] **P6** Local data (Local Docker, Databases, branch databases)
 - [x] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
 - [x] **P8** Claude Chats (search, resume, export, usage, context analysis)
-- [ ] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
+- [x] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
 - [ ] **P10** Blueprint, Homebrew pin, auto-update — **ASK**
 - [ ] **P11** Dev Toolbox, Domains and Uptime — **ASK (RDAP/resolvers)**, Secrets scanner
 - [ ] **P12** Cloud (AWS) — **ASK**, Backups (incl. project .env), Network, chaos proxy
@@ -56,6 +56,14 @@ _(none in P0)_
 _(none in P0)_
 
 ## Session log
+
+- **2026-10-21:** Completed Phase 9 (Mac Health).
+  - 9.1: Ghost Leftovers scanner in `services/maclean/ghost.rs` identifying orphaned Caches, Preferences, Saved Application State, HTTPStorages, and dead LaunchAgents whose binaries no longer exist. Application Support remnants flagged as possible (reveal only). Safe removal to Trash.
+  - 9.2: Energy Accounting in `services/maclean/energy.rs` with `proc_pid_rusage` flavor 4 measuring idle wakeups, interrupt wakeups, CPU time, and disk writes. Power source detection (`pmset -g batt`), category grouping (Apps, Services, Watchers, System), and honest unplugged pause suggestion with dedicated `EnergyPage.tsx` tab.
+  - 9.3: Doctor battery health (`ioreg AppleSmartBattery`) and thermal throttling (`pmset -g therm`) probes in `services/doctor/system.rs` reporting cycle count, max capacity %, condition, and top CPU consumers when throttling is active.
+  - 9.4: 90-day rolling daily trends in `services/maclean/trends.rs` persisting to `maclean-history.json`, computing week-over-week free space deltas and fastest growing categories in `WeeklyTrendsCard.tsx`.
+  - 9.5: Report-first duplicate files finder in `services/maclean/duplicates.rs` using BLAKE3 (exact size grouping -> 64 KB partial hash -> full hash) for files >= 1 MB in Downloads, Desktop, Documents with side-by-side selection and move to Trash in `DuplicateFilesCard.tsx`.
+  - Quality gates: 255 Rust tests pass, 115 Vitest tests pass, 0 oxlint warnings/errors, prettier clean, tsc clean, bundle built in 717ms.
 
 - **2026-10-21:** Completed Phase 8 (Claude Chats upgrades).
   - 8.1 Full-Text Search: High-performance search across all project session transcripts (`.jsonl`) with keyword match snippet extraction and direct navigation.

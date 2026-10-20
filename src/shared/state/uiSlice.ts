@@ -9,6 +9,7 @@ export const TABS = [
   'servers',
   'storage',
   'memory',
+  'energy',
   'sessions',
   'docker',
   'databases',

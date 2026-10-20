@@ -18,6 +18,9 @@ export const PAGES: Record<Tab, ComponentType> = {
   memory: lazy(() =>
     import('@/features/maclean/pages/MemoryPage').then((m) => ({ default: m.MemoryPage })),
   ),
+  energy: lazy(() =>
+    import('@/features/maclean/pages/EnergyPage').then((m) => ({ default: m.EnergyPage })),
+  ),
   servers: lazy(() =>
     import('@/features/remote/pages/RemotePage').then((m) => ({ default: m.RemotePage })),
   ),

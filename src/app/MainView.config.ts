@@ -45,6 +45,15 @@ export const PAGES: Record<Tab, ComponentType> = {
   projects: lazy(() =>
     import('@/features/projects/pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
   ),
+  toolbox: lazy(() =>
+    import('@/features/toolbox/pages/ToolboxPage').then((m) => ({ default: m.ToolboxPage })),
+  ),
+  domains: lazy(() =>
+    import('@/features/domains/pages/DomainsPage').then((m) => ({ default: m.DomainsPage })),
+  ),
+  secrets: lazy(() =>
+    import('@/features/secrets/pages/SecretsPage').then((m) => ({ default: m.SecretsPage })),
+  ),
   settings: lazy(() =>
     import('@/features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
   ),

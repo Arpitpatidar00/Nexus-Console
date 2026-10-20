@@ -12,6 +12,9 @@ import {
   Package,
   Server,
   Stethoscope,
+  Wrench,
+  Globe,
+  ShieldAlert,
   type LucideIcon,
 } from 'lucide-react';
 import type { Tab } from '@/shared/state/uiSlice';
@@ -27,6 +30,9 @@ export const MODULE_IDS = [
   'docker',
   'databases',
   'projects',
+  'toolbox',
+  'domains',
+  'secrets',
 ] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
@@ -39,11 +45,6 @@ export const MODULE_GROUPS: { id: ModuleGroup; label: string }[] = [
   { id: 'tools', label: 'Tools' },
 ];
 
-/** What a module needs on this Mac to be offered at all. Only Claude Code
- * qualifies: without it the module has nothing to show. Homebrew is deliberately
- * NOT a requirement — it can be installed later, and the Homebrew pages already
- * carry a "not detected" state that says how, which beats hiding the app's core
- * (and leaving a near-empty window). */
 export type ModuleRequirement = 'claude';
 
 export interface NavEntry {
@@ -58,22 +59,13 @@ export interface ModuleDef {
   label: string;
   group: ModuleGroup;
   icon: LucideIcon;
-  /** The tabs this module owns, in nav order. */
   nav: NavEntry[];
-  /** One line: what you get. */
   blurb: string;
-  /** One line: what runs while it's on. null = nothing in the background. */
   background: string | null;
   requires?: ModuleRequirement;
-  /** Off unless the user turns it on — never part of an "everything on"
-   * default. For modules that reach beyond this Mac. */
   optIn?: boolean;
 }
 
-/** THE registry — the sidebar, the first-run screen and Settings → Features are
- * all derived from this array. Nothing else may define which tabs exist.
- * `settings` deliberately belongs to no module: it must stay reachable however
- * the rest is configured (see visibleNav). */
 export const MODULES: ModuleDef[] = [
   {
     id: 'homebrew',
@@ -168,6 +160,36 @@ export const MODULES: ModuleDef[] = [
     nav: [{ tab: 'projects', label: 'Projects', icon: FolderGit2, group: 'local' }],
     blurb: 'Git status, workspaces, saved commands, and GitHub PRs.',
     background: null,
+  },
+  {
+    id: 'toolbox',
+    label: 'Dev Toolbox',
+    group: 'tools',
+    icon: Wrench,
+    nav: [{ tab: 'toolbox', label: 'Dev Toolbox', icon: Wrench, group: 'tools' }],
+    blurb: 'Offline converters, regex tester, cron, hashes & tokens.',
+    background: null,
+  },
+  {
+    id: 'domains',
+    label: 'Domains & Uptime',
+    group: 'remote',
+    icon: Globe,
+    nav: [{ tab: 'domains', label: 'Domains & Uptime', icon: Globe, group: 'remote' }],
+    blurb: 'RDAP expiry, DNS lookup, SSL check & uptime monitoring.',
+    background:
+      'Optional: checks monitored URLs periodically and alerts on downtime or SSL expiry.',
+    optIn: true,
+  },
+  {
+    id: 'secrets',
+    label: 'Secrets Scanner',
+    group: 'tools',
+    icon: ShieldAlert,
+    nav: [{ tab: 'secrets', label: 'Secrets Scanner', icon: ShieldAlert, group: 'tools' }],
+    blurb: 'Detect committed secrets, unignored .env files & leaked keys.',
+    background: null,
+    optIn: true,
   },
 ];
 

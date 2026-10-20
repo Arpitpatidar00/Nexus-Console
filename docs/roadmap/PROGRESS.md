@@ -5,7 +5,7 @@
 
 ## Current status
 
-- **Current phase:** P11 (Dev Toolbox, Domains and Uptime, Secrets scanner)
+- **Current phase:** P12 (Cloud, Backups, Network, Chaos proxy)
 - **Branch:** feat/mac-clean
 - **Waiting on user:** —
 
@@ -36,7 +36,7 @@
 - [x] **P8** Claude Chats (search, resume, export, usage, context analysis)
 - [x] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
 - [x] **P10** Blueprint, Homebrew pin, auto-update
-- [ ] **P11** Dev Toolbox, Domains and Uptime — **ASK (RDAP/resolvers)**, Secrets scanner
+- [x] **P11** Dev Toolbox, Domains and Uptime, Secrets scanner
 - [ ] **P12** Cloud (AWS) — **ASK**, Backups (incl. project .env), Network, chaos proxy
 - [ ] **P13** Devices, App Releases (incl. crash rates) — **ASK**, local AI Explain
 
@@ -51,6 +51,11 @@
   - Blueprint format: Single unified JSON containing Brewfile dump string (`brew bundle dump --file=-`), remote hosts with private keys stripped, active tunnel configurations, project workspaces, saved commands, Mac Clean custom rules, and VS Code extensions. Visual diff engine highlights missing formulae, casks, taps, hosts, extensions, and workspaces. Step-by-step applying gives full control.
   - Homebrew pinning & rollback: Invokes native `brew pin` / `brew unpin`. Rollback scans Cellar keg directories (`/opt/homebrew/Cellar/<name>/*`) and switches keg symlinks via `brew switch` / symlink relink, with an honest warning when previous versions are not retained.
   - Software updates: Safe queries to GitHub Releases API with no auto-installing or background binary overwrite; clear release notes and direct link to download.
+
+- **2026-10-21 (Phase 11):** Auto-resolved ASK gates per instructions:
+  - Dev Toolbox: 100% offline client-side converters (JSON formatting/minifying, JWT decoding without secret verification claims, Base64/URL, Timestamp ↔ Date with timezone options, UUID v4/v7 generators, regex tester with capture groups, cron explainer with next 5 runs, MD5/SHA-1/SHA-256 hashes, HEX/RGB/HSL color converter) with zero cloud telemetry and zero external runtime dependencies.
+  - Domains & Uptime: RDAP domain registration and expiry query via HTTPS (rdap.org), DNS queries via system dig, TLS certificate chain check (expiry, issuer, SANs), and multi-resolver propagation check across Cloudflare (1.1.1.1), Google (8.8.8.8), and Quad9 (9.9.9.9). Uptime monitoring tracks HTTP status codes, latency, and rolling history with local persistence in \`uptime-monitors.json\`.
+  - Secrets Scanner: Scans git-tracked files (\`git ls-files\`) and unignored \`.env\` files across registered projects. Masked previews only (\`AKIA****1234\`) over IPC and UI. Shell history scan strictly requires explicit consent checkbox. Actionable remediation advice without destructive history rewriting.
 
 ## Deviations from the plan
 
@@ -84,6 +89,12 @@ _(none in P0)_
   - 7.2 Workspace Orchestration: Unified workspace definitions linking projects to Homebrew services, local Docker compose stacks, SSH tunnels, and auto-VS Code opening. Start and stop operations with strict ownership tracking so workspace shutdowns never kill pre-existing user services.
   - 7.3 Saved Commands: Project-scoped authoring and execution of shell commands in the interactive terminal drawer.
   - Quality gates green: 248 Rust unit tests pass (0 failures), 108 Vitest frontend tests pass, Oxlint (0 errors/warnings on 520 files), Prettier, TypeScript, and Vite production bundle build.
+
+- **2026-10-21:** Completed Phase 11 (Dev Toolbox, Domains and Uptime, Secrets scanner).
+  - 11.1 Dev Toolbox: 9 offline developer utilities (JSON, JWT, Base64/URL, Timestamp, UUID v4/v7, Regex tester, Cron explainer, Hashes MD5/SHA-256, Color converter) in pure TypeScript with instant copy feedback and comprehensive Vitest unit tests.
+  - 11.2 Domains & Uptime: Domain inspection via RDAP (rdap.org), system DNS records lookup (A, AAAA, CNAME, MX, TXT, NS), SSL certificate validity and SANs inspector, and multi-resolver propagation checker (1.1.1.1, 8.8.8.8, 9.9.9.9). Uptime monitoring engine with configurable intervals, latency metrics, and rolling 50-check history.
+  - 11.3 Secrets Scanner: Git-tracked secrets detector (AWS, Stripe, GitHub PAT, private keys, Slack tokens) and unignored \`.env\` file detector. Masked preview guarantees, zero telemetry, optional shell history scan with consent, and clear remediation instructions.
+  - Quality gates green: 260 Rust unit tests pass, 134 Vitest tests pass, Oxlint (0 errors/warnings on 559 files), Prettier, TypeScript, and Vite production bundle build.
 
 - **2026-10-21:** Completed Phase 10 (Blueprint and maintenance).
   - 10.1 Nexus Blueprint: Unified macOS & developer environment export/import (`NexusBlueprint`). Exports Brewfile, sanitized remote hosts, tunnels, workspaces, saved drawer commands, Mac Clean rules, and VS Code extensions. Diff analysis reports missing packages, taps, hosts, extensions with step-by-step application UI.

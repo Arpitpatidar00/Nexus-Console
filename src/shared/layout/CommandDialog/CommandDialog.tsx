@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setActiveTab, type Tab } from '@/shared/state/uiSlice';
-import { addRecentCommandId } from '@/shared/state/settingsSlice';
+import { addRecentCommandId, togglePinnedCommand } from '@/shared/state/settingsSlice';
 import { useVisibleNav } from '@/shared/modules';
 import { CommandDial } from '@/shared/ui/CommandDial';
 import { ListRow } from '@/shared/ui/ListRow';
 import { SearchField } from '@/shared/ui/SearchField';
-import { useActions, scoreAction, type ActionItem, type ActionGroup } from '@/shared/actions';
+import {
+  useActions,
+  scoreAction,
+  paletteSections,
+  type ActionItem,
+  type SectionId,
+} from '@/shared/actions';
 import { cn } from '@/shared/lib/cn';
 import {
   X,
@@ -20,10 +26,19 @@ import {
   ArrowRight,
   AlertTriangle,
   History,
+  Pin,
+  PinOff,
+  Repeat,
 } from 'lucide-react';
 
-function getGroupIcon(group: ActionGroup | 'recent') {
+function getGroupIcon(group: SectionId) {
   switch (group) {
+    case 'repeat':
+      return <Repeat className="size-4" />;
+    case 'pinned':
+      return <Pin className="size-4" />;
+    case 'recentHosts':
+      return <Server className="size-4" />;
     case 'recent':
       return <History className="size-4" />;
     case 'navigation':
@@ -47,6 +62,9 @@ function getGroupIcon(group: ActionGroup | 'recent') {
 }
 
 const GROUP_LABELS: Record<string, string> = {
+  repeat: 'Repeat last',
+  pinned: 'Pinned',
+  recentHosts: 'Recent hosts',
   recent: 'Recent Actions',
   navigation: 'Navigation',
   services: 'Services',
@@ -73,6 +91,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
   const [selectedModule, setSelectedModule] = useState<string>(activeTab);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const recentIds = useAppSelector((s) => s.settings.recentCommandIds);
+  const pinnedIds = useAppSelector((s) => s.settings.pinnedCommandIds);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -126,51 +145,10 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
       };
     }
 
-    // When query is empty: show recent actions first, then grouped catalog
-    const recentActions: ActionItem[] = [];
-    const remainingActions: ActionItem[] = [];
-
-    const actionsById = new Map<string, ActionItem>();
-    for (const a of actions) {
-      actionsById.set(a.id, a);
-    }
-
-    for (const rid of recentIds) {
-      const found = actionsById.get(rid);
-      if (found) {
-        recentActions.push(found);
-      }
-    }
-
-    const recentSet = new Set(recentActions.map((a) => a.id));
-    for (const a of actions) {
-      if (!recentSet.has(a.id)) {
-        remainingActions.push(a);
-      }
-    }
-
-    const grouped: { group: string; items: ActionItem[] }[] = [];
-    if (recentActions.length > 0) {
-      grouped.push({ group: 'recent', items: recentActions });
-    }
-
-    const groups = new Map<string, ActionItem[]>();
-    for (const item of remainingActions) {
-      const list = groups.get(item.group) ?? [];
-      list.push(item);
-      groups.set(item.group, list);
-    }
-
-    for (const [group, items] of groups.entries()) {
-      grouped.push({ group, items });
-    }
-
-    const flat = [...recentActions, ...remainingActions];
-    return {
-      selectableItems: flat,
-      groupedItems: grouped,
-    };
-  }, [query, actions, recentIds]);
+    // Empty query: repeat last, pinned, recent hosts, recents, then the catalog.
+    const { sections, flat } = paletteSections(actions, { pinnedIds, recentIds });
+    return { selectableItems: flat, groupedItems: sections };
+  }, [query, actions, recentIds, pinnedIds]);
 
   // Keep selectedIndex in bounds
   useEffect(() => {
@@ -221,6 +199,10 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
             ? (prev - 1 + selectableItems.length) % selectableItems.length
             : 0,
         );
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        const item = selectableItems[selectedIndex];
+        if (item) dispatch(togglePinnedCommand(item.id));
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (selectableItems[selectedIndex]) {
@@ -231,7 +213,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange, selectableItems, selectedIndex, handleExecute]);
+  }, [open, onOpenChange, selectableItems, selectedIndex, handleExecute, dispatch]);
 
   if (!open) return null;
 
@@ -314,7 +296,11 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
                       const icon = item.danger ? (
                         <AlertTriangle className="size-4 text-destructive" />
                       ) : (
-                        getGroupIcon(groupEntry.group === 'recent' ? 'recent' : item.group)
+                        getGroupIcon(
+                          ['repeat', 'pinned', 'recentHosts', 'recent'].includes(groupEntry.group)
+                            ? (groupEntry.group as SectionId)
+                            : item.group,
+                        )
                       );
 
                       return (
@@ -339,7 +325,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
                             subtitle={item.subtitle}
                             onClick={() => handleExecute(item)}
                             className={cn(
-                              'cursor-pointer',
+                              'group cursor-pointer',
                               item.danger && 'hover:border-destructive/40',
                             )}
                             trailing={
@@ -349,6 +335,27 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
                                     Danger
                                   </span>
                                 )}
+                                <button
+                                  type="button"
+                                  aria-label={pinnedIds.includes(item.id) ? 'Unpin' : 'Pin'}
+                                  title={pinnedIds.includes(item.id) ? 'Unpin (⌘P)' : 'Pin (⌘P)'}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dispatch(togglePinnedCommand(item.id));
+                                  }}
+                                  className={cn(
+                                    'rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground',
+                                    !isSelected &&
+                                      !pinnedIds.includes(item.id) &&
+                                      'opacity-0 group-hover:opacity-100',
+                                  )}
+                                >
+                                  {pinnedIds.includes(item.id) ? (
+                                    <PinOff className="size-3.5" />
+                                  ) : (
+                                    <Pin className="size-3.5" />
+                                  )}
+                                </button>
                                 {item.shortcut && (
                                   <kbd className="sr-kbd rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">
                                     {item.shortcut}
@@ -377,6 +384,9 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
             </span>
             <span>
               <span className="sr-kbd mr-1">↵</span> run
+            </span>
+            <span>
+              <span className="sr-kbd mr-1">⌘P</span> pin
             </span>
             <span>
               <span className="sr-kbd mr-1">esc</span> close

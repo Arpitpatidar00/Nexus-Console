@@ -193,4 +193,6 @@ export const CMD = {
   CONSENT_SET: 'consent_set',
   CONSENT_REVOKE_ALL: 'consent_revoke_all',
   NET_GET_DECLARED_DESTINATIONS: 'net_get_declared_destinations',
+  SYSTEM_DISK_FREE: 'system_disk_free',
+  SYSTEM_DETECT_TOOLS: 'system_detect_tools',
 } as const;

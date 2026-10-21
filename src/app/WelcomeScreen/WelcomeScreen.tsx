@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Boxes } from 'lucide-react';
+import { Boxes, Check } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   DEFAULT_MODULES,
@@ -13,10 +13,11 @@ import { useAppDispatch } from '@/shared/state/hooks';
 import { setEnabledModules } from '@/shared/state/settingsSlice';
 import { setActiveTab } from '@/shared/state/uiSlice';
 import { Button } from '@/shared/ui/Button';
+import { useDetectedTools } from '@/shared/tools';
 // Deep import, not the feature barrel: the barrel pulls SettingsPage (and with it
 // the whole settings graph) into this screen's chunk.
 import { FeaturePicker } from '@/features/settings/components/FeaturePicker';
-import { PRESETS } from './WelcomeScreen.config';
+import { PRESETS, suggestModules } from './WelcomeScreen.config';
 
 /** First launch only (`settings.enabledModules === null`). One screen, one
  * question, skippable in a single keystroke — deliberately not a wizard.
@@ -30,11 +31,20 @@ export const WelcomeScreen = () => {
   const [selected, setSelected] = useState<ModuleId[]>(() =>
     availableModules(DEFAULT_MODULES, { claudeInstalled }),
   );
+  // Path checks only, nothing runs (PLAN F.3); detection pre-selects once.
+  const tools = useDetectedTools();
+  const installed = (tools.data ?? []).filter((t) => t.installed);
+  const [suggested, setSuggested] = useState(false);
+  useEffect(() => {
+    if (suggested || !tools.data) return;
+    setSuggested(true);
+    setSelected(availableModules(suggestModules(installed.map((t) => t.id)), { claudeInstalled }));
+  }, [tools.data, suggested, installed, claudeInstalled]);
 
   const handleContinue = () => {
     dispatch(setEnabledModules(selected));
-    // Land on something that exists — Services may not be in the selection.
-    dispatch(setActiveTab(visibleTabs(selected)[0]));
+    // Servers chosen → straight to its consent + SSH-host import; otherwise Home.
+    dispatch(setActiveTab(selected.includes('remote') ? 'servers' : visibleTabs(selected)[0]));
   };
 
   // Plain digits toggle, Enter continues. No modifier, so this can't collide with
@@ -88,6 +98,21 @@ export const WelcomeScreen = () => {
           </p>
         </motion.header>
 
+        {installed.length > 0 && (
+          <motion.div {...rise(0.03)} className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-fg-muted">Found on this Mac:</span>
+            {installed.map((t) => (
+              <span
+                key={t.id}
+                className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-success"
+              >
+                <Check className="size-3" /> {t.label}
+              </span>
+            ))}
+            <span className="text-fg-subtle">— matching modules are switched on below.</span>
+          </motion.div>
+        )}
+
         <motion.div {...rise(0.06)} className="flex flex-wrap gap-2">
           {PRESETS.filter((p) => availableModules(p.modules, { claudeInstalled }).length > 0).map(
             (p) => (
@@ -116,6 +141,12 @@ export const WelcomeScreen = () => {
             <span className="text-xs font-medium text-fg-muted">
               Also available, turn on when you need them
             </span>
+            {selected.includes('remote') && (
+              <span className="text-xs text-fg-subtle">
+                Servers next: you&rsquo;ll be asked before ~/.ssh/config is read, then pick which
+                hosts to import.
+              </span>
+            )}
             <div className="flex flex-wrap gap-2">
               {MODULES.filter((m) => m.optIn).map((m) => {
                 const checked = selected.includes(m.id);

@@ -10,9 +10,10 @@ import { ProjectCard } from '../components/ProjectCard';
 import { WorkspaceModal } from '../components/WorkspaceModal';
 import { SavedCommandsModal } from '../components/SavedCommandsModal';
 import type { DiscoveredProject } from '../api/projects.schema';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
 export function ProjectsPage() {
-  const { data: projects = [], isLoading, refetch } = useProjects();
+  const { data: projects = [], isLoading, error, refetch } = useProjects();
   const { data: workspaces = [] } = useWorkspaces();
   const startWorkspace = useStartWorkspace();
   const stopWorkspace = useStopWorkspace();
@@ -122,7 +123,13 @@ export function ProjectsPage() {
 
       {/* Projects Grid */}
       <div className="flex-1 overflow-y-auto p-6">
-        {isLoading ? (
+        {error ? (
+          <ErrorPanel
+            error={error}
+            fallback="Couldn't scan your projects."
+            onRetry={() => void refetch()}
+          />
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-24 text-xs text-fg-muted">
             Discovering git projects under configured roots...
           </div>

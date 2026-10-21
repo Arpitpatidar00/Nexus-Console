@@ -37,6 +37,14 @@ pub fn declared_destinations() -> Vec<NetDestination> {
             user_configured: false,
         },
         NetDestination {
+            id: "github_cli".into(),
+            host_pattern: "api.github.com".into(),
+            purpose: "Pull request status through your own gh CLI login".into(),
+            module: "projects".into(),
+            outbound: true,
+            user_configured: false,
+        },
+        NetDestination {
             id: "domains_rdap".into(),
             host_pattern: "rdap.org".into(),
             purpose: "Query domain registration and expiration via ICANN RDAP".into(),

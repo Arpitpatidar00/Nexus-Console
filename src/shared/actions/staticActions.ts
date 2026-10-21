@@ -6,6 +6,14 @@ import type { ActionItem } from './types';
 export const STATIC_ACTIONS: ActionItem[] = [
   // --- Navigation ---
   {
+    id: 'nav:home',
+    title: 'Go to Home',
+    subtitle: 'Measured issues across your enabled modules',
+    keywords: ['home', 'issues', 'overview', 'dashboard'],
+    group: 'navigation',
+    run: ({ navigate }) => navigate('home'),
+  },
+  {
     id: 'nav:services',
     title: 'Go to Services',
     subtitle: 'Manage local Homebrew services & daemons',

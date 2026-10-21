@@ -4,7 +4,9 @@ import {
   availableModules,
   isModuleAvailable,
   visibleNav,
+  visibleHubs,
   visibleTabs,
+  type VisibleHub,
 } from './selectors';
 import { type ModuleId, type NavEntry } from './modules.config';
 import { useClaudeInstalled } from './useClaudeInstalled';
@@ -34,4 +36,8 @@ export function useVisibleNav(): NavEntry[] {
 
 export function useVisibleTabs(): Tab[] {
   return visibleTabs(useEffectiveModules());
+}
+
+export function useVisibleHubs(): VisibleHub[] {
+  return visibleHubs(useEffectiveModules());
 }

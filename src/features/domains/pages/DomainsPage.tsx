@@ -13,13 +13,18 @@ import {
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { useDnsLookup, useSslCheck, useRdapCheck, usePropagationCheck } from '../api/useDomains';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { Skeleton } from '@/shared/ui/Skeleton';
+import { cn } from '@/shared/lib/cn';
 
 export const DomainsPage = () => {
   const [activeTab, setActiveTab] = useState<'inspector' | 'uptime'>('inspector');
 
   // Inspector State
-  const [domainInput, setDomainInput] = useState('example.com');
-  const [queryDomain, setQueryDomain] = useState('example.com');
+  const [domainInput, setDomainInput] = useState('');
+  // Nothing is looked up until you submit a domain: each lookup reaches DNS,
+  // RDAP and the domain itself (PLAN F.5 — no traffic on page open).
+  const [queryDomain, setQueryDomain] = useState('');
   const [recordType, setRecordType] = useState('A');
 
   const { data: dns, isFetching: dnsFetching } = useDnsLookup(queryDomain, recordType, true);
@@ -119,8 +124,16 @@ export const DomainsPage = () => {
             </div>
           </form>
 
+          {!queryDomain && (
+            <EmptyState
+              icon={<Globe className="size-10" />}
+              title="Inspect a domain"
+              description="Enter a domain above. Stackroost then checks its certificate, registration and DNS — nothing is looked up before you ask."
+            />
+          )}
+
           {/* Inspection Cards Grid */}
-          <div className="grid grid-cols-2 gap-5">
+          <div className={cn('grid grid-cols-2 gap-5', !queryDomain && 'hidden')}>
             {/* 1. SSL Certificate */}
             <div className="flex flex-col rounded-xl border border-border bg-paper p-4 shadow-xs">
               <div className="flex items-center justify-between border-b border-border pb-3">
@@ -175,7 +188,7 @@ export const DomainsPage = () => {
                   )}
                 </div>
               ) : (
-                <p className="mt-3 text-xs text-fg-muted">Loading certificate details…</p>
+                <Skeleton className="mt-2" />
               )}
             </div>
 
@@ -225,7 +238,7 @@ export const DomainsPage = () => {
                   )}
                 </div>
               ) : (
-                <p className="mt-3 text-xs text-fg-muted">Loading registration details…</p>
+                <Skeleton className="mt-2" />
               )}
             </div>
 

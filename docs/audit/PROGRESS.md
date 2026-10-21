@@ -4,8 +4,8 @@
 
 ## Current status
 
-- **Current phase:** Phase E (Architecture consolidation) - COMPLETE (Phase F next)
-- **Branch:** `fix/audit-E-architecture`
+- **Current phase:** Phase F (Product improvement) - COMPLETE (Phase G next)
+- **Branch:** `fix/audit-F-product`
 - **Waiting on owner:** None (DECIDE items resolved conservative/safe default per Rule 4)
 
 ## Baseline (Phase 0.1 — real gate results on Mac)
@@ -30,7 +30,7 @@
 - [x] **C** Tests — fixtures, parsers, ignored machine tests, testbed, frontend tests, QA checklists, CI
 - [x] **D** Complete partial features (D.1–D.13)
 - [x] **E** Architecture consolidation (E.1–E.7)
-- [ ] **F** Product improvement (F.1–F.8)
+- [x] **F** Product improvement (F.1–F.8)
 - [ ] **G** Release readiness (G.1–G.5)
 
 ---
@@ -313,6 +313,73 @@
 build ok · cargo fmt ok · clippy 0 · cargo test 327 passed / 0 failed / 29 ignored · guards 4/4 · parsers 90 ·
 payloads 18 · release ok (`Stackroost.app` 28 MiB, `.dmg` 8.4 MiB, unsigned).
 
+### Phase F
+
+- `F.1` — 17 modules → **6 hubs** (Local · Servers · Projects · This Mac · Cloud & Web · Tools). The rail is
+  Home + the hubs with at least one enabled module + Settings (≤ 8 icons, ≤ 7 numbered). A hub's pages are a
+  tab strip (`HubTabs`); re-selecting a hub returns to its last page. ⌘1–7 = rail items, ⌘⇧[ / ⌘⇧] step
+  through the hub's tabs. The Feature picker and first-run screen group by the same hubs. Dead `Sidebar`
+  component deleted.
+  - **Gate output:** `selectors.test.ts` (hubs, hubOfTab/moduleOfTab, ≤ 7 rail items) green.
+  - **QA ticked:** Pending owner (light + dark, every hub).
+  - **Deviations:** Grouping was a DECIDE with no answer — used the plan's suggested six hubs (Decisions).
+- `F.2` — **Home** (`features/home`): failed / unresponsive brew services, low disk (< max(10 GB, 5 %)),
+  memory pressure, uptime monitors down, detached listening ports, red findings from server snapshots
+  already fetched. Every row opens the page that fixes it; empty state "All quiet". Queries run only while
+  Home is open and only for enabled modules; Home never opens an SSH connection. New read-only core command
+  `system_disk_free`.
+  - **Gate output:** `homeIssues.test.ts` 5/5.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** Certificate expiry isn't listed — monitors don't store cert days (it arrives as the B.6
+    notification); listing it would need a new stored field.
+- `F.3` — **Onboarding**: `system_detect_tools` (path checks only, nothing executed: brew, Docker/OrbStack,
+  aws, gh, Ollama, Flutter, Xcode, Android SDK, psql/mysql). The first-run screen lists what it found and
+  pre-selects matching opt-in modules; choosing Servers lands on its consent + SSH-host import flow.
+  - **Gate output:** `services::tools::tests` 2/2, `WelcomeScreen.config.test.ts` 2/2.
+  - **QA ticked:** Pending owner — the "< 1 minute to first useful screen" check needs a fresh install.
+  - **Deviations:** SSH hosts are imported on the Servers page right after onboarding, not inside it, so the
+    existing consent + import dialog stays the single place that reads `~/.ssh/config`.
+- `F.4` — Every module carries `privacy: {reads, changes, network}` in the registry, shown under the hub
+  tabs on all module pages (Releases' own duplicate line removed). README matrix gained Projects, Docker and
+  Databases and the Secrets row was corrected (it reads `.env` + shell history, not git history); `gh` added
+  to the network allow-list.
+  - **Gate output:** selector test asserts every module page has a privacy line.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `F.5` — Consistent states: `Skeleton` replaces every "Loading…" sentence; `RequiresTool` is the single
+  "tool not installed" state (Docker, Cloud → aws, Simulators → Xcode or Android); `ErrorPanel` on the main
+  query of Docker, Projects, Release Config, Simulators/AVDs, Databases, Network and Cloud. Fixed: Domains
+  ran DNS/TLS/RDAP/propagation lookups for `example.com` on every page open — now nothing until you submit.
+  - **Gate output:** typecheck/lint/tests green.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `F.6` — Palette: **Repeat last**, **Pinned** (⌘P or the pin button; persisted), **Recent hosts**, then
+  recents and the catalog — `paletteSections()` in `shared/actions`. Recents keep 10 (was 5). "Go to Home"
+  action. Fixed: `globalHotkey` and `remoteDeadmanMinutes` were never written to disk (missing from the save
+  listener), so the hotkey and the dead-man timeout reset every launch; the listener now writes exactly
+  `PERSISTED_KEYS`.
+  - **Gate output:** `sections.test.ts` 3/3.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `F.7` — Performance. Idle CPU of the running app process (Phase E build, window idle): **avg 0.04 %, max
+  0.6 %** over 30 s (15 samples). Hidden modules don't poll: only the active page is mounted, so its
+  intervals stop on leave; the always-mounted palette's port/server hooks are tab-gated; Home polls only
+  while open; Rust jobs run on their own cadence and pause on low battery (E.5).
+  - **Gate output:** see sample above.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** Startup-to-splash not measured — the installed copy was running and the single-instance
+    lock would hand a second launch to it; quitting it would stop services it manages. WebKit's renderer
+    process isn't included in the CPU figure.
+- `F.8` — Light + dark contrast: `src/styles/contrast.test.ts` composites each translucent surface and
+  checks 21 text/surface pairs per theme against WCAG AA 4.5:1. Fixed: `fg-subtle` (3.5:1 light, 3.9:1 dark)
+  → `#66646c` / `#8f8a86`; dark `destructive` on `danger-soft` (4.4:1) → `#ff6468`.
+  - **Gate output:** contrast test 2/2 (every pair ≥ 4.5).
+  - **QA ticked:** Pending owner visual pass.
+  - **Deviations:** None.
+
+**Phase F gates (2026-10-22, macOS):** oxlint 0/0 · prettier clean · tsc 0 · vitest 202 · build ok · cargo fmt
+ok · clippy 0 · cargo test 329 / 0 / 29 ignored · guards 4 · parsers 90 · payloads 18 · release ok (`Stackroost.app` 28.2 MiB, `.dmg` 8.5 MiB, unsigned).
+
 ---
 
 ## Decisions
@@ -335,6 +402,9 @@ payloads 18 · release ok (`Stackroost.app` 28 MiB, `.dmg` 8.4 MiB, unsigned).
 - 2026-10-21: D.12 Blocking I/O commands wrapped in `super::blocking` to guarantee async thread pool responsiveness.
 - 2026-10-22: E.2 consent is asked in place (`ConsentGate`) rather than only in Settings, so a module that
   needs a source shows one "Allow access" step instead of an error toast.
+- 2026-10-22: F.1 hub grouping (DECIDE, unanswered): the plan's suggested six hubs, Home outside them.
+- 2026-10-22: F.2 Home shows only data a module already measures; server issues only from snapshots already
+  fetched, so Home never connects to a server.
 - 2026-10-22: E.6 legacy `accent` usages restored to the ember brand tokens (their original meaning) rather
   than to shadcn `accent`.
 
@@ -373,6 +443,16 @@ payloads 18 · release ok (`Stackroost.app` 28 MiB, `.dmg` 8.4 MiB, unsigned).
 - **Lead Tester:** 87 parser tests, 18 payload tests, 4 guard tests, 308 Rust tests, and 177 frontend tests all passing 100%. CI pipeline enforced with multi-stage verification.
 - **Project Manager:** Phase C complete on `fix/audit-C-tests`. Checklists established for 17 modules.
 - **Lead Product Improver:** QA testing matrix codified for regression-free verification of all existing and upcoming features.
+
+### Phase F Sign-off:
+
+- **System Architect:** navigation is derived from one registry (hub → modules → pages → privacy); two new
+  read-only core commands; persistence now writes from one key list.
+- **Lead Tester:** gates green (counts above); new tests for hubs, Home issues, palette sections, tool
+  detection and contrast. Startup timing still open.
+- **Project Manager:** committed on `fix/audit-F-product`; deviations listed per item. Not pushed.
+- **Lead Product Improver:** Home, onboarding detection, privacy line on every page, one loading /
+  error / missing-tool vocabulary; Domains no longer sends traffic before you ask.
 
 ### Phase E Sign-off:
 

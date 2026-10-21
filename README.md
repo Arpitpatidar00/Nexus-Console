@@ -36,6 +36,9 @@ Every module in Stackroost strictly declares what it reads, what it changes, and
 | -------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | **Homebrew**         | `brew list`, `brew services list`, formula versions in Cellar                                   | Starts/stops services, installs/uninstalls formulae (mutation gated)                                 | None (brew CLI manages mirror connections)                               |
 | **Ports**            | `lsof -iTCP -sTCP:LISTEN`, process metadata via `ps`, 127.0.0.1 HEAD probe                      | Terminate process (SIGTERM/SIGKILL) with native confirm                                              | None (loopback probe on 127.0.0.1 only)                                  |
+| **Projects**         | Git status of your project folders, saved workspaces                                            | `git fetch`, deleting merged branches, starting workspace services                                   | GitHub via your `gh` CLI (PR status)                                     |
+| **Docker**           | Local containers and compose stacks                                                             | Start / stop / restart / remove containers you pick                                                  | None (local Docker socket)                                               |
+| **Databases**        | Connections you add (passwords in Keychain)                                                     | Read-only queries; snapshots you confirm                                                             | Database hosts you add (direct or SSH tunnel)                            |
 | **Servers**          | `~/.ssh/config`, Linux server state over OpenSSH (`/proc`, `docker`, `systemctl`)               | Remote container restart/deploy/rollback (mutation gated, journaled)                                 | OpenSSH connections to user-configured servers only                      |
 | **Doctor**           | Read-only machine inspection (disk, VSCode `state.vscdb`, browser caches)                       | User-confirmed maintenance (e.g. SQLite VACUUM, cache clearance)                                     | None                                                                     |
 | **Mac Clean**        | Directory sizes, `vm_stat`, `sysctl vm.swapusage`, `pmset`, `ioreg`                             | Clears selected developer caches (npm, pnpm, Xcode) with mutation gate                               | None                                                                     |
@@ -48,7 +51,7 @@ Every module in Stackroost strictly declares what it reads, what it changes, and
 | **Release Config**   | `pubspec.yaml`, `package.json`, `fastlane/Fastfile`                                             | None (read-only configuration scanner)                                                               | None                                                                     |
 | **AI Explain**       | User-entered prompt and logs with secret pattern masking (AWS, Stripe, PATs, tokens)            | None                                                                                                 | HTTP strictly to local Ollama on `127.0.0.1:11434` (never external)      |
 | **Dev Toolbox**      | User input in client UI                                                                         | None (in-memory converters, regex tester, hash generator)                                            | None                                                                     |
-| **Secrets Scanner**  | Local git repositories and git commit history                                                   | None (read-only credential pattern scanner)                                                          | None                                                                     |
+| **Secrets Scanner**  | Project `.env` files and shell history (each only after you allow it)                           | None (read-only credential pattern scanner)                                                          | None                                                                     |
 | **App Updater**      | Compares `CARGO_PKG_VERSION` against GitHub Releases API (opt-in check)                         | None (opens browser to release download page)                                                        | `https://api.github.com/repos/Arpitpatidar00/Stackroost/releases/latest` |
 
 ### Consent and network allow-list
@@ -60,14 +63,14 @@ Five local sources are read only after you allow them, and the check runs in Rus
 The same screen lists every network destination the app can reach (`src-tauri/src/core/net.rs`), and
 outbound calls outside that list are refused:
 
-| Destination                           | Module           | Why                                       |
-| ------------------------------------- | ---------------- | ----------------------------------------- |
-| `api.github.com`, `github.com`        | Updater          | Release check and download link           |
-| `rdap.org`                            | Domains          | Registration / expiry lookup              |
-| `1.1.1.1`, `8.8.8.8`, `9.9.9.9`       | Domains          | DNS propagation check                     |
-| `*.amazonaws.com`                     | Cloud            | EC2, S3, Cost Explorer via your `aws` CLI |
-| `127.0.0.1:11434`                     | AI               | Local Ollama (never leaves this Mac)      |
-| Servers, URLs and domains **you** add | Servers, Domains | SSH, uptime checks, TLS / DNS lookups     |
+| Destination                           | Module            | Why                                        |
+| ------------------------------------- | ----------------- | ------------------------------------------ |
+| `api.github.com`, `github.com`        | Updater, Projects | Release check; PR status via your `gh` CLI |
+| `rdap.org`                            | Domains           | Registration / expiry lookup               |
+| `1.1.1.1`, `8.8.8.8`, `9.9.9.9`       | Domains           | DNS propagation check                      |
+| `*.amazonaws.com`                     | Cloud             | EC2, S3, Cost Explorer via your `aws` CLI  |
+| `127.0.0.1:11434`                     | AI                | Local Ollama (never leaves this Mac)       |
+| Servers, URLs and domains **you** add | Servers, Domains  | SSH, uptime checks, TLS / DNS lookups      |
 
 ## Getting Started
 

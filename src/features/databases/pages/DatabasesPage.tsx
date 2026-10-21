@@ -10,9 +10,11 @@ import { SnapshotsPanel } from '../components/SnapshotsPanel/SnapshotsPanel';
 import { SchemaBrowser } from '../components/SchemaBrowser/SchemaBrowser';
 import { QueryEditor } from '../components/QueryEditor/QueryEditor';
 import type { DbConnection } from '../api/databases.schema';
+import { Skeleton } from '@/shared/ui/Skeleton';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
 export function DatabasesPage() {
-  const { data: connections = [], isLoading } = useDbConnections();
+  const { data: connections = [], isLoading, error, refetch } = useDbConnections();
   const { data: discovered = [] } = useDiscoveredDatabases();
   const addConn = useAddDbConnection();
   const removeConn = useRemoveDbConnection();
@@ -127,8 +129,14 @@ export function DatabasesPage() {
 
         {/* Saved Connections List */}
         <div className="flex-1 space-y-1 overflow-y-auto p-2">
-          {isLoading ? (
-            <div className="p-4 text-center text-xs text-fg-muted">Loading connections...</div>
+          {error ? (
+            <ErrorPanel
+              error={error}
+              fallback="Couldn't load your database connections."
+              onRetry={() => void refetch()}
+            />
+          ) : isLoading ? (
+            <Skeleton className="p-4" />
           ) : connections.length === 0 ? (
             <div className="space-y-2 p-4 text-center text-xs text-fg-muted">
               <Server className="mx-auto h-6 w-6 text-muted-foreground" />

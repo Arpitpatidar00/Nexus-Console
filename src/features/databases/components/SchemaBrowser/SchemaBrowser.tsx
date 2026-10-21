@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Table, Search, RefreshCw } from 'lucide-react';
 import { useDbSchema } from '../../api/useDatabases';
+import { Skeleton } from '@/shared/ui/Skeleton';
 
 interface SchemaBrowserProps {
   connectionId: string;
@@ -45,7 +46,7 @@ export function SchemaBrowser({ connectionId, onSelectTable }: SchemaBrowserProp
 
       <div className="flex-1 divide-y divide-border/50 overflow-y-auto p-1">
         {isLoading ? (
-          <div className="p-4 text-center text-xs text-fg-muted">Loading schema...</div>
+          <Skeleton className="p-4" lines={6} />
         ) : filtered.length === 0 ? (
           <div className="p-4 text-center text-xs text-fg-muted">No tables found.</div>
         ) : (

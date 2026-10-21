@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { useProjectReleaseConfig } from '../api/useReleases';
 import { useProjects } from '@/features/projects/api/useProjects';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
 export const ReleasesPage = () => {
   const { data: projects } = useProjects();
@@ -11,7 +12,7 @@ export const ReleasesPage = () => {
   const [copiedLane, setCopiedLane] = useState<string | null>(null);
 
   const activePath = projectPath || (projects && projects.length > 0 ? projects[0].path : '');
-  const { data: releaseConfig, isLoading } = useProjectReleaseConfig(activePath);
+  const { data: releaseConfig, isLoading, error, refetch } = useProjectReleaseConfig(activePath);
 
   const handleCopyLaneCommand = (lane: string) => {
     navigator.clipboard.writeText(`bundle exec fastlane ${lane}`);
@@ -107,7 +108,13 @@ export const ReleasesPage = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading ? (
+            {error ? (
+              <ErrorPanel
+                error={error}
+                fallback="Couldn't read this project's release config."
+                onRetry={() => void refetch()}
+              />
+            ) : isLoading ? (
               <tr>
                 <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                   Scanning project fastlane configurations...
@@ -144,12 +151,6 @@ export const ReleasesPage = () => {
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Privacy & Scope Line */}
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-card/30 p-3 text-xs text-fg-muted">
-        <span className="font-semibold text-fg">Privacy & Scope:</span> Reads local pubspec.yaml,
-        package.json, and Fastfiles only. No external store accounts or telemetry used.
       </div>
     </div>
   );

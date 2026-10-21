@@ -15,6 +15,7 @@ pub mod remote;
 pub mod scheduler;
 pub mod secrets;
 pub mod session;
+pub mod tools;
 pub mod tray;
 
 pub use brew::BrewLock;

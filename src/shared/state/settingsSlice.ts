@@ -36,6 +36,8 @@ interface SettingsState {
   favoritePorts: number[];
   /** Recent command palette IDs persisted in settings store (T-24). */
   recentCommandIds: string[];
+  /** Palette actions pinned to the top (PLAN F.6). */
+  pinnedCommandIds: string[];
   /** false until persisted settings are loaded from tauri-store on boot. */
   hydrated: boolean;
 }
@@ -60,7 +62,32 @@ export type PersistedSettings = Pick<
   | 'remoteDeadmanMinutes'
   | 'favoritePorts'
   | 'recentCommandIds'
+  | 'pinnedCommandIds'
 >;
+
+/** Every persisted key — the save listener writes exactly these. */
+export const PERSISTED_KEYS = [
+  'theme',
+  'layout',
+  'pollIntervalMs',
+  'remotePollIntervalMs',
+  'remoteBackgroundMinutes',
+  'macleanAutoCleanDays',
+  'macleanLowDiskGb',
+  'quitBehavior',
+  'cardOrder',
+  'enabledModules',
+  'autoArchiveEnabled',
+  'autoArchiveCutoffDays',
+  'autoVacuumEnabled',
+  'globalHotkey',
+  'remoteDeadmanMinutes',
+  'favoritePorts',
+  'recentCommandIds',
+  'pinnedCommandIds',
+] as const satisfies readonly (keyof PersistedSettings)[];
+
+const RECENT_CAP = 10;
 
 const initialState: SettingsState = {
   theme: 'system',
@@ -80,6 +107,7 @@ const initialState: SettingsState = {
   remoteDeadmanMinutes: 10,
   favoritePorts: [],
   recentCommandIds: [],
+  pinnedCommandIds: [],
   hydrated: false,
 };
 
@@ -152,11 +180,17 @@ const settingsSlice = createSlice({
       const id = action.payload;
       state.recentCommandIds = [id, ...state.recentCommandIds.filter((item) => item !== id)].slice(
         0,
-        5,
+        RECENT_CAP,
       );
     },
     setRecentCommandIds(state, action: PayloadAction<string[]>) {
-      state.recentCommandIds = action.payload.slice(0, 5);
+      state.recentCommandIds = action.payload.slice(0, RECENT_CAP);
+    },
+    togglePinnedCommand(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      state.pinnedCommandIds = state.pinnedCommandIds.includes(id)
+        ? state.pinnedCommandIds.filter((p) => p !== id)
+        : [...state.pinnedCommandIds, id];
     },
     hydrateSettings(state, action: PayloadAction<Partial<PersistedSettings>>) {
       Object.assign(state, action.payload);
@@ -185,6 +219,7 @@ export const {
   toggleFavoritePort,
   addRecentCommandId,
   setRecentCommandIds,
+  togglePinnedCommand,
   hydrateSettings,
 } = settingsSlice.actions;
 export const settingsReducer = settingsSlice.reducer;

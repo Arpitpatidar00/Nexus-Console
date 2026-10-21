@@ -6,6 +6,7 @@ import type { Tab } from '@/shared/state/uiSlice';
 // `.then(m => ({ default }))` satisfies React.lazy's default-import contract
 // while preserving strict named exports across the codebase.
 export const PAGES: Record<Tab, ComponentType> = {
+  home: lazy(() => import('@/features/home/pages/HomePage').then((m) => ({ default: m.HomePage }))),
   services: lazy(() =>
     import('@/features/services/pages/ServicesPage').then((m) => ({ default: m.ServicesPage })),
   ),

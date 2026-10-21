@@ -5,6 +5,7 @@ export {
   moduleById,
   type ModuleGroup,
   type ModuleDef,
+  type ModulePrivacy,
   type ModuleId,
   type ModuleRequirement,
   type NavEntry,
@@ -12,7 +13,12 @@ export {
 export {
   ALL_MODULES,
   DEFAULT_MODULES,
+  HOME_NAV,
   availableModules,
+  hubOfTab,
+  moduleOfTab,
+  visibleHubs,
+  type VisibleHub,
   isModuleAvailable,
   isTabVisible,
   sanitizeModules,
@@ -23,6 +29,7 @@ export {
   useEnabledModules,
   useModuleAvailable,
   useModuleEnabled,
+  useVisibleHubs,
   useVisibleNav,
   useVisibleTabs,
 } from './useEnabledModules';

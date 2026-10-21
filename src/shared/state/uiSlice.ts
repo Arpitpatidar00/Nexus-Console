@@ -1,6 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 export const TABS = [
+  'home',
   'services',
   'doctor',
   'archiver',
@@ -28,9 +29,11 @@ export type Tab = (typeof TABS)[number];
 
 interface UiState {
   activeTab: Tab;
+  /** Last page opened inside each hub, so re-selecting a hub returns there. */
+  lastTabByHub: Partial<Record<string, Tab>>;
 }
 
-const initialState: UiState = { activeTab: 'services' };
+const initialState: UiState = { activeTab: 'home', lastTabByHub: {} };
 
 const uiSlice = createSlice({
   name: 'ui',
@@ -39,8 +42,11 @@ const uiSlice = createSlice({
     setActiveTab(state, action: PayloadAction<Tab>) {
       state.activeTab = action.payload;
     },
+    rememberHubTab(state, action: PayloadAction<{ hub: string; tab: Tab }>) {
+      state.lastTabByHub[action.payload.hub] = action.payload.tab;
+    },
   },
 });
 
-export const { setActiveTab } = uiSlice.actions;
+export const { setActiveTab, rememberHubTab } = uiSlice.actions;
 export const uiReducer = uiSlice.reducer;

@@ -10,13 +10,20 @@ import {
   useStartChaosProxy,
   useStopChaosProxy,
 } from '../api/useNetwork';
+import { Skeleton } from '@/shared/ui/Skeleton';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
 export const NetworkPage = () => {
   const [activeTab, setActiveTab] = useState<'bandwidth' | 'hosts' | 'chaos'>('bandwidth');
 
   // Network & Bandwidth
   const { data: netInfo } = useNetworkInfo();
-  const { data: bandwidth = [], isLoading: bwLoading } = useProcessBandwidth();
+  const {
+    data: bandwidth = [],
+    isLoading: bwLoading,
+    error: bwError,
+    refetch: refetchBw,
+  } = useProcessBandwidth();
   const flushDnsMutation = useFlushDns();
 
   const formatBytes = (bytes: number) => {
@@ -155,7 +162,13 @@ export const NetworkPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {bwLoading && bandwidth.length === 0 ? (
+                {bwError ? (
+                  <ErrorPanel
+                    error={bwError}
+                    fallback="Couldn't read per-app bandwidth."
+                    onRetry={() => void refetchBw()}
+                  />
+                ) : bwLoading && bandwidth.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-fg-muted">
                       Sampling nettop process network data...
@@ -346,7 +359,7 @@ const ChaosProxySection = () => {
       <div className="rounded-lg border border-border bg-card p-5">
         <h3 className="text-sm font-semibold">Active Chaos Proxies</h3>
         {isLoading ? (
-          <div className="py-6 text-center text-xs text-muted">Loading active proxies...</div>
+          <Skeleton className="py-6" lines={2} />
         ) : proxies.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted">
             No active chaos proxies running.

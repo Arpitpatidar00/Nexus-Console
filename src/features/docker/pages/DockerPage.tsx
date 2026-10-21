@@ -16,12 +16,17 @@ import {
   useDockerComposeAction,
 } from '../api/useDocker';
 import type { LocalContainer } from '../api/docker.schema';
+import { RequiresTool } from '@/shared/tools';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
-export function DockerPage() {
+function DockerView() {
   const { data: runtime, isLoading: isRuntimeLoading } = useDockerRuntime();
-  const { data: containers = [], isLoading: isContainersLoading } = useDockerContainers(
-    runtime?.running ?? false,
-  );
+  const {
+    data: containers = [],
+    isLoading: isContainersLoading,
+    error: containersError,
+    refetch: refetchContainers,
+  } = useDockerContainers(runtime?.running ?? false);
   const containerAction = useDockerContainerAction();
   const composeAction = useDockerComposeAction();
 
@@ -116,7 +121,13 @@ export function DockerPage() {
           />
         </div>
 
-        {isRuntimeLoading || isContainersLoading ? (
+        {containersError ? (
+          <ErrorPanel
+            error={containersError}
+            fallback="Couldn't list Docker containers."
+            onRetry={() => void refetchContainers()}
+          />
+        ) : isRuntimeLoading || isContainersLoading ? (
           <div className="flex items-center justify-center py-24 text-xs text-fg-muted">
             Scanning local container runtime...
           </div>
@@ -344,3 +355,9 @@ export function DockerPage() {
     </div>
   );
 }
+
+export const DockerPage = () => (
+  <RequiresTool anyOf={['docker']} install="brew install --cask orbstack">
+    <DockerView />
+  </RequiresTool>
+);

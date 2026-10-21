@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Terminal, Plus, Trash2, Play, X } from 'lucide-react';
 import { useSavedCommands, useSaveCommand, useDeleteCommand } from '../api/useProjects';
 import type { DiscoveredProject } from '../api/projects.schema';
+import { Skeleton } from '@/shared/ui/Skeleton';
 
 interface SavedCommandsModalProps {
   project: DiscoveredProject;
@@ -127,7 +128,7 @@ export function SavedCommandsModal({ project, onClose, onRunTerminal }: SavedCom
         {/* Commands List */}
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {isLoading ? (
-            <div className="p-4 text-center text-xs text-fg-muted">Loading commands...</div>
+            <Skeleton className="p-4" />
           ) : commands.length === 0 ? (
             <div className="p-6 text-center text-xs text-fg-muted">
               No saved commands for this project. Author frequently used commands above.

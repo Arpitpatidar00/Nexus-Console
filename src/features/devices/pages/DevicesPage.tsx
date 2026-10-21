@@ -8,15 +8,23 @@ import {
   useAndroidAvds,
   useLaunchAndroidAvd,
 } from '../api/useDevices';
+import { RequiresTool } from '@/shared/tools';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
-export const DevicesPage = () => {
+const DevicesView = () => {
   const [activeTab, setActiveTab] = useState<'ios' | 'android'>('ios');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: iosDevices = [], isLoading: iosLoading, refetch: refetchIos } = useIosSimulators();
+  const {
+    data: iosDevices = [],
+    isLoading: iosLoading,
+    error: iosError,
+    refetch: refetchIos,
+  } = useIosSimulators();
   const {
     data: androidAvds = [],
     isLoading: androidLoading,
+    error: androidError,
     refetch: refetchAndroid,
   } = useAndroidAvds();
   const controlIosMutation = useControlIosSimulator();
@@ -119,7 +127,13 @@ export const DevicesPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {iosLoading ? (
+              {iosError ? (
+                <ErrorPanel
+                  error={iosError}
+                  fallback="Couldn't list iOS simulators."
+                  onRetry={() => void refetchIos()}
+                />
+              ) : iosLoading ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-fg-muted">
                     Querying xcrun simctl devices...
@@ -204,7 +218,13 @@ export const DevicesPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {androidLoading ? (
+              {androidError ? (
+                <ErrorPanel
+                  error={androidError}
+                  fallback="Couldn't list Android emulators."
+                  onRetry={() => void refetchAndroid()}
+                />
+              ) : androidLoading ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                     Querying emulator -list-avds...
@@ -247,3 +267,9 @@ export const DevicesPage = () => {
     </div>
   );
 };
+
+export const DevicesPage = () => (
+  <RequiresTool anyOf={['xcode', 'android']} install="Xcode from the App Store, or Android Studio">
+    <DevicesView />
+  </RequiresTool>
+);

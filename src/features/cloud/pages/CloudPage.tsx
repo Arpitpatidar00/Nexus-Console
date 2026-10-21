@@ -4,6 +4,8 @@ import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { useAwsProfiles, useEc2Instances, useS3Buckets, useAwsCosts } from '../api/useCloud';
 import { ConsentGate } from '@/shared/privacy';
+import { RequiresTool } from '@/shared/tools';
+import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
 const CloudView = () => {
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
@@ -16,11 +18,13 @@ const CloudView = () => {
   const {
     data: instances = [],
     isLoading: instancesLoading,
+    error: instancesError,
     refetch: refetchInstances,
   } = useEc2Instances(selectedProfile, selectedRegion);
   const {
     data: buckets = [],
     isLoading: bucketsLoading,
+    error: bucketsError,
     refetch: refetchBuckets,
   } = useS3Buckets(selectedProfile);
   const {
@@ -241,7 +245,13 @@ const CloudView = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {instancesLoading ? (
+              {instancesError ? (
+                <ErrorPanel
+                  error={instancesError}
+                  fallback="Couldn't list EC2 instances."
+                  onRetry={() => void refetchInstances()}
+                />
+              ) : instancesLoading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
                     Fetching EC2 instances from AWS CLI...
@@ -308,7 +318,13 @@ const CloudView = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {bucketsLoading ? (
+              {bucketsError ? (
+                <ErrorPanel
+                  error={bucketsError}
+                  fallback="Couldn't list S3 buckets."
+                  onRetry={() => void refetchBuckets()}
+                />
+              ) : bucketsLoading ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                     Fetching S3 buckets...
@@ -343,10 +359,12 @@ const CloudView = () => {
 };
 
 export const CloudPage = () => (
-  <ConsentGate
-    source="aws_config"
-    reason="Cloud reads your AWS profiles from ~/.aws and uses the aws CLI with them to list EC2 instances, S3 buckets and, only when you ask, costs."
-  >
-    <CloudView />
-  </ConsentGate>
+  <RequiresTool anyOf={['aws']} install="brew install awscli">
+    <ConsentGate
+      source="aws_config"
+      reason="Cloud reads your AWS profiles from ~/.aws and uses the aws CLI with them to list EC2 instances, S3 buckets and, only when you ask, costs."
+    >
+      <CloudView />
+    </ConsentGate>
+  </RequiresTool>
 );

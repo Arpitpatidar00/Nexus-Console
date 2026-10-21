@@ -16,6 +16,7 @@ pub mod pty;
 pub mod remote;
 pub mod secrets;
 pub mod services;
+pub mod system;
 pub mod tray;
 pub mod updater;
 pub mod vscode;

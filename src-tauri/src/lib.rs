@@ -111,6 +111,8 @@ pub fn run() {
             commands::consent::consent_set,
             commands::consent::consent_revoke_all,
             commands::consent::net_get_declared_destinations,
+            commands::system::system_disk_free,
+            commands::system::system_detect_tools,
             // Doctor
             commands::doctor::doctor_scan,
             commands::doctor::doctor_deep_scan,

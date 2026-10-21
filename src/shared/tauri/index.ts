@@ -3,6 +3,7 @@ export { CMD } from './commands';
 export { confirmBulk, type ConfirmBulkParams } from './confirm';
 export { IpcError, type IpcErrorKind } from './ipc-error';
 export { useIpcEvent } from './events';
+export { logError } from './diag';
 export { bindFocusManager } from './focus';
 export { showMainWindow } from './window';
 export {

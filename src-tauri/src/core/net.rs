@@ -23,7 +23,7 @@ pub fn declared_destinations() -> Vec<NetDestination> {
         NetDestination {
             id: "github_api".into(),
             host_pattern: "api.github.com".into(),
-            purpose: "Check for new releases and updater manifest".into(),
+            purpose: "Release check (manual)".into(),
             module: "updater".into(),
             outbound: true,
             user_configured: false,
@@ -31,7 +31,7 @@ pub fn declared_destinations() -> Vec<NetDestination> {
         NetDestination {
             id: "github_web".into(),
             host_pattern: "github.com".into(),
-            purpose: "Fallback release download links and changelog".into(),
+            purpose: "Updater manifest (latest.json) and release pages".into(),
             module: "updater".into(),
             outbound: true,
             user_configured: false,
@@ -41,6 +41,14 @@ pub fn declared_destinations() -> Vec<NetDestination> {
             host_pattern: "api.github.com".into(),
             purpose: "Pull request status through your own gh CLI login".into(),
             module: "projects".into(),
+            outbound: true,
+            user_configured: false,
+        },
+        NetDestination {
+            id: "github_release_assets".into(),
+            host_pattern: "*.githubusercontent.com".into(),
+            purpose: "Download a signed update you chose to install (GitHub release assets)".into(),
+            module: "updater".into(),
             outbound: true,
             user_configured: false,
         },

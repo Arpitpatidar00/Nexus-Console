@@ -115,6 +115,11 @@ and reintroduce the white flash. Closing the window hides to tray (services keep
 - **Module gate (`core::capabilities`):** `lib.rs` wraps the invoke handler with `module_gate`; a command
   whose `command_module()` is switched off is rejected (`forbidden`) before it runs. New command prefixes
   must be mapped there; commands needed while a module is off (e.g. `claude_installed`) map to `None`.
+- **Updates & diagnostics:** updates go through `tauri-plugin-updater` in Rust only (`app_check_update`
+  on click, `app_install_update` behind the mutation gate); the pubkey is in `tauri.conf.json`, the
+  private key never enters the repo. Every non-cancelled, non-silent query/mutation failure is written to
+  the local `core::diag` log (`logError`, deduped per minute); `diag_report` is redacted before copying.
+  Versions change only via `npm run version:set -- x.y.z`; `CHANGELOG.md` is generated (`npm run changelog`).
 - **Background work (`services::scheduler`):** one thread, 10 s tick. Jobs expose `tick(...)` and keep
   their own cadence via `due()`; everything but the prod dead-man switch pauses on low battery. Don't
   spawn a new loop thread — add a job.

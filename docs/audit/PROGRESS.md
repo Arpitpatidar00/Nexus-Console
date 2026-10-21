@@ -4,8 +4,8 @@
 
 ## Current status
 
-- **Current phase:** Phase F (Product improvement) - COMPLETE (Phase G next)
-- **Branch:** `fix/audit-F-product`
+- **Current phase:** Phase G (Release readiness) - COMPLETE — awaiting owner actions (FINAL-REVIEW.md §4)
+- **Branch:** `fix/audit-G-release`
 - **Waiting on owner:** None (DECIDE items resolved conservative/safe default per Rule 4)
 
 ## Baseline (Phase 0.1 — real gate results on Mac)
@@ -31,7 +31,7 @@
 - [x] **D** Complete partial features (D.1–D.13)
 - [x] **E** Architecture consolidation (E.1–E.7)
 - [x] **F** Product improvement (F.1–F.8)
-- [ ] **G** Release readiness (G.1–G.5)
+- [x] **G** Release readiness (G.1–G.5) — signing secrets, CI and in-app QA are the owner's
 
 ---
 
@@ -380,6 +380,49 @@ payloads 18 · release ok (`Stackroost.app` 28 MiB, `.dmg` 8.4 MiB, unsigned).
 **Phase F gates (2026-10-22, macOS):** oxlint 0/0 · prettier clean · tsc 0 · vitest 202 · build ok · cargo fmt
 ok · clippy 0 · cargo test 329 / 0 / 29 ignored · guards 4 · parsers 90 · payloads 18 · release ok (`Stackroost.app` 28.2 MiB, `.dmg` 8.5 MiB, unsigned).
 
+### Phase G
+
+- `G.1` — `release.yml` rebuilt on `tauri-apps/tauri-action`: verify (typecheck, vitest, cargo test), then
+  Developer ID signing and notarization, each switched on only when its secrets exist; otherwise an
+  explicit "building UNSIGNED" warning. Tags make a **draft** release.
+  - **Gate output:** workflow YAML parses; not run on GitHub yet (nothing pushed).
+  - **QA ticked:** —
+  - **Deviations:** No certificate available here (DECIDE) — signing is wired, not exercised.
+- `G.2` — `tauri-plugin-updater` replaces the B.4 `curl` checker: `app_check_update` (on click) and
+  `app_install_update` (mutation gate → signature-verified download → relaunch). Pubkey in
+  `tauri.conf.json`; keypair generated at `~/.tauri/stackroost-updater.key` (0600, not in the repo). Updater
+  artifacts are built only in CI when `TAURI_SIGNING_PRIVATE_KEY` is set, so local `npm run release`
+  needs no key. `*.githubusercontent.com` declared in the network allow-list for update downloads.
+  - **Gate output:** local `tauri build` with the key produced `Stackroost.app.tar.gz` + `.sig`;
+    updater unit test 1/1; guard `mutations_gated` green.
+  - **QA ticked:** End-to-end update not possible until a signed release with `latest.json` exists.
+  - **Deviations:** Key generated without a password (CI-friendly); add one and the matching secret if
+    preferred.
+- `G.3` — `npm run version:set -- x.y.z` sets package.json, package-lock, Cargo.toml/lock and
+  tauri.conf.json, then regenerates `CHANGELOG.md` (`npm run changelog`: conventional commits grouped by
+  `v*` tag). `build.rs` stamps git SHA and build time; Settings → **About & updates** shows version,
+  build and macOS/arch (the hardcoded "v0.1.0" is gone).
+  - **Gate output:** round-trip 0.1.0 → 0.1.1 → restored touched all five files; changelog sections
+    `Unreleased` + `0.1.0`.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `G.4` — Local-only error log (`core::diag`, `errors.json`, 0600, newest 200): Rust panics (hook), IPC
+  failures from the central query/mutation handler (deduped per minute), React crashes. Settings →
+  **Diagnostics** lists them with **Copy diagnostics**: version, build, macOS, modules and the last 50
+  errors, with secrets masked and `$HOME` → `~`. Nothing is sent.
+  - **Gate output:** `core::diag` 3/3 (cap, multibyte truncation, redaction); `diag.test.ts`,
+    `diag.schema.test.ts` green.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `G.5` — `docs/audit/FINAL-REVIEW.md`: audit vs now scorecard (✅ 29 · 🟡 8 · 🧊 5 · ⚫ 1 · 🔴 0), gates,
+  owner actions and a 10-step demo script.
+  - **Deviations:** Not "all ✅". Five features are still frozen in the UI despite logged backend fixes;
+    the earlier session's QA ticks have no evidence; T-29/T-30 have no plan item.
+
+**Phase G gates (2026-10-22, macOS):** oxlint 0/0 · prettier clean · tsc 0 · vitest 205 · build ok · cargo
+fmt ok · clippy 0 · cargo test 331 / 0 / 29 ignored · guards 4 · parsers 90 · payloads 18 · signed updater
+bundle ok (`.app` 32 MiB, `.dmg` 10 MiB, `.app.tar.gz` + `.sig`).
+
 ---
 
 ## Decisions
@@ -402,6 +445,9 @@ ok · clippy 0 · cargo test 329 / 0 / 29 ignored · guards 4 · parsers 90 · p
 - 2026-10-21: D.12 Blocking I/O commands wrapped in `super::blocking` to guarantee async thread pool responsiveness.
 - 2026-10-22: E.2 consent is asked in place (`ConsentGate`) rather than only in Settings, so a module that
   needs a source shows one "Allow access" step instead of an error toast.
+- 2026-10-22: G.5 — the five features still frozen (Backups, hosts editor, EC2 actions, Deploy/Rollback,
+  Uptime UI) stay frozen: unfreezing an S1 feature needs its own verified pass, not a sign-off.
+- 2026-10-22: G.2 — updates check and install only on click; no background auto-update.
 - 2026-10-22: F.1 hub grouping (DECIDE, unanswered): the plan's suggested six hubs, Home outside them.
 - 2026-10-22: F.2 Home shows only data a module already measures; server issues only from snapshots already
   fetched, so Home never connects to a server.
@@ -443,6 +489,16 @@ ok · clippy 0 · cargo test 329 / 0 / 29 ignored · guards 4 · parsers 90 · p
 - **Lead Tester:** 87 parser tests, 18 payload tests, 4 guard tests, 308 Rust tests, and 177 frontend tests all passing 100%. CI pipeline enforced with multi-stage verification.
 - **Project Manager:** Phase C complete on `fix/audit-C-tests`. Checklists established for 17 modules.
 - **Lead Product Improver:** QA testing matrix codified for regression-free verification of all existing and upcoming features.
+
+### Phase G Sign-off:
+
+- **System Architect:** the updater and diagnostics follow the existing rules: Rust-only, mutation
+  gate, store, redaction and the network allow-list.
+- **Lead Tester:** gates green; the signed updater artifact was produced locally. CI and in-app QA are
+  still open.
+- **Project Manager:** committed on `fix/audit-G-release`. Owner actions are in FINAL-REVIEW §4.
+- **Lead Product Improver:** About shows the real version and build; Diagnostics gives teammates a
+  bug-report path with no telemetry.
 
 ### Phase F Sign-off:
 

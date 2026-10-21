@@ -147,6 +147,7 @@ export const CMD = {
   BLUEPRINT_APPLY_WORKSPACES: 'blueprint_apply_workspaces',
   BLUEPRINT_APPLY_EXTENSIONS: 'blueprint_apply_extensions',
   APP_CHECK_UPDATE: 'app_check_update',
+  APP_INSTALL_UPDATE: 'app_install_update',
   DOMAINS_LOOKUP_DNS: 'domains_lookup_dns',
   DOMAINS_CHECK_SSL: 'domains_check_ssl',
   DOMAINS_CHECK_RDAP: 'domains_check_rdap',
@@ -195,4 +196,9 @@ export const CMD = {
   NET_GET_DECLARED_DESTINATIONS: 'net_get_declared_destinations',
   SYSTEM_DISK_FREE: 'system_disk_free',
   SYSTEM_DETECT_TOOLS: 'system_detect_tools',
+  APP_ABOUT: 'app_about',
+  DIAG_LOG_ERROR: 'diag_log_error',
+  DIAG_LIST_ERRORS: 'diag_list_errors',
+  DIAG_CLEAR_ERRORS: 'diag_clear_errors',
+  DIAG_REPORT: 'diag_report',
 } as const;

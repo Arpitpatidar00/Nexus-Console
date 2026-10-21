@@ -13,6 +13,8 @@
     "setup:check": "sh scripts/setup.sh --check",
     "start": "tauri dev",
     "release": "tauri build",
+    "changelog": "node scripts/changelog.mjs",
+    "version:set": "node scripts/version.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

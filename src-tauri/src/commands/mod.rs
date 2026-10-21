@@ -5,6 +5,7 @@ pub mod chaos;
 pub mod cloud;
 pub mod consent;
 pub mod context;
+pub mod diag;
 pub mod doctor;
 pub mod domains;
 pub mod maclean;

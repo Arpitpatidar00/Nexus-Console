@@ -17,6 +17,7 @@ import { MacCleanSettingsCard } from '@/features/settings/components/MacCleanSet
 import { BlueprintCard } from '@/features/settings/components/BlueprintCard';
 import { AppUpdateCard } from '@/features/settings/components/AppUpdateCard';
 import { PrivacyCard } from '@/features/settings/components/PrivacyCard';
+import { DiagnosticsCard } from '@/features/settings/components/DiagnosticsCard';
 
 import { THEME_OPTIONS, LAYOUT_OPTIONS } from './SettingsPage.config';
 
@@ -117,6 +118,8 @@ export const SettingsPage = () => {
         <AppUpdateCard />
 
         <PrivacyCard />
+
+        <DiagnosticsCard />
 
         <div className="xl:col-span-2">
           <BlueprintCard />

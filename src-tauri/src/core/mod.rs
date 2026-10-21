@@ -1,5 +1,6 @@
 pub mod capabilities;
 pub mod consent;
+pub mod diag;
 pub mod error;
 pub mod exec;
 pub mod keychain;

@@ -1,8 +1,12 @@
-// Application update check command (P10.3 / T-12).
-// Daily launch check (opt-in); never updates automatically without explicit user click.
+// App updates via tauri-plugin-updater (PLAN G.2, replaces the B.4 curl checker).
+// Checks only when the user clicks; installing asks first, verifies the
+// minisign signature against the pubkey in tauri.conf.json, then relaunches.
 
-use crate::error::AppResult;
+use crate::core::error::{AppError, AppResult};
+use crate::core::mutation::{mutation, BlastRadius, MutationSpec};
 use serde::{Deserialize, Serialize};
+use tauri::AppHandle;
+use tauri_plugin_updater::UpdaterExt;
 
 /// Canonical GitHub repository source for Stackroost releases
 pub const GITHUB_REPO: &str = "Arpitpatidar00/Stackroost";
@@ -17,73 +21,77 @@ pub struct UpdateCheckResult {
     pub release_notes: Option<String>,
 }
 
-pub fn parse_release_json(
-    json_bytes: &[u8],
-    current_version: &str,
-    repo: &str,
-) -> Option<UpdateCheckResult> {
-    let json: serde_json::Value = serde_json::from_slice(json_bytes).ok()?;
-    let tag = json.get("tag_name").and_then(|v| v.as_str())?;
-    let latest_clean = tag.trim_start_matches('v');
-    let has_update = latest_clean != current_version && !latest_clean.is_empty();
-    let default_url = format!("https://github.com/{repo}/releases");
-    let release_url = json
-        .get("html_url")
-        .and_then(|v| v.as_str())
-        .unwrap_or(&default_url)
-        .to_string();
-    let release_notes = json
-        .get("body")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+fn release_url(version: &str) -> String {
+    format!("https://github.com/{GITHUB_REPO}/releases/tag/v{version}")
+}
 
-    Some(UpdateCheckResult {
-        has_update,
-        current_version: current_version.to_string(),
-        latest_version: latest_clean.to_string(),
-        release_url,
-        release_notes,
-    })
+fn updater_err(e: tauri_plugin_updater::Error) -> AppError {
+    AppError::Io(format!("update check failed: {e}"))
 }
 
 #[tauri::command]
-pub async fn app_check_update() -> AppResult<UpdateCheckResult> {
-    crate::core::net::check_outbound_allowed("api.github.com")?;
-    super::blocking(move || {
-        let current_version = env!("CARGO_PKG_VERSION").to_string();
-        let api_url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest");
-        let fallback_url = format!("https://github.com/{GITHUB_REPO}/releases");
-
-        let opts =
-            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(6));
-        let out = crate::core::exec::run(
-            "curl",
-            &[
-                "-s",
-                "--max-time",
-                "5",
-                "-H",
-                "User-Agent: Stackroost-Console",
-                &api_url,
-            ],
-            opts,
-        );
-
-        if let Ok(res) = out {
-            if let Some(parsed) = parse_release_json(&res.stdout, &current_version, GITHUB_REPO) {
-                return Ok(parsed);
-            }
-        }
-
-        Ok(UpdateCheckResult {
+pub async fn app_check_update(app: AppHandle) -> AppResult<UpdateCheckResult> {
+    crate::core::net::check_outbound_allowed("github.com")?;
+    let current = app.package_info().version.to_string();
+    let update = app
+        .updater()
+        .map_err(updater_err)?
+        .check()
+        .await
+        .map_err(updater_err)?;
+    Ok(match update {
+        Some(u) => UpdateCheckResult {
+            has_update: true,
+            current_version: current,
+            release_url: release_url(&u.version),
+            latest_version: u.version,
+            release_notes: u.body,
+        },
+        None => UpdateCheckResult {
             has_update: false,
-            current_version: current_version.clone(),
-            latest_version: current_version,
-            release_url: fallback_url,
+            release_url: release_url(&current),
+            latest_version: current.clone(),
+            current_version: current,
             release_notes: None,
-        })
+        },
     })
-    .await
+}
+
+/// Download, verify and install the latest release, then relaunch.
+#[tauri::command]
+pub async fn app_install_update(app: AppHandle) -> AppResult<()> {
+    crate::core::net::check_outbound_allowed("github.com")?;
+    let update = app
+        .updater()
+        .map_err(updater_err)?
+        .check()
+        .await
+        .map_err(updater_err)?
+        .ok_or_else(|| AppError::NotFound("Already on the latest version.".into()))?;
+
+    let spec = MutationSpec::new(
+        "Install update",
+        format!(
+            "Install Stackroost {} and relaunch? Running services keep running.",
+            update.version
+        ),
+        "Install & relaunch",
+    )
+    .blast_radius(BlastRadius::LocalSystem)
+    .target(format!("Stackroost {}", update.version));
+    let guard = mutation(&app, spec)?;
+
+    match update.download_and_install(|_, _| {}, || {}).await {
+        Ok(()) => {
+            guard.success(format!("installed {}", update.version));
+            drop(guard);
+            app.restart();
+        }
+        Err(e) => {
+            guard.failure(e.to_string());
+            Err(AppError::Io(format!("update install failed: {e}")))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -91,24 +99,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_release_json() {
-        let fixture = br#"{"tag_name":"v0.2.0","html_url":"https://github.com/Arpitpatidar00/Stackroost/releases/tag/v0.2.0","body":"Release notes"}"#;
-        let res = parse_release_json(fixture, "0.1.0", GITHUB_REPO).unwrap();
-        assert!(res.has_update);
-        assert_eq!(res.latest_version, "0.2.0");
-        assert_eq!(res.current_version, "0.1.0");
+    fn release_url_points_at_the_tag() {
         assert_eq!(
-            res.release_url,
+            release_url("0.2.0"),
             "https://github.com/Arpitpatidar00/Stackroost/releases/tag/v0.2.0"
         );
-        assert_eq!(res.release_notes.as_deref(), Some("Release notes"));
-    }
-
-    #[test]
-    fn test_parse_release_same_version() {
-        let fixture = br#"{"tag_name":"v0.1.0","html_url":"https://github.com/Arpitpatidar00/Stackroost/releases/tag/v0.1.0","body":null}"#;
-        let res = parse_release_json(fixture, "0.1.0", GITHUB_REPO).unwrap();
-        assert!(!res.has_update);
-        assert_eq!(res.latest_version, "0.1.0");
     }
 }

@@ -33,7 +33,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "app"],
+    "targets": [
+      "dmg",
+      "app"
+    ],
     "category": "DeveloperTool",
     "copyright": "© 2026 Vidhya Skill School",
     "icon": [
@@ -46,6 +49,14 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "hardenedRuntime": true
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwODExRkU0QzZGMTZCOEMKUldTTWEvSEc1QitCUUJVeXRPNzkrdHp2dDRSaXZjRHRKR09MM2RhZjBOQTlMczZKbGVEMWhhNkEK",
+      "endpoints": [
+        "https://github.com/Arpitpatidar00/Stackroost/releases/latest/download/latest.json"
+      ]
     }
   }
 }

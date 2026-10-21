@@ -1,14 +1,17 @@
-import { ArrowUpCircle, CheckCircle2, RefreshCw, ExternalLink } from 'lucide-react';
+import { ArrowUpCircle, CheckCircle2, Download, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
+import { formatTime } from '@/shared/lib/format';
 import { useAppUpdate } from '@/features/settings/api/useAppUpdate';
+import { useAbout, useInstallUpdate } from '@/features/settings/api/useDiagnostics';
 
+/** About + updates (PLAN G.2/G.3): real version and build, check on click,
+ * install only after a native confirm; the download is signature-checked. */
 export const AppUpdateCard = () => {
+  const about = useAbout();
   const { data: update, isFetching, refetch } = useAppUpdate(false);
-
-  const handleCheck = () => {
-    void refetch();
-  };
+  const install = useInstallUpdate();
+  const a = about.data;
 
   return (
     <div className="rounded-xl border border-border bg-paper p-5 shadow-sm">
@@ -18,60 +21,75 @@ export const AppUpdateCard = () => {
             <ArrowUpCircle className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-fg">Software Updates</h3>
+            <h3 className="text-base font-semibold text-fg">About &amp; updates</h3>
             <p className="text-xs text-fg-muted">
-              Stackroost Console releases via GitHub Releases (never updates without your explicit
-              click)
+              Checks GitHub Releases only when you click. Updates are signed and installed only
+              after you confirm.
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCheck}
-            disabled={isFetching}
-          >
-            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            {isFetching ? 'Checking…' : 'Check for Updates'}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Checking…' : 'Check for updates'}
+        </Button>
       </div>
 
-      <div className="mt-4 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-3">
-          <span className="text-fg-muted">Installed Version:</span>
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+        <dt className="text-fg-muted">Version</dt>
+        <dd>
           <Badge variant="neutral" className="font-mono text-xs">
-            v0.1.0
+            v{a?.version ?? '—'}
           </Badge>
-        </div>
+        </dd>
+        <dt className="text-fg-muted">Build</dt>
+        <dd className="font-mono text-fg">
+          {a ? `${a.gitSha} · ${a.buildEpoch ? formatTime(a.buildEpoch * 1000) : '—'}` : '—'}
+        </dd>
+        <dt className="text-fg-muted">System</dt>
+        <dd className="text-fg">{a ? `macOS ${a.macos} · ${a.arch}` : '—'}</dd>
+      </dl>
 
-        {update && (
-          <div>
-            {update.hasUpdate ? (
+      {update && (
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
+          {update.hasUpdate ? (
+            <>
+              <span className="font-semibold text-warning">
+                Version {update.latestVersion} is available
+              </span>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-warning">
-                  New version available: v{update.latestVersion}
-                </span>
                 <a
                   href={update.releaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded bg-ember px-2 py-1 text-xs font-medium text-white hover:bg-accent/90"
+                  className="inline-flex items-center gap-1 text-ember-text hover:underline"
                 >
-                  View Release <ExternalLink className="h-3 w-3" />
+                  Release notes <ExternalLink className="h-3 w-3" />
                 </a>
+                <Button
+                  size="sm"
+                  variant="ember"
+                  disabled={install.isPending}
+                  onClick={() => install.mutate()}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {install.isPending ? 'Installing…' : 'Install & relaunch'}
+                </Button>
               </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-success">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>You are running the latest release</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+            </>
+          ) : (
+            <span className="flex items-center gap-1.5 text-success">
+              <CheckCircle2 className="h-4 w-4" />
+              You&rsquo;re on the latest release
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

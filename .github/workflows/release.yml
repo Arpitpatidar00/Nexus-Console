@@ -1,10 +1,21 @@
-name: Build & Release DMG
+name: Build & Release
+
+# PLAN G.1 / G.2. Signing, notarization and updater artifacts switch on only
+# when their secrets exist, so a fork or a missing certificate still produces
+# an (unsigned) build instead of a broken one. Secrets (Settings → Secrets):
+#   APPLE_CERTIFICATE            base64 of the Developer ID Application .p12
+#   APPLE_CERTIFICATE_PASSWORD   its export password
+#   APPLE_SIGNING_IDENTITY       "Developer ID Application: Name (TEAMID)"
+#   APPLE_ID, APPLE_PASSWORD     Apple ID + app-specific password (notarization)
+#   APPLE_TEAM_ID                10-character team id
+#   TAURI_SIGNING_PRIVATE_KEY    contents of ~/.tauri/stackroost-updater.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD   (empty if the key has none)
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch:
   push:
     tags:
-      - 'v*' # Triggers when you push a tag like v0.1.0
+      - 'v*'
 
 permissions:
   contents: write
@@ -13,40 +24,86 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust Cache
-        uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Build Tauri App & DMG
-        run: npx tauri build
+      - name: Verify
+        run: |
+          npm run typecheck
+          npm test
+          cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Upload DMG Artifact
+      - name: Configure signing (only what is provided)
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          put() { printf '%s<<__EOF__\n%s\n__EOF__\n' "$1" "$2" >> "$GITHUB_ENV"; }
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            put APPLE_CERTIFICATE "$APPLE_CERTIFICATE"
+            put APPLE_CERTIFICATE_PASSWORD "$APPLE_CERTIFICATE_PASSWORD"
+            put APPLE_SIGNING_IDENTITY "$APPLE_SIGNING_IDENTITY"
+            echo "::notice::Developer ID signing enabled"
+            if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+              put APPLE_ID "$APPLE_ID"
+              put APPLE_PASSWORD "$APPLE_PASSWORD"
+              put APPLE_TEAM_ID "$APPLE_TEAM_ID"
+              echo "::notice::Notarization enabled"
+            fi
+          else
+            echo "::warning::No Apple certificate secrets — building UNSIGNED (Gatekeeper will warn)"
+          fi
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            put TAURI_SIGNING_PRIVATE_KEY "$TAURI_SIGNING_PRIVATE_KEY"
+            put TAURI_SIGNING_PRIVATE_KEY_PASSWORD "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+            put UPDATER_ARGS '--config {"bundle":{"createUpdaterArtifacts":true}}'
+            echo "::notice::Signed updater artifacts enabled"
+          else
+            put UPDATER_ARGS ''
+            echo "::warning::No TAURI_SIGNING_PRIVATE_KEY — no updater artifacts; in-app updates won't find this release"
+          fi
+
+      - name: Build, sign and draft the release (tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Stackroost ${{ github.ref_name }}
+          releaseBody: See CHANGELOG.md for what changed.
+          releaseDraft: true
+          includeUpdaterJson: true
+          args: ${{ env.UPDATER_ARGS }}
+
+      - name: Build (manual run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: npx tauri build $UPDATER_ARGS
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Nexus-Console-macOS-DMG
-          path: src-tauri/target/release/bundle/dmg/*.dmg
-          if-no-files-found: error
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
+          name: Stackroost-macOS
+          path: |
             src-tauri/target/release/bundle/dmg/*.dmg
-          generate_release_notes: true
+            src-tauri/target/release/bundle/macos/*.tar.gz
+            src-tauri/target/release/bundle/macos/*.tar.gz.sig
+          if-no-files-found: warn

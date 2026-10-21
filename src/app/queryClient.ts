@@ -1,6 +1,6 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CMD, IpcError, ipcVoid } from '@/shared/tauri';
+import { CMD, IpcError, ipcVoid, logError } from '@/shared/tauri';
 
 // Types the two `meta` flags the app actually uses, so neither the toast
 // suppression below nor the ActivityBar has to cast `unknown`.
@@ -67,6 +67,9 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (e, query) => {
       if (query.meta?.silent) return;
+      if (!(e instanceof IpcError && e.kind === 'cancelled')) {
+        logError('ipc', e, query.queryKey.slice(0, 2).join('/'));
+      }
       notify(e);
     },
   }),
@@ -75,6 +78,9 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (e, _vars, _ctx, mutation) => {
       if (mutation.meta?.silent) return;
+      if (!(e instanceof IpcError && e.kind === 'cancelled')) {
+        logError('ipc', e, mutation.options.mutationKey?.join('/'));
+      }
       notify(e);
     },
   }),

@@ -52,6 +52,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let ctx = context::discover();
@@ -78,7 +79,10 @@ pub fn run() {
             tray::build_tray(app.handle())?;
             // Consent lives with the other stores (A-06); set before anything reads it.
             if let Ok(dir) = app.path().app_data_dir() {
-                core::consent::set_consent_dir(dir);
+                core::consent::set_consent_dir(dir.clone());
+                // Local error log (G.4): panics from here on are recorded.
+                core::diag::set_dir(dir);
+                core::diag::install_panic_hook();
             }
             // Unified background scheduler (A-10 / PLAN.md E.5): one battery-aware daemon
             // managing remote health, dead-man switch, Mac Clean, uptime, and Doctor.
@@ -113,6 +117,11 @@ pub fn run() {
             commands::consent::net_get_declared_destinations,
             commands::system::system_disk_free,
             commands::system::system_detect_tools,
+            commands::diag::app_about,
+            commands::diag::diag_log_error,
+            commands::diag::diag_list_errors,
+            commands::diag::diag_clear_errors,
+            commands::diag::diag_report,
             // Doctor
             commands::doctor::doctor_scan,
             commands::doctor::doctor_deep_scan,
@@ -168,6 +177,7 @@ pub fn run() {
             commands::blueprint::blueprint_apply_workspaces,
             commands::blueprint::blueprint_apply_extensions,
             commands::updater::app_check_update,
+            commands::updater::app_install_update,
             commands::domains::domains_lookup_dns,
             commands::domains::domains_check_ssl,
             commands::domains::domains_check_rdap,

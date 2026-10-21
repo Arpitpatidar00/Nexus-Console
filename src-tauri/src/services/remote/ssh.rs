@@ -11,6 +11,7 @@ use std::sync::{Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 pub const SSH_BIN: &str = "/usr/bin/ssh";
+pub const SCP_BIN: &str = "/usr/bin/scp";
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
 const STDOUT_CAP: usize = 4 * 1024 * 1024;
 const STDERR_CAP: usize = 64 * 1024;
@@ -40,6 +41,30 @@ impl SshTarget {
             .clone()
             .map(|a| SshTarget(vec![a]))
             .ok_or_else(|| AppError::Parse(format!("host {} has no alias", host.id)))
+    }
+
+    pub fn scp_parts(&self) -> (Vec<String>, String) {
+        if self.0.is_empty() {
+            return (vec![], String::new());
+        }
+        let dest = self.0.last().cloned().unwrap_or_default();
+        let mut opts = Vec::new();
+        let mut i = 0;
+        let len = self.0.len().saturating_sub(1);
+        while i < len {
+            if self.0[i] == "-p" {
+                opts.push("-P".to_string());
+                if i + 1 < len {
+                    opts.push(self.0[i + 1].clone());
+                    i += 2;
+                    continue;
+                }
+            } else {
+                opts.push(self.0[i].clone());
+            }
+            i += 1;
+        }
+        (opts, dest)
     }
 
     #[cfg(test)]

@@ -33,6 +33,15 @@ pub struct ActiveWorkspaceState {
     pub started_tunnels: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceStepResult {
+    pub step: String,
+    pub target: String,
+    pub status: String,
+    pub message: Option<String>,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectsStore {

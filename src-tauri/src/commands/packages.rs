@@ -395,27 +395,33 @@ pub async fn package_cellar_versions(
     ctx: State<'_, AppContext>,
 ) -> AppResult<Vec<String>> {
     validate::validate_formula(&name)?;
-    let prefix = ctx.brew_prefix.as_deref().unwrap_or("/opt/homebrew");
-    let cellar = std::path::PathBuf::from(prefix).join("Cellar").join(&name);
+    let prefix = ctx
+        .brew_prefix
+        .clone()
+        .unwrap_or_else(|| "/opt/homebrew".to_string());
+    super::blocking(move || {
+        let cellar = std::path::PathBuf::from(prefix).join("Cellar").join(&name);
 
-    if !cellar.exists() {
-        return Ok(Vec::new());
-    }
+        if !cellar.exists() {
+            return Ok(Vec::new());
+        }
 
-    let mut versions = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(cellar) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                let v = entry.file_name().to_string_lossy().to_string();
-                if !v.starts_with('.') {
-                    versions.push(v);
+        let mut versions = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(cellar) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    let v = entry.file_name().to_string_lossy().to_string();
+                    if !v.starts_with('.') {
+                        versions.push(v);
+                    }
                 }
             }
         }
-    }
-    versions.sort();
-    versions.reverse();
-    Ok(versions)
+        versions.sort();
+        versions.reverse();
+        Ok(versions)
+    })
+    .await
 }
 
 #[tauri::command]

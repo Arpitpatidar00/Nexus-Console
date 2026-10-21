@@ -123,6 +123,17 @@ impl PtyManager {
         cmd.args(&args);
         cmd.env("TERM", "xterm-256color");
 
+        if target.inject_keychain() {
+            // Optional Keychain injection into Nexus terminals (T-18)
+            for key in ["DATABASE_URL", "DB_PASSWORD", "API_KEY", "SECRET_KEY"] {
+                if let Ok(Some(secret)) =
+                    crate::core::keychain::get_password(&format!("nexus.terminal:{key}"))
+                {
+                    cmd.env(key, secret);
+                }
+            }
+        }
+
         let child = pair
             .slave
             .spawn_command(cmd)
@@ -332,6 +343,12 @@ pub enum PtyTarget {
         host_id: String,
         container: String,
     },
+    #[serde(rename_all = "camelCase")]
+    Workspace {
+        command: String,
+        project_path: String,
+        inject_keychain: Option<bool>,
+    },
 }
 
 impl PtyTarget {
@@ -340,7 +357,16 @@ impl PtyTarget {
             PtyTarget::RemoteShell { host_id } => Some(host_id),
             PtyTarget::RemoteLogs { host_id, .. } => Some(host_id),
             PtyTarget::RemoteExec { host_id, .. } => Some(host_id),
-            PtyTarget::Brew { .. } => None,
+            PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } => None,
+        }
+    }
+
+    pub fn inject_keychain(&self) -> bool {
+        match self {
+            PtyTarget::Workspace {
+                inject_keychain, ..
+            } => inject_keychain.unwrap_or(false),
+            _ => false,
         }
     }
 }
@@ -381,7 +407,9 @@ fn resolve_remote(target: &PtyTarget, remote: &RemoteState) -> AppResult<(String
                 ],
             )
         }
-        PtyTarget::Brew { .. } => unreachable!("brew targets resolve locally"),
+        PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } => {
+            unreachable!("brew and workspace targets resolve locally")
+        }
     };
     let t = remote.target(host_id)?;
     let cmd: Vec<&str> = cmd.iter().map(String::as_str).collect();
@@ -398,6 +426,20 @@ fn resolve_target(
 ) -> AppResult<(String, Vec<String>)> {
     match target {
         PtyTarget::Brew { formula, kind } => resolve_command(formula, kind, ctx),
+        PtyTarget::Workspace {
+            command,
+            project_path,
+            ..
+        } => {
+            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+            let mut args = vec!["-l".to_string(), "-c".to_string()];
+            if !project_path.is_empty() {
+                args.push(format!("cd \"{project_path}\" && {command}"));
+            } else {
+                args.push(command.clone());
+            }
+            Ok((shell, args))
+        }
         _ => resolve_remote(target, remote),
     }
 }

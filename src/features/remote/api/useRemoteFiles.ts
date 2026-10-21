@@ -34,3 +34,39 @@ export function useRemoteFileContent(
     staleTime: 30_000,
   });
 }
+
+export function useRemoteDownloadFile() {
+  return async (hostId: string, remotePath: string, localDestination: string) => {
+    return ipc(
+      CMD.REMOTE_DOWNLOAD_FILE,
+      {
+        id: hostId,
+        remotePath,
+        localDestination,
+      },
+      z.string(),
+    );
+  };
+}
+
+export function useRemoteUploadFile() {
+  return async (
+    hostId: string,
+    localSource: string,
+    remotePath: string,
+    overwrite: boolean,
+    confirmToken?: string,
+  ) => {
+    return ipc(
+      CMD.REMOTE_UPLOAD_FILE,
+      {
+        id: hostId,
+        localSource,
+        remotePath,
+        overwrite,
+        confirmToken,
+      },
+      z.string(),
+    );
+  };
+}

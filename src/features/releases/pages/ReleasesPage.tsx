@@ -3,12 +3,15 @@ import { Rocket, Layers, Copy, Check } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { useProjectReleaseConfig } from '../api/useReleases';
+import { useProjects } from '@/features/projects/api/useProjects';
 
 export const ReleasesPage = () => {
-  const [projectPath, setProjectPath] = useState('/Users/devarpit/Desktop/chat-app');
+  const { data: projects } = useProjects();
+  const [projectPath, setProjectPath] = useState('');
   const [copiedLane, setCopiedLane] = useState<string | null>(null);
 
-  const { data: releaseConfig, isLoading } = useProjectReleaseConfig(projectPath);
+  const activePath = projectPath || (projects && projects.length > 0 ? projects[0].path : '');
+  const { data: releaseConfig, isLoading } = useProjectReleaseConfig(activePath);
 
   const handleCopyLaneCommand = (lane: string) => {
     navigator.clipboard.writeText(`bundle exec fastlane ${lane}`);
@@ -38,7 +41,8 @@ export const ReleasesPage = () => {
           <input
             id="releases-project-path"
             type="text"
-            value={projectPath}
+            placeholder="/path/to/project"
+            value={projectPath || activePath}
             onChange={(e) => setProjectPath(e.target.value)}
             className="w-64 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs text-fg focus:outline-none"
           />

@@ -2,7 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use stackroost_lib::services::cloud::{parse_cost_explorer_json, parse_ec2_instances_json};
-use stackroost_lib::services::databases::{parse_mysql_tables, parse_psql_tables};
+use stackroost_lib::services::databases::{
+    parse_csv_line, parse_mysql_tables, parse_mysql_tsv, parse_psql_csv, parse_psql_tables,
+};
 use stackroost_lib::services::devices::{parse_emulator_avds, parse_simctl_json};
 use stackroost_lib::services::doctor::system::{parse_ioreg_num, parse_low_power};
 use stackroost_lib::services::domains::{
@@ -317,6 +319,40 @@ fn test_databases_mysql_unicode() {
     assert_eq!(tables.len(), 2);
     assert_eq!(tables[0].name, "таблица_клиентов");
     assert_eq!(tables[1].name, "product_catalog_🛍️");
+}
+
+#[test]
+fn test_databases_parse_csv_line_quoted() {
+    let line = r#"123,"John Doe, Jr.","Said ""Hello"" to all",45.67"#;
+    let fields = parse_csv_line(line);
+    assert_eq!(fields.len(), 4);
+    assert_eq!(fields[0], "123");
+    assert_eq!(fields[1], "John Doe, Jr.");
+    assert_eq!(fields[2], "Said \"Hello\" to all");
+    assert_eq!(fields[3], "45.67");
+}
+
+#[test]
+fn test_databases_parse_psql_csv() {
+    let csv = "id,name,role\n1,\"Alice, Dev\",admin\n2,\"Bob \"\"The Builder\"\"\",user\n";
+    let (cols, rows) = parse_psql_csv(csv);
+    assert_eq!(cols, vec!["id", "name", "role"]);
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0][1], serde_json::Value::String("Alice, Dev".into()));
+    assert_eq!(
+        rows[1][1],
+        serde_json::Value::String("Bob \"The Builder\"".into())
+    );
+}
+
+#[test]
+fn test_databases_parse_mysql_tsv() {
+    let tsv = "id\tname\tstatus\n101\tNexus-Node\tactive\n102\tBackup-Worker\tidle\n";
+    let (cols, rows) = parse_mysql_tsv(tsv);
+    assert_eq!(cols, vec!["id", "name", "status"]);
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0][0], serde_json::Value::String("101".into()));
+    assert_eq!(rows[0][1], serde_json::Value::String("Nexus-Node".into()));
 }
 
 // ============================================================================

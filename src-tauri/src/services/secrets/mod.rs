@@ -27,11 +27,12 @@ pub struct SecretsScanResult {
 
 pub fn mask_secret(secret: &str) -> String {
     let s = secret.trim();
-    if s.len() <= 8 {
+    let char_count = s.chars().count();
+    if char_count <= 8 {
         return "****".to_string();
     }
     let prefix: String = s.chars().take(4).collect();
-    let suffix: String = s.chars().skip(s.len().saturating_sub(4)).collect();
+    let suffix: String = s.chars().skip(char_count.saturating_sub(4)).collect();
     format!("{prefix}****{suffix}")
 }
 
@@ -382,5 +383,14 @@ mod tests {
         assert!(!redacted.contains("sk_live_1234567890abcdef123456"));
         assert!(redacted.contains("Deploy failed with AWS key AKIA****CDEF"));
         assert!(redacted.contains("stripe sk_l****3456"));
+    }
+
+    #[test]
+    fn test_char_safe_masking_multibyte() {
+        let multibyte = "🦀🔐🚀🎉super_secret_key_999";
+        let masked = mask_secret(multibyte);
+        assert!(masked.starts_with("🦀🔐🚀🎉"));
+        assert!(masked.ends_with("_999"));
+        assert!(masked.contains("****"));
     }
 }

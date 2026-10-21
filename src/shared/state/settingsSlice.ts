@@ -32,6 +32,10 @@ interface SettingsState {
   globalHotkey: string | null;
   /** Minutes of idle before auto-disconnecting prod servers (0 = off, default 10). */
   remoteDeadmanMinutes: number;
+  /** Favorite ports persisted in settings store (T-24). */
+  favoritePorts: number[];
+  /** Recent command palette IDs persisted in settings store (T-24). */
+  recentCommandIds: string[];
   /** false until persisted settings are loaded from tauri-store on boot. */
   hydrated: boolean;
 }
@@ -54,6 +58,8 @@ export type PersistedSettings = Pick<
   | 'autoVacuumEnabled'
   | 'globalHotkey'
   | 'remoteDeadmanMinutes'
+  | 'favoritePorts'
+  | 'recentCommandIds'
 >;
 
 const initialState: SettingsState = {
@@ -72,6 +78,8 @@ const initialState: SettingsState = {
   autoVacuumEnabled: false,
   globalHotkey: null,
   remoteDeadmanMinutes: 10,
+  favoritePorts: [],
+  recentCommandIds: [],
   hydrated: false,
 };
 
@@ -129,6 +137,27 @@ const settingsSlice = createSlice({
     setRemoteDeadmanMinutes(state, action: PayloadAction<number>) {
       state.remoteDeadmanMinutes = action.payload;
     },
+    setFavoritePorts(state, action: PayloadAction<number[]>) {
+      state.favoritePorts = action.payload;
+    },
+    toggleFavoritePort(state, action: PayloadAction<number>) {
+      const port = action.payload;
+      if (state.favoritePorts.includes(port)) {
+        state.favoritePorts = state.favoritePorts.filter((p) => p !== port);
+      } else {
+        state.favoritePorts.push(port);
+      }
+    },
+    addRecentCommandId(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      state.recentCommandIds = [id, ...state.recentCommandIds.filter((item) => item !== id)].slice(
+        0,
+        5,
+      );
+    },
+    setRecentCommandIds(state, action: PayloadAction<string[]>) {
+      state.recentCommandIds = action.payload.slice(0, 5);
+    },
     hydrateSettings(state, action: PayloadAction<Partial<PersistedSettings>>) {
       Object.assign(state, action.payload);
       state.hydrated = true;
@@ -152,6 +181,10 @@ export const {
   setAutoVacuumEnabled,
   setGlobalHotkey,
   setRemoteDeadmanMinutes,
+  setFavoritePorts,
+  toggleFavoritePort,
+  addRecentCommandId,
+  setRecentCommandIds,
   hydrateSettings,
 } = settingsSlice.actions;
 export const settingsReducer = settingsSlice.reducer;

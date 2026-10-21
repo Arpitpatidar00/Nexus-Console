@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setActiveTab, type Tab } from '@/shared/state/uiSlice';
+import { addRecentCommandId } from '@/shared/state/settingsSlice';
 import { useVisibleNav } from '@/shared/modules';
 import { CommandDial } from '@/shared/ui/CommandDial';
 import { ListRow } from '@/shared/ui/ListRow';
@@ -20,30 +21,6 @@ import {
   AlertTriangle,
   History,
 } from 'lucide-react';
-
-const RECENT_KEY = 'stackroost:recent-actions';
-const MAX_RECENT = 5;
-
-function loadRecentIds(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecentId(id: string) {
-  try {
-    const prev = loadRecentIds().filter((item) => item !== id);
-    const next = [id, ...prev].slice(0, MAX_RECENT);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch {
-    // Ignore storage failures
-  }
-}
 
 function getGroupIcon(group: ActionGroup | 'recent') {
   switch (group) {
@@ -95,7 +72,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
   const [query, setQuery] = useState('');
   const [selectedModule, setSelectedModule] = useState<string>(activeTab);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [recentIds, setRecentIds] = useState<string[]>([]);
+  const recentIds = useAppSelector((s) => s.settings.recentCommandIds);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,7 +80,6 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
       setSelectedModule(activeTab);
       setQuery('');
       setSelectedIndex(0);
-      setRecentIds(loadRecentIds());
     }
   }, [open, activeTab]);
 
@@ -206,7 +182,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
 
   const handleExecute = useCallback(
     (action: ActionItem) => {
-      saveRecentId(action.id);
+      dispatch(addRecentCommandId(action.id));
       try {
         action.run({
           dispatch,

@@ -193,6 +193,121 @@ pub fn read_file(
     }
 }
 
+pub fn check_remote_exists(target: &SshTarget, remote_path: &str) -> AppResult<bool> {
+    let valid_path = RemotePath::try_from(remote_path)?;
+    let out = ssh::exec(
+        target,
+        &["test", "-e", valid_path.as_str()],
+        None,
+        Duration::from_secs(10),
+    )?;
+    Ok(out.status.success())
+}
+
+pub fn build_scp_download_args(
+    target: &SshTarget,
+    remote_path: &RemotePath,
+    local_dest: &std::path::Path,
+    control_dir: &std::path::Path,
+) -> Vec<String> {
+    let (opts, dest_spec) = target.scp_parts();
+    let mut args = ssh::base_args();
+    for kv in ["BatchMode=yes", "ConnectTimeout=8"] {
+        args.extend(["-o".to_string(), kv.to_string()]);
+    }
+    args.extend(ssh::control_opts(control_dir));
+    args.extend(opts);
+    let remote_spec = format!("{dest_spec}:{}", remote_path.as_str());
+    args.push(remote_spec);
+    args.push(local_dest.to_string_lossy().to_string());
+    args
+}
+
+pub fn build_scp_upload_args(
+    target: &SshTarget,
+    local_src: &std::path::Path,
+    remote_path: &RemotePath,
+    control_dir: &std::path::Path,
+) -> Vec<String> {
+    let (opts, dest_spec) = target.scp_parts();
+    let mut args = ssh::base_args();
+    for kv in ["BatchMode=yes", "ConnectTimeout=8"] {
+        args.extend(["-o".to_string(), kv.to_string()]);
+    }
+    args.extend(ssh::control_opts(control_dir));
+    args.extend(opts);
+    args.push(local_src.to_string_lossy().to_string());
+    let remote_spec = format!("{dest_spec}:{}", remote_path.as_str());
+    args.push(remote_spec);
+    args
+}
+
+pub fn download_file(
+    target: &SshTarget,
+    remote_path: &str,
+    local_dest: &std::path::Path,
+) -> AppResult<()> {
+    let valid_remote = RemotePath::try_from(remote_path)?;
+    let parent = local_dest
+        .parent()
+        .ok_or_else(|| AppError::Forbidden("Invalid local destination directory".into()))?;
+    if !parent.exists() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| AppError::Io(format!("Failed to create local destination folder: {e}")))?;
+    }
+
+    let control_dir = ssh::control_dir()?;
+    let args = build_scp_download_args(target, &valid_remote, local_dest, &control_dir);
+
+    let out = std::process::Command::new(ssh::SCP_BIN)
+        .args(&args)
+        .output()
+        .map_err(|e| AppError::Io(format!("Failed to run scp download: {e}")))?;
+
+    if !out.status.success() {
+        return Err(AppError::Shell(
+            String::from_utf8_lossy(&out.stderr).to_string(),
+        ));
+    }
+    Ok(())
+}
+
+pub fn upload_file(
+    target: &SshTarget,
+    local_src: &std::path::Path,
+    remote_path: &str,
+    overwrite: bool,
+) -> AppResult<()> {
+    if !local_src.exists() || !local_src.is_file() {
+        return Err(AppError::NotFound(
+            "Local file does not exist or is not a file".into(),
+        ));
+    }
+    let valid_remote = RemotePath::try_from(remote_path)?;
+
+    if !overwrite && check_remote_exists(target, valid_remote.as_str())? {
+        return Err(AppError::Conflict(format!(
+            "Remote file '{}' already exists. Pass overwrite=true to overwrite.",
+            valid_remote.as_str()
+        )));
+    }
+
+    let control_dir = ssh::control_dir()?;
+    let args = build_scp_upload_args(target, local_src, &valid_remote, &control_dir);
+
+    let out = std::process::Command::new(ssh::SCP_BIN)
+        .args(&args)
+        .output()
+        .map_err(|e| AppError::Io(format!("Failed to run scp upload: {e}")))?;
+
+    if !out.status.success() {
+        return Err(AppError::Shell(
+            String::from_utf8_lossy(&out.stderr).to_string(),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,5 +353,23 @@ drwxr-xr-x 2 ubuntu ubuntu 4096 1700000300 src
         assert!(entries[1].is_secret);
         assert_eq!(entries[2].name, "config.json");
         assert!(!entries[2].is_secret);
+    }
+
+    #[test]
+    fn test_scp_args_construction() {
+        let target = SshTarget::alias("prod-box");
+        let remote_path = RemotePath::try_from("/var/log/nginx.log").unwrap();
+        let local_path = std::path::Path::new("/tmp/nginx.log");
+        let control_dir = std::path::Path::new("/tmp/nxc-501");
+
+        let dl_args = build_scp_download_args(&target, &remote_path, local_path, control_dir);
+        assert!(dl_args.contains(&"-o".to_string()));
+        assert!(dl_args.contains(&"BatchMode=yes".to_string()));
+        assert_eq!(dl_args.last().unwrap(), "/tmp/nginx.log");
+        assert_eq!(dl_args[dl_args.len() - 2], "prod-box:/var/log/nginx.log");
+
+        let up_args = build_scp_upload_args(&target, local_path, &remote_path, control_dir);
+        assert_eq!(up_args[up_args.len() - 2], "/tmp/nginx.log");
+        assert_eq!(up_args.last().unwrap(), "prod-box:/var/log/nginx.log");
     }
 }

@@ -1080,10 +1080,13 @@ pub fn get_project_usage(dir_name: &str) -> AppResult<ProjectTokenUsage> {
         }
     }
 
-    // Claude 3.5 Sonnet token pricing estimate: /M in, /M out, zsh.30/M cache read
-    let cost = (input_tokens as f64 * 3.0 / 1_000_000.0)
-        + (output_tokens as f64 * 15.0 / 1_000_000.0)
-        + (cache_read_tokens as f64 * 0.30 / 1_000_000.0);
+    // Model price table in dedicated file (T-20)
+    let cost = crate::services::ai::pricing::calculate_cost(
+        "claude-3-5-sonnet",
+        input_tokens,
+        output_tokens,
+        cache_read_tokens,
+    );
 
     Ok(ProjectTokenUsage {
         input_tokens,

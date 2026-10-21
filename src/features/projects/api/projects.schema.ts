@@ -63,3 +63,11 @@ export const workspaceConfigSchema = z.object({
   savedCommands: z.array(savedCommandSchema),
 });
 export type WorkspaceConfig = z.infer<typeof workspaceConfigSchema>;
+
+export const workspaceStepResultSchema = z.object({
+  step: z.string(),
+  target: z.string(),
+  status: z.string(),
+  message: z.string().nullable().optional(),
+});
+export type WorkspaceStepResult = z.infer<typeof workspaceStepResultSchema>;

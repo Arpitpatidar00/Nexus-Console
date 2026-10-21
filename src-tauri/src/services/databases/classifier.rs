@@ -17,6 +17,33 @@ pub fn sanitize_and_classify_query(raw_query: &str, allow_writes: bool) -> AppRe
         return Err(AppError::InvalidName("Query cannot be empty".into()));
     }
 
+    if trimmed.starts_with("db.") {
+        if !allow_writes {
+            let lower = trimmed.to_lowercase();
+            let forbidden = [
+                "insert",
+                "update",
+                "delete",
+                "remove",
+                "drop",
+                "create",
+                "bulkwrite",
+                "$out",
+                "$merge",
+                "eval",
+                "runcommand",
+            ];
+            for f in &forbidden {
+                if lower.contains(f) {
+                    return Err(AppError::InvalidName(format!(
+                        "Mutating MongoDB operation containing '{f}' is forbidden in read-only sessions."
+                    )));
+                }
+            }
+        }
+        return Ok(trimmed.to_string());
+    }
+
     // Check for multi-statements (disallowed for safety)
     let statements: Vec<&str> = trimmed
         .split(';')

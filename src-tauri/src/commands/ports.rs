@@ -48,6 +48,24 @@ pub async fn probe_port_http(port: u16) -> AppResult<bool> {
     .map_err(|e| AppError::Shell(format!("http probe failed: {e}")))?
 }
 
+#[tauri::command]
+pub async fn open_in_browser(url: String) -> AppResult<()> {
+    if !url.starts_with("http://127.0.0.1:") && !url.starts_with("http://localhost:") {
+        return Err(AppError::Forbidden(
+            "Only loopback URLs may be opened".into(),
+        ));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| AppError::Io(format!("Failed to open browser: {e}")))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("open task failed: {e}")))?
+}
+
 /// `async` + `spawn_blocking` so the lsof/ps shell-outs run OFF the main thread —
 /// a plain sync command would block the UI thread on every poll (jank on tab switch).
 #[tauri::command]

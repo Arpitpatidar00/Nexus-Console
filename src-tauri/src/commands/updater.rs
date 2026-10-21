@@ -48,38 +48,41 @@ pub fn parse_release_json(
 
 #[tauri::command]
 pub async fn app_check_update() -> AppResult<UpdateCheckResult> {
-    let current_version = env!("CARGO_PKG_VERSION").to_string();
-    let api_url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest");
-    let fallback_url = format!("https://github.com/{GITHUB_REPO}/releases");
+    super::blocking(move || {
+        let current_version = env!("CARGO_PKG_VERSION").to_string();
+        let api_url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest");
+        let fallback_url = format!("https://github.com/{GITHUB_REPO}/releases");
 
-    let opts =
-        crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(6));
-    let out = crate::core::exec::run(
-        "curl",
-        &[
-            "-s",
-            "--max-time",
-            "5",
-            "-H",
-            "User-Agent: Stackroost-Console",
-            &api_url,
-        ],
-        opts,
-    );
+        let opts =
+            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(6));
+        let out = crate::core::exec::run(
+            "curl",
+            &[
+                "-s",
+                "--max-time",
+                "5",
+                "-H",
+                "User-Agent: Stackroost-Console",
+                &api_url,
+            ],
+            opts,
+        );
 
-    if let Ok(res) = out {
-        if let Some(parsed) = parse_release_json(&res.stdout, &current_version, GITHUB_REPO) {
-            return Ok(parsed);
+        if let Ok(res) = out {
+            if let Some(parsed) = parse_release_json(&res.stdout, &current_version, GITHUB_REPO) {
+                return Ok(parsed);
+            }
         }
-    }
 
-    Ok(UpdateCheckResult {
-        has_update: false,
-        current_version: current_version.clone(),
-        latest_version: current_version,
-        release_url: fallback_url,
-        release_notes: None,
+        Ok(UpdateCheckResult {
+            has_update: false,
+            current_version: current_version.clone(),
+            latest_version: current_version,
+            release_url: fallback_url,
+            release_notes: None,
+        })
     })
+    .await
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ExternalLink, Star, Trash2 } from 'lucide-react';
 import { DataTable } from '@/shared/ui/DataTable';
@@ -8,25 +8,10 @@ import { ProcessCell } from '@/features/ports/components/ProcessCell';
 import { KillConfirmDialog } from '@/features/ports/components/KillConfirmDialog';
 import type { PortDto } from '@/features/ports/api/ports.schema';
 import { cn } from '@/shared/lib/cn';
-
-const FAVORITES_KEY = 'stackroost:favorite_ports';
-
-function getFavorites(): number[] {
-  try {
-    const raw = localStorage.getItem(FAVORITES_KEY);
-    return raw ? (JSON.parse(raw) as number[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveFavorites(favs: number[]) {
-  try {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
-  } catch {
-    /* ignore storage errors */
-  }
-}
+import { ipc, ipcVoid, CMD } from '@/shared/tauri';
+import { z } from 'zod';
+import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
+import { toggleFavoritePort } from '@/shared/state/settingsSlice';
 
 function buildColumns(
   onKill: (p: PortDto) => void,
@@ -131,7 +116,18 @@ function buildColumns(
               size="icon"
               aria-label={`Open http://127.0.0.1:${port} in browser`}
               title="Open in browser"
-              onClick={() => window.open(`http://127.0.0.1:${port}`, '_blank')}
+              onClick={async () => {
+                try {
+                  const isHttp = await ipc(CMD.PROBE_PORT_HTTP, { port }, z.boolean());
+                  if (isHttp) {
+                    await ipcVoid(CMD.OPEN_IN_BROWSER, { url: `http://127.0.0.1:${port}` });
+                  } else {
+                    console.info(`Port :${port} did not respond to HTTP probe`);
+                  }
+                } catch {
+                  /* ignore probe failure */
+                }
+              }}
             >
               <ExternalLink className="size-3.5" />
             </Button>
@@ -153,16 +149,16 @@ function buildColumns(
 }
 
 export const PortsTable = ({ ports }: { ports: PortDto[] }) => {
+  const dispatch = useAppDispatch();
   const [killTarget, setKillTarget] = useState<PortDto | null>(null);
-  const [favorites, setFavorites] = useState<number[]>(getFavorites);
+  const favorites = useAppSelector((state) => state.settings.favoritePorts);
 
-  const toggleFavorite = (port: number) => {
-    setFavorites((prev) => {
-      const next = prev.includes(port) ? prev.filter((p) => p !== port) : [...prev, port];
-      saveFavorites(next);
-      return next;
-    });
-  };
+  const toggleFavorite = useCallback(
+    (port: number) => {
+      dispatch(toggleFavoritePort(port));
+    },
+    [dispatch],
+  );
 
   const sortedPorts = useMemo(() => {
     return [...ports].sort((a, b) => {
@@ -176,7 +172,7 @@ export const PortsTable = ({ ports }: { ports: PortDto[] }) => {
 
   const columns = useMemo(
     () => buildColumns(setKillTarget, favorites, toggleFavorite),
-    [favorites],
+    [favorites, toggleFavorite],
   );
 
   return (

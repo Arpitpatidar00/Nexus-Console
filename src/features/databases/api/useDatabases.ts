@@ -40,6 +40,7 @@ export function useAddDbConnection() {
       host: string;
       port: number;
       user?: string | null;
+      password?: string | null;
       database?: string | null;
       tunnelId?: string | null;
       allowWrites: boolean;

@@ -179,6 +179,55 @@ pub fn launch_android_avd(name: &str) -> AppResult<String> {
     Ok(format!("Emulator {name} launched"))
 }
 
+pub fn get_logcat(serial: Option<&str>, max_lines: usize) -> AppResult<Vec<String>> {
+    let mut cmd = Command::new("adb");
+    if let Some(s) = serial {
+        cmd.args(["-s", s]);
+    }
+    let lines_str = max_lines.to_string();
+    cmd.args(["logcat", "-d", "-t", &lines_str]);
+    let out = cmd
+        .output()
+        .map_err(|e| AppError::Io(format!("Failed to run adb logcat: {e}")))?;
+
+    if !out.status.success() {
+        return Err(AppError::Shell(
+            String::from_utf8_lossy(&out.stderr).to_string(),
+        ));
+    }
+
+    let text = String::from_utf8_lossy(&out.stdout);
+    Ok(text.lines().map(String::from).collect())
+}
+
+pub fn install_apk(apk_path: &str, serial: Option<&str>) -> AppResult<()> {
+    let path = std::path::Path::new(apk_path);
+    if !path.exists() || !path.is_file() {
+        return Err(AppError::NotFound(format!(
+            "APK file '{apk_path}' does not exist"
+        )));
+    }
+    if !apk_path.to_lowercase().ends_with(".apk") {
+        return Err(AppError::InvalidName("Target file is not an .apk".into()));
+    }
+
+    let mut cmd = Command::new("adb");
+    if let Some(s) = serial {
+        cmd.args(["-s", s]);
+    }
+    cmd.args(["install", "-r", apk_path]);
+    let out = cmd
+        .output()
+        .map_err(|e| AppError::Io(format!("Failed to run adb install: {e}")))?;
+
+    if !out.status.success() {
+        return Err(AppError::Shell(
+            String::from_utf8_lossy(&out.stderr).to_string(),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

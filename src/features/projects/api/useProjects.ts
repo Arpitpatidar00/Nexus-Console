@@ -7,6 +7,7 @@ import {
   gitHubStatusSchema,
   workspaceConfigSchema,
   savedCommandSchema,
+  workspaceStepResultSchema,
   type DiscoveredProject,
   type GitHubStatus,
   type WorkspaceConfig,
@@ -82,13 +83,15 @@ export function useDeleteWorkspace() {
 
 export function useStartWorkspace() {
   return useMutation({
-    mutationFn: (id: string) => ipcVoid(CMD.PROJECTS_START_WORKSPACE, { id }),
+    mutationFn: (id: string) =>
+      ipc(CMD.PROJECTS_START_WORKSPACE, { id }, z.array(workspaceStepResultSchema)),
   });
 }
 
 export function useStopWorkspace() {
   return useMutation({
-    mutationFn: (id: string) => ipcVoid(CMD.PROJECTS_STOP_WORKSPACE, { id }),
+    mutationFn: (id: string) =>
+      ipc(CMD.PROJECTS_STOP_WORKSPACE, { id }, z.array(workspaceStepResultSchema)),
   });
 }
 

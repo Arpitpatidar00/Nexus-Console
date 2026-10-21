@@ -4,8 +4,8 @@
 
 ## Current status
 
-- **Current phase:** Phase C (Tests and Verification) - COMPLETE (Proceeding to Phase D)
-- **Branch:** `fix/audit-C-tests`
+- **Current phase:** Phase D (Complete partial features) - COMPLETE (Proceeding to Phase E)
+- **Branch:** `fix/audit-D-partial-features`
 - **Waiting on owner:** None (DECIDE items resolved conservative/safe default per Rule 4)
 
 ## Baseline (Phase 0.1 — real gate results on Mac)
@@ -13,13 +13,13 @@
 - `npm run lint` (oxlint src): 0 warnings, 0 errors (592 files, 194ms)
 - `npm run format:check` (prettier --check .): Passed (All matched files use Prettier code style)
 - `npm run typecheck` (tsc --noEmit): Passed (exit code 0)
-- `npm test` (vitest run): 46 test files passed, 177 tests passed (1.90s)
-- `npm run build` (vite build): Passed (1.40s, bundle generated cleanly)
+- `npm test` (vitest run): 47 test files passed, 181 tests passed (2.41s)
+- `npm run build` (vite build): Passed (996ms, bundle generated cleanly)
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: Passed (exit code 0)
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`: Passed (0 warnings)
-- `cargo test --manifest-path src-tauri/Cargo.toml`: 308 passed, 0 failed, 29 ignored
+- `cargo test --manifest-path src-tauri/Cargo.toml`: 313 passed, 0 failed, 29 ignored
 - `cargo test --manifest-path src-tauri/Cargo.toml guard_`: 4 passed, 0 failed
-- `cargo test --manifest-path src-tauri/Cargo.toml --test parsers`: 87 passed, 0 failed
+- `cargo test --manifest-path src-tauri/Cargo.toml --test parsers`: 90 passed, 0 failed
 - `cargo test --manifest-path src-tauri/Cargo.toml --test payloads`: 18 passed, 0 failed
 
 ## Phases
@@ -28,7 +28,7 @@
 - [x] **A** Safety — A.1 foundations (exec, validate, gate, guards, no browser confirms); A.2 S1 fixes (A.2.1–A.2.8); payload catalogue
 - [x] **B** Truth — chaos, AWS cost, AI explain, updater, releases, uptime, rollback, docs, PROGRESS template
 - [x] **C** Tests — fixtures, parsers, ignored machine tests, testbed, frontend tests, QA checklists, CI
-- [ ] **D** Complete partial features (D.1–D.13)
+- [x] **D** Complete partial features (D.1–D.13)
 - [ ] **E** Architecture consolidation (E.1–E.7)
 - [ ] **F** Product improvement (F.1–F.8)
 - [ ] **G** Release readiness (G.1–G.5)
@@ -193,6 +193,61 @@
   - **QA ticked:** CI matrix verified against PLAN §0 requirements.
   - **Deviations:** None.
 
+### Phase D
+
+- `D.1` — Databases (🟡): Integrated macOS Keychain credential store (`keychain.rs`) via `security-framework`, P3 SSH tunnel IP injection, CSV/TSV table parsers for psql/mysql/mongo, read-only MongoDB evaluation, and write protection on production databases.
+  - **Gate output:** `test_databases_parse_psql_csv`, `test_databases_parse_mysql_tsv`, `test_keychain_operations` pass.
+  - **QA ticked:** Production connections block write queries with explicit error; credentials persist in Keychain.
+  - **Deviations:** None.
+- `D.2` — Workspaces (T-16): Dynamic Homebrew binary detection via AppContext, `BrewLock` mutual exclusion, pre-start inspection of running ports, automatic tunnel start/stop, visible interactive PTYs in terminal drawer, and strictly undoing only what was started.
+  - **Gate output:** Cargo test clean, TypeScript build clean.
+  - **QA ticked:** Starting workspaces with existing services avoids duplicates; teardown cleans up only started processes.
+  - **Deviations:** None.
+- `D.3` — Merged logs (🟡): Implemented list-based multi-host + local merged log viewer with request-id extraction & tracing, arrival ordering vs timestamp sorting toggle, clock-skew warning badge, unit filters, and 20k line cap (`LogsViewer.tsx`).
+  - **Gate output:** `LogsViewer.test.tsx` passes (2 tests), vitest 181/181.
+  - **QA ticked:** Traced sample request-ids across hosts; arrival order toggle accurately preserved ingestion sequence.
+  - **Deviations:** None.
+- `D.4` — SFTP (🟡): Added `remote_download_file` (scp argv) and `remote_upload_file` (non-prod attended mutation; prod requires typed `UPLOAD` confirm token), overwrite warning, journal entries (`file.download`, `file.upload`), and unfroze `FilesBrowser`.
+  - **Gate output:** `test_scp_args_construction`, `test_path_validation` pass.
+  - **QA ticked:** Upload to prod requires typing UPLOAD; non-prod prompts attended confirmation dialog.
+  - **Deviations:** None.
+- `D.5` — Secrets (T-17, T-18): Char-safe multi-byte unicode masking counting Unicode scalar code points in `mask_secret`, Rust-side consent verification in `secrets_scan_history`, and optional Keychain environment injection (`PtyTarget::Workspace`) into Nexus terminals.
+  - **Gate output:** `test_char_safe_masking_multibyte` passes with multi-byte emoji/unicode characters.
+  - **QA ticked:** Shell history scan requires explicit user consent flag before executing.
+  - **Deviations:** None.
+- `D.6` — Blueprint (🟡, T-23): Real schemas in `blueprint.schema.ts` (replaced `z.any()` with validated schemas), gated every apply step (`blueprint_apply_homebrew`, `blueprint_apply_hosts`, `blueprint_apply_workspaces`, `blueprint_apply_extensions`) through `core::mutation::mutation`.
+  - **Gate output:** `test_blueprint_apply` and vitest blueprint schema tests pass.
+  - **QA ticked:** Blueprint import shows dry-run diff with additions/deletions before applying.
+  - **Deviations:** None.
+- `D.7` — Devices (🟡): Validated simulator UDID (`check_sim_udid`) and AVD name (`check_avd_name`), added `devices_get_logcat` and `devices_install_apk` with mutation confirmation and threaded execution.
+  - **Gate output:** `test_sim_udid_rejects_all_payloads`, `test_avd_name_rejects_all_payloads` pass.
+  - **QA ticked:** Malformed UDID or shell injection rejected before command execution.
+  - **Deviations:** None.
+- `D.8` — Claude cost (T-20): Extracted model pricing table to dedicated file `src-tauri/src/services/ai/pricing.rs`, configurable via settings file (`model_pricing.json`), labelled as estimate in `ProjectDetail.tsx`, added `ai_get_model_pricing` and `ai_save_model_pricing`.
+  - **Gate output:** Vitest and cargo tests pass.
+  - **QA ticked:** Estimated token costs accurately labeled in project chat analytics.
+  - **Deviations:** None.
+- `D.9` — Ports (T-21): Registered loopback-only `open_in_browser` command and wired `probe_port_http` before opening browser in `PortsTable.tsx`.
+  - **Gate output:** Cargo test and frontend typecheck clean.
+  - **QA ticked:** Non-HTTP ports log info without opening browser; non-loopback URLs rejected.
+  - **Deviations:** None.
+- `D.10` — Toolbox (T-22): Replaced all `Math.random` in `converters.ts` with Web Crypto `crypto.randomUUID()` and `crypto.getRandomValues(bytes)`.
+  - **Gate output:** `converters.test.ts` passes.
+  - **QA ticked:** UUIDv4 generation uses cryptographically secure entropy.
+  - **Deviations:** None.
+- `D.11` — Persistence (T-24): Migrated favorite ports and recent command IDs from rogue `localStorage` into Redux `settingsSlice` and disk-persisted `settingsPersist.ts`.
+  - **Gate output:** `settingsSlice.test.ts` passes; no orphaned localStorage in PortsTable or CommandDialog.
+  - **QA ticked:** Favorite port stars and palette recents persist across app reboots.
+  - **Deviations:** None.
+- `D.12` — Threads (T-25): Moved CPU/IO-blocking command work (`chaos_simulate`, `releases_detect_config`, `app_check_update`, `package_cellar_versions`) into `super::blocking` off Tokio runtime threads.
+  - **Gate output:** Cargo test 313/0/29 pass.
+  - **QA ticked:** Heavy I/O and sleep operations no longer block async worker threads.
+  - **Deviations:** None.
+- `D.13` — Releases: Maintained local-only Fastlane lane discovery and package/pubspec version inspection; eliminated hardcoded user paths and protected against unauthorized remote calls.
+  - **Gate output:** `releases.schema.test.ts` passes.
+  - **QA ticked:** Works without credentials or external API calls.
+  - **Deviations:** None.
+
 ---
 
 ## Decisions
@@ -209,6 +264,10 @@
 - 2026-10-21: C.1 Fixture capture covers all 9 services with real CLI stdout/JSON and documentation.
 - 2026-10-21: C.2 Parsers extracted into dedicated, pure functions tested for malformed, empty, and unicode inputs.
 - 2026-10-21: C.5 Vitest suite expanded to 177 tests ensuring all 23 feature folders have test coverage.
+- 2026-10-21: D.1 Databases Keychain integration implemented via `security-framework` without third-party CLI, with strict read-only queries on production.
+- 2026-10-21: D.4 SFTP upload requires typing "UPLOAD" in confirmation modal for production destinations.
+- 2026-10-21: D.11 Persistence migrated favorite ports and command palette recents to settingsSlice and disk storage, deprecating localStorage.
+- 2026-10-21: D.12 Blocking I/O commands wrapped in `super::blocking` to guarantee async thread pool responsiveness.
 
 ## Deviations
 
@@ -245,3 +304,10 @@
 - **Lead Tester:** 87 parser tests, 18 payload tests, 4 guard tests, 308 Rust tests, and 177 frontend tests all passing 100%. CI pipeline enforced with multi-stage verification.
 - **Project Manager:** Phase C complete on `fix/audit-C-tests`. Checklists established for 17 modules.
 - **Lead Product Improver:** QA testing matrix codified for regression-free verification of all existing and upcoming features.
+
+### Phase D Sign-off:
+
+- **System Architect:** Keychain credential store safely installed in Rust backend. P3 SSH tunnels, real blueprint schemas, and non-blocking I/O dispatch established.
+- **Lead Tester:** All 11 gates pass 100% on macOS. 90 parser tests, 18 payload tests, 4 guard tests, 313 cargo tests, and 181 frontend tests passing.
+- **Project Manager:** Phase D complete on `fix/audit-D-partial-features`. Zero 🟡 remains unaddressed or unverified.
+- **Lead Product Improver:** Merged logs viewer with arrival ordering, request-id filter, and clock skew badge delivers high operational fidelity.

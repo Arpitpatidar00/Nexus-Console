@@ -40,11 +40,17 @@ pub struct AddConnectionInput {
     pub host: String,
     pub port: u16,
     pub user: Option<String>,
+    pub password: Option<String>,
     pub database: Option<String>,
     pub tunnel_id: Option<String>,
     pub allow_writes: bool,
     pub env: String,
     pub data_dir: Option<String>,
+}
+
+#[tauri::command]
+pub async fn db_set_password(id: String, password: String) -> AppResult<()> {
+    crate::core::keychain::set_password(&format!("db_conn_{id}"), &password)
 }
 
 #[tauri::command]
@@ -75,10 +81,20 @@ pub async fn db_add_connection(
         .target(&input.name),
     );
 
+    let is_prod = input.env == "prod" || input.env == "production";
+    let allow_writes = input.allow_writes && !is_prod;
+    let password_opt = input.password.clone();
+
     blocking(move || {
         let state = app.state::<DatabaseState>();
+        let conn_id = new_connection_id();
+
+        if let Some(ref pass) = password_opt {
+            let _ = crate::core::keychain::set_password(&format!("db_conn_{conn_id}"), pass);
+        }
+
         let conn = DbConnection {
-            id: new_connection_id(),
+            id: conn_id,
             name: input.name,
             driver: input.driver,
             host: input.host,
@@ -86,7 +102,7 @@ pub async fn db_add_connection(
             user: input.user,
             database: input.database,
             tunnel_id: input.tunnel_id,
-            allow_writes: input.allow_writes && input.env != "prod",
+            allow_writes,
             env: input.env,
             data_dir: input.data_dir,
         };
@@ -115,6 +131,8 @@ pub async fn db_remove_connection(app: AppHandle, id: String) -> AppResult<()> {
         .destructive(true),
     );
 
+    let _ = crate::core::keychain::delete_password(&format!("db_conn_{id}"));
+
     blocking(move || {
         let state = app.state::<DatabaseState>();
         let mut store = state
@@ -131,10 +149,30 @@ pub async fn db_remove_connection(app: AppHandle, id: String) -> AppResult<()> {
     .await
 }
 
+fn resolve_endpoint(app: &AppHandle, conn: &DbConnection) -> (String, u16) {
+    if let Some(ref tid) = conn.tunnel_id {
+        if let Some(r_state) = app.try_state::<crate::services::remote::RemoteState>() {
+            if let Ok(store) = r_state.read() {
+                if let Some(t) = store.tunnels.iter().find(|t| &t.id == tid) {
+                    return ("127.0.0.1".to_string(), t.local_port);
+                }
+            }
+        }
+    }
+    (conn.host.clone(), conn.port)
+}
+
+fn get_conn_password(conn_id: &str) -> Option<String> {
+    crate::core::keychain::get_password(&format!("db_conn_{conn_id}"))
+        .ok()
+        .flatten()
+}
+
 #[tauri::command]
 pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<TableSummary>> {
+    let app_clone = app.clone();
     blocking(move || {
-        let state = app.state::<DatabaseState>();
+        let state = app_clone.state::<DatabaseState>();
         let conn = {
             let store = state
                 .store
@@ -146,8 +184,10 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                 .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?
         };
 
-        let valid_host = HostName::try_from(conn.host.as_str())?;
-        let valid_port = Port::try_from(conn.port)?;
+        let (endpoint_host, endpoint_port) = resolve_endpoint(&app_clone, &conn);
+        let valid_host = HostName::try_from(endpoint_host.as_str())?;
+        let valid_port = Port::try_from(endpoint_port)?;
+        let pass = get_conn_password(&conn.id);
 
         let mut tables = Vec::new();
         match conn.driver.as_str() {
@@ -157,13 +197,17 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                 let valid_user = DbUser::try_from(user)?;
                 let valid_db = DbName::try_from(db)?;
 
-                let opts = ExecOpts::default()
+                let mut opts = ExecOpts::default()
                     .with_timeout(Duration::from_secs(10))
                     .with_env(
                         "PGOPTIONS",
                         "-c default_transaction_read_only=on -c statement_timeout=10000",
                     );
+                if let Some(ref p) = pass {
+                    opts = opts.with_env("PGPASSWORD", p);
+                }
 
+                // Query table name, schema, row estimates, and total size
                 let out = exec::run(
                     "psql",
                     &[
@@ -177,10 +221,31 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                         valid_db.as_str(),
                         "-t",
                         "-c",
-                        "SELECT table_name FROM information_schema.tables WHERE table_schema='public';",
+                        "SELECT c.relname, n.nspname, c.reltuples::bigint, pg_size_pretty(pg_total_relation_size(c.oid)) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname;",
                     ],
-                    opts,
+                    opts.clone(),
                 );
+
+                let out = match out {
+                    Ok(o) if o.status.success() => Ok(o),
+                    _ => exec::run(
+                        "psql",
+                        &[
+                            "-h",
+                            valid_host.as_str(),
+                            "-p",
+                            &valid_port.as_u16().to_string(),
+                            "-U",
+                            valid_user.as_str(),
+                            "-d",
+                            valid_db.as_str(),
+                            "-t",
+                            "-c",
+                            "SELECT table_name FROM information_schema.tables WHERE table_schema='public';",
+                        ],
+                        opts,
+                    ),
+                };
 
                 if let Ok(o) = out {
                     tables = crate::services::databases::parse_psql_tables(
@@ -195,7 +260,11 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                 let valid_user = DbUser::try_from(user)?;
                 let valid_db = DbName::try_from(db)?;
 
-                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                if let Some(ref p) = pass {
+                    opts = opts.with_env("MYSQL_PWD", p);
+                }
+
                 let out = exec::run(
                     "mysql",
                     &[
@@ -207,18 +276,111 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                         valid_user.as_str(),
                         "-D",
                         valid_db.as_str(),
+                        "--batch",
+                        "--raw",
                         "--init-command=SET SESSION TRANSACTION READ ONLY; SET SESSION max_execution_time=10000;",
                         "-e",
-                        "SHOW TABLES;",
+                        "SELECT TABLE_NAME, TABLE_SCHEMA, COALESCE(TABLE_ROWS, 0) AS estimated_rows, CONCAT(ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2), ' MB') AS size_pretty FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME;",
                     ],
-                    opts,
+                    opts.clone(),
                 );
+
+                let out = match out {
+                    Ok(o) if o.status.success() => Ok(o),
+                    _ => exec::run(
+                        "mysql",
+                        &[
+                            "-h",
+                            valid_host.as_str(),
+                            "-P",
+                            &valid_port.as_u16().to_string(),
+                            "-u",
+                            valid_user.as_str(),
+                            "-D",
+                            valid_db.as_str(),
+                            "--init-command=SET SESSION TRANSACTION READ ONLY; SET SESSION max_execution_time=10000;",
+                            "-e",
+                            "SHOW TABLES;",
+                        ],
+                        opts,
+                    ),
+                };
 
                 if let Ok(o) = out {
                     tables = crate::services::databases::parse_mysql_tables(
                         &String::from_utf8_lossy(&o.stdout),
                         db,
                     );
+                }
+            }
+            "redis" => {
+                let port_str = valid_port.as_u16().to_string();
+                let mut argv = vec![
+                    "-h",
+                    valid_host.as_str(),
+                    "-p",
+                    port_str.as_str(),
+                ];
+                if let Some(ref p) = pass {
+                    argv.push("-a");
+                    argv.push(p);
+                }
+                argv.extend(["SCAN", "0", "COUNT", "100"]);
+                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let out = exec::run("redis-cli", &argv, opts);
+                if let Ok(o) = out {
+                    let text = String::from_utf8_lossy(&o.stdout);
+                    for line in text.lines().skip(1) {
+                        let k = line.trim();
+                        if !k.is_empty() {
+                            tables.push(TableSummary {
+                                name: k.to_string(),
+                                schema: "redis".into(),
+                                estimated_rows: 1,
+                                size_pretty: "—".into(),
+                            });
+                        }
+                    }
+                }
+            }
+            "mongo" | "mongodb" => {
+                let db = conn.database.as_deref().unwrap_or("admin");
+                let port_str = valid_port.as_u16().to_string();
+                let mut argv = vec![
+                    "--host",
+                    valid_host.as_str(),
+                    "--port",
+                    port_str.as_str(),
+                    "--norc",
+                    "--quiet",
+                ];
+                if let Some(ref u) = conn.user {
+                    argv.push("-u");
+                    argv.push(u);
+                }
+                if let Some(ref p) = pass {
+                    argv.push("-p");
+                    argv.push(p);
+                }
+                argv.extend([
+                    "--eval",
+                    "db.getCollectionNames().forEach(c => print(c))",
+                ]);
+                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let out = exec::run("mongosh", &argv, opts);
+                if let Ok(o) = out {
+                    let text = String::from_utf8_lossy(&o.stdout);
+                    for line in text.lines() {
+                        let name = line.trim();
+                        if !name.is_empty() {
+                            tables.push(TableSummary {
+                                name: name.to_string(),
+                                schema: db.to_string(),
+                                estimated_rows: 0,
+                                size_pretty: "—".into(),
+                            });
+                        }
+                    }
                 }
             }
             _ => {}
@@ -230,8 +392,9 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
 
 #[tauri::command]
 pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResult<QueryResult> {
+    let app_clone = app.clone();
     blocking(move || {
-        let state = app.state::<DatabaseState>();
+        let state = app_clone.state::<DatabaseState>();
         let conn = {
             let store = state
                 .store
@@ -243,28 +406,34 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?
         };
 
-        let valid_host = HostName::try_from(conn.host.as_str())?;
-        let valid_port = Port::try_from(conn.port)?;
+        let (endpoint_host, endpoint_port) = resolve_endpoint(&app_clone, &conn);
+        let valid_host = HostName::try_from(endpoint_host.as_str())?;
+        let valid_port = Port::try_from(endpoint_port)?;
+        let pass = get_conn_password(&conn.id);
 
-        let sanitized = classifier::sanitize_and_classify_query(&query, conn.allow_writes)?;
+        let is_prod = conn.env == "prod" || conn.env == "production";
+        let allow_writes = conn.allow_writes && !is_prod;
+
+        let sanitized = classifier::sanitize_and_classify_query(&query, allow_writes)?;
         let start = std::time::Instant::now();
 
-        let mut columns = Vec::new();
-        let mut rows = Vec::new();
-
-        match conn.driver.as_str() {
+        let (columns, rows) = match conn.driver.as_str() {
             "postgres" => {
                 let user = conn.user.as_deref().unwrap_or("postgres");
                 let db = conn.database.as_deref().unwrap_or("postgres");
                 let valid_user = DbUser::try_from(user)?;
                 let valid_db = DbName::try_from(db)?;
 
-                let opts = ExecOpts::default()
-                    .with_timeout(Duration::from_secs(10))
-                    .with_env(
+                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                if !allow_writes {
+                    opts = opts.with_env(
                         "PGOPTIONS",
                         "-c default_transaction_read_only=on -c statement_timeout=10000",
                     );
+                }
+                if let Some(ref p) = pass {
+                    opts = opts.with_env("PGPASSWORD", p);
+                }
 
                 let out = exec::run(
                     "psql",
@@ -277,6 +446,7 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                         valid_user.as_str(),
                         "-d",
                         valid_db.as_str(),
+                        "--csv",
                         "-c",
                         &sanitized,
                     ],
@@ -289,26 +459,7 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 }
 
                 let text = String::from_utf8_lossy(&out.stdout);
-                let lines: Vec<&str> = text
-                    .lines()
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty())
-                    .collect();
-                if !lines.is_empty() {
-                    columns = lines[0].split('|').map(|s| s.trim().to_string()).collect();
-                    for line in lines.iter().skip(2) {
-                        if line.starts_with('(') && line.contains("row") {
-                            break;
-                        }
-                        let row_vals: Vec<serde_json::Value> = line
-                            .split('|')
-                            .map(|s| serde_json::Value::String(s.trim().to_string()))
-                            .collect();
-                        if row_vals.len() == columns.len() {
-                            rows.push(row_vals);
-                        }
-                    }
-                }
+                crate::services::databases::parse_psql_csv(&text)
             }
             "mysql" => {
                 let user = conn.user.as_deref().unwrap_or("root");
@@ -316,7 +467,17 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 let valid_user = DbUser::try_from(user)?;
                 let valid_db = DbName::try_from(db)?;
 
-                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                if let Some(ref p) = pass {
+                    opts = opts.with_env("MYSQL_PWD", p);
+                }
+
+                let init_cmd = if !allow_writes {
+                    "SET SESSION TRANSACTION READ ONLY; SET SESSION max_execution_time=10000;"
+                } else {
+                    "SET SESSION max_execution_time=10000;"
+                };
+
                 let out = exec::run(
                     "mysql",
                     &[
@@ -328,7 +489,9 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                         valid_user.as_str(),
                         "-D",
                         valid_db.as_str(),
-                        "--init-command=SET SESSION TRANSACTION READ ONLY; SET SESSION max_execution_time=10000;",
+                        "--batch",
+                        "--raw",
+                        &format!("--init-command={init_cmd}"),
                         "-e",
                         &sanitized,
                     ],
@@ -341,47 +504,26 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 }
 
                 let text = String::from_utf8_lossy(&out.stdout);
-                let lines: Vec<&str> = text
-                    .lines()
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty())
-                    .collect();
-                if !lines.is_empty() {
-                    columns = lines[0].split('\t').map(|s| s.trim().to_string()).collect();
-                    for line in lines.iter().skip(1) {
-                        let row_vals: Vec<serde_json::Value> = line
-                            .split('\t')
-                            .map(|s| serde_json::Value::String(s.trim().to_string()))
-                            .collect();
-                        if row_vals.len() == columns.len() {
-                            rows.push(row_vals);
-                        }
-                    }
-                }
+                crate::services::databases::parse_mysql_tsv(&text)
             }
             "redis" => {
+                let port_str = valid_port.as_u16().to_string();
+                let mut argv = vec!["-h", valid_host.as_str(), "-p", port_str.as_str()];
+                if let Some(ref p) = pass {
+                    argv.push("-a");
+                    argv.push(p);
+                }
+                argv.extend(["SCAN", "0", "COUNT", "100"]);
                 let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
-                let out = exec::run(
-                    "redis-cli",
-                    &[
-                        "-h",
-                        valid_host.as_str(),
-                        "-p",
-                        &valid_port.as_u16().to_string(),
-                        "SCAN",
-                        "0",
-                        "COUNT",
-                        "100",
-                    ],
-                    opts,
-                )?;
+                let out = exec::run("redis-cli", &argv, opts)?;
 
                 if !out.status.success() {
                     let stderr = String::from_utf8_lossy(&out.stderr);
                     return Err(AppError::Shell(format!("redis error: {stderr}")));
                 }
 
-                columns = vec!["Cursor".into(), "Key".into()];
+                let columns = vec!["Cursor".into(), "Key".into()];
+                let mut rows = Vec::new();
                 let text = String::from_utf8_lossy(&out.stdout);
                 for line in text.lines().skip(1) {
                     let k = line.trim();
@@ -392,6 +534,45 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                         ]);
                     }
                 }
+                (columns, rows)
+            }
+            "mongo" | "mongodb" => {
+                let port_str = valid_port.as_u16().to_string();
+                let mut argv = vec![
+                    "--host",
+                    valid_host.as_str(),
+                    "--port",
+                    port_str.as_str(),
+                    "--norc",
+                    "--quiet",
+                ];
+                if let Some(ref u) = conn.user {
+                    argv.push("-u");
+                    argv.push(u);
+                }
+                if let Some(ref p) = pass {
+                    argv.push("-p");
+                    argv.push(p);
+                }
+                argv.extend(["--eval", &sanitized]);
+                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let out = exec::run("mongosh", &argv, opts)?;
+
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    return Err(AppError::Shell(format!("mongodb error: {stderr}")));
+                }
+
+                let columns = vec!["Result".into()];
+                let mut rows = Vec::new();
+                let text = String::from_utf8_lossy(&out.stdout);
+                for line in text.lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        rows.push(vec![serde_json::Value::String(trimmed.to_string())]);
+                    }
+                }
+                (columns, rows)
             }
             _ => {
                 return Err(AppError::InvalidName(format!(
@@ -399,7 +580,7 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                     conn.driver
                 )));
             }
-        }
+        };
 
         let duration_ms = start.elapsed().as_millis() as u64;
         let row_count = rows.len();

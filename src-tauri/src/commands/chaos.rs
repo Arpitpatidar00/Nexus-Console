@@ -43,5 +43,5 @@ pub async fn chaos_list_proxies(mgr: State<'_, ChaosManager>) -> AppResult<Vec<C
 
 #[tauri::command]
 pub async fn chaos_simulate(profile: ChaosProfile) -> AppResult<bool> {
-    chaos::simulate_chaos(&profile)
+    super::blocking(move || chaos::simulate_chaos(&profile)).await
 }

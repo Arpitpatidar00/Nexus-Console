@@ -248,7 +248,7 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
             </span>
           </div>
           <span className="text-text-muted text-[10px]">
-            Claude 3.5 Sonnet token pricing estimate
+            Estimated spend (model price table estimate, editable in Settings)
           </span>
         </div>
       )}

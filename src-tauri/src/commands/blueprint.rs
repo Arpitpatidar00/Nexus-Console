@@ -35,16 +35,16 @@ pub async fn blueprint_analyze_import(
     .map_err(|e| AppError::Shell(format!("blueprint diff task: {e}")))?
 }
 
-use super::confirm_action;
-
 #[tauri::command]
 pub async fn blueprint_apply_homebrew(app: AppHandle, brewfile: String) -> AppResult<()> {
-    confirm_action(
+    let _guard = crate::core::mutation::mutation(
         &app,
-        "Apply Homebrew bundle?",
-        "This will install packages and casks defined in the blueprint Brewfile.",
-        "Apply Bundle",
-        false,
+        crate::core::mutation::MutationSpec::new(
+            "Apply Homebrew bundle",
+            "This will install packages and casks defined in the blueprint Brewfile.",
+            "blueprint_apply_homebrew",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalSystem),
     )?;
     let ctx = app.state::<AppContext>();
     let brew_bin = ctx
@@ -60,16 +60,18 @@ pub async fn blueprint_apply_homebrew(app: AppHandle, brewfile: String) -> AppRe
 
 #[tauri::command]
 pub async fn blueprint_apply_hosts(app: AppHandle, hosts: Vec<BlueprintHost>) -> AppResult<usize> {
-    confirm_action(
+    let _guard = crate::core::mutation::mutation(
         &app,
-        &format!(
-            "Apply {} Blueprint host{}?",
-            hosts.len(),
-            if hosts.len() == 1 { "" } else { "s" }
-        ),
-        "This will import host definitions from the blueprint.",
-        "Apply Hosts",
-        false,
+        crate::core::mutation::MutationSpec::new(
+            "Apply Blueprint Hosts",
+            format!(
+                "Import {} host definition{} from the blueprint.",
+                hosts.len(),
+                if hosts.len() == 1 { "" } else { "s" }
+            ),
+            "blueprint_apply_hosts",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;
     blocking(move || blueprint::apply_blueprint_hosts(hosts, &app))
         .await
@@ -81,16 +83,18 @@ pub async fn blueprint_apply_workspaces(
     app: AppHandle,
     workspaces: Vec<WorkspaceConfig>,
 ) -> AppResult<usize> {
-    confirm_action(
+    let _guard = crate::core::mutation::mutation(
         &app,
-        &format!(
-            "Apply {} Blueprint workspace{}?",
-            workspaces.len(),
-            if workspaces.len() == 1 { "" } else { "s" }
-        ),
-        "This will import project workspaces from the blueprint.",
-        "Apply Workspaces",
-        false,
+        crate::core::mutation::MutationSpec::new(
+            "Apply Blueprint Workspaces",
+            format!(
+                "Import {} project workspace{} from the blueprint.",
+                workspaces.len(),
+                if workspaces.len() == 1 { "" } else { "s" }
+            ),
+            "blueprint_apply_workspaces",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;
     blocking(move || blueprint::apply_blueprint_workspaces(workspaces, &app))
         .await
@@ -98,15 +102,19 @@ pub async fn blueprint_apply_workspaces(
 }
 
 #[tauri::command]
-pub async fn blueprint_apply_extensions(extensions: Vec<String>) -> AppResult<usize> {
-    let _guard = crate::core::mutation::mutation_unattended(
+pub async fn blueprint_apply_extensions(
+    app: AppHandle,
+    extensions: Vec<String>,
+) -> AppResult<usize> {
+    let _guard = crate::core::mutation::mutation(
+        &app,
         crate::core::mutation::MutationSpec::new(
-            "Apply Blueprint extensions",
+            "Apply Blueprint Extensions",
             format!("Install {} VSCode extension(s)", extensions.len()),
             "blueprint_apply_extensions",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalSystem),
-    );
+    )?;
     blocking(move || blueprint::apply_blueprint_extensions(extensions))
         .await
         .map_err(|e| AppError::Shell(format!("extensions task: {e}")))?

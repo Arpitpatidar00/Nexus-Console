@@ -15,6 +15,10 @@ import {
   setAutoArchiveEnabled,
   setAutoArchiveCutoffDays,
   setAutoVacuumEnabled,
+  setFavoritePorts,
+  toggleFavoritePort,
+  addRecentCommandId,
+  setRecentCommandIds,
   type PersistedSettings,
 } from './settingsSlice';
 
@@ -52,6 +56,10 @@ settingsListener.startListening({
     setAutoArchiveEnabled,
     setAutoArchiveCutoffDays,
     setAutoVacuumEnabled,
+    setFavoritePorts,
+    toggleFavoritePort,
+    addRecentCommandId,
+    setRecentCommandIds,
   ),
   effect: async (_action, api) => {
     const {
@@ -68,6 +76,8 @@ settingsListener.startListening({
       autoArchiveEnabled,
       autoArchiveCutoffDays,
       autoVacuumEnabled,
+      favoritePorts,
+      recentCommandIds,
     } = (api.getState() as RootState).settings;
     const store = await getStore();
     await store.set(KEY, {
@@ -84,6 +94,8 @@ settingsListener.startListening({
       autoArchiveEnabled,
       autoArchiveCutoffDays,
       autoVacuumEnabled,
+      favoritePorts,
+      recentCommandIds,
     });
     await store.save();
   },

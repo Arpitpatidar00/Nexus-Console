@@ -18,6 +18,17 @@ export const blueprintTunnelSchema = z.object({
 });
 export type BlueprintTunnel = z.infer<typeof blueprintTunnelSchema>;
 
+import { workspaceConfigSchema, savedCommandSchema } from '@/features/projects/api/projects.schema';
+
+export const macleanRulesSchema = z.object({
+  protectedNames: z.array(z.string()),
+  projectRoots: z.array(z.string()),
+  nextIdleDays: z.number(),
+  logAgeDays: z.number(),
+  staleNodeModulesDays: z.number(),
+});
+export type MacleanRules = z.infer<typeof macleanRulesSchema>;
+
 export const nexusBlueprintSchema = z.object({
   schemaVersion: z.number(),
   exportedAtEpoch: z.number(),
@@ -25,9 +36,9 @@ export const nexusBlueprintSchema = z.object({
   brewfile: z.string(),
   remoteHosts: z.array(blueprintHostSchema),
   tunnels: z.array(blueprintTunnelSchema),
-  workspaces: z.array(z.any()),
-  savedCommands: z.array(z.any()),
-  macleanRules: z.any().nullable().optional(),
+  workspaces: z.array(workspaceConfigSchema),
+  savedCommands: z.array(savedCommandSchema),
+  macleanRules: macleanRulesSchema.nullable().optional(),
   vscodeExtensions: z.array(z.string()),
 });
 export type NexusBlueprint = z.infer<typeof nexusBlueprintSchema>;

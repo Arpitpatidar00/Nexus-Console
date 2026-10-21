@@ -7,6 +7,8 @@ import {
   useRemoveDbConnection,
 } from '../api/useDatabases';
 import { SnapshotsPanel } from '../components/SnapshotsPanel/SnapshotsPanel';
+import { SchemaBrowser } from '../components/SchemaBrowser/SchemaBrowser';
+import { QueryEditor } from '../components/QueryEditor/QueryEditor';
 import type { DbConnection } from '../api/databases.schema';
 
 export function DatabasesPage() {
@@ -18,6 +20,7 @@ export function DatabasesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'query' | 'branching'>('query');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editorQuery, setEditorQuery] = useState('SELECT 1;');
 
   // New connection form state
   const [newName, setNewName] = useState('');
@@ -25,6 +28,7 @@ export function DatabasesPage() {
   const [newHost, setNewHost] = useState('127.0.0.1');
   const [newPort, setNewPort] = useState(5432);
   const [newUser, setNewUser] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newDb, setNewDb] = useState('');
   const [newDataDir, setNewDataDir] = useState('');
 
@@ -60,6 +64,7 @@ export function DatabasesPage() {
         host: newHost.trim(),
         port: Number(newPort),
         user: newUser.trim() || null,
+        password: newPassword.trim() || undefined,
         database: newDb.trim() || null,
         allowWrites: false,
         env: 'dev',
@@ -69,6 +74,7 @@ export function DatabasesPage() {
         onSuccess: () => {
           setIsAddOpen(false);
           setNewName('');
+          setNewPassword('');
         },
       },
     );
@@ -227,17 +233,24 @@ export function DatabasesPage() {
             {/* Body */}
             <div className="flex flex-1 overflow-hidden">
               {activeTab === 'query' ? (
-                <div className="flex-1 p-6">
-                  <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-                    <div>
-                      <span className="font-bold">Coming back after safety review (T-07):</span>
-                      <p className="mt-0.5 text-amber-300/80">
-                        The Database Query Editor is temporarily frozen while session-level
-                        read-only flags (PGOPTIONS default_transaction_read_only, MySQL SET SESSION
-                        TRANSACTION READ ONLY), 10s statement timeouts, host parameter sanitization,
-                        and Keychain credential storage are implemented in Phase A.
-                      </p>
-                    </div>
+                <div className="flex flex-1 overflow-hidden">
+                  <SchemaBrowser
+                    connectionId={activeConnection.id}
+                    onSelectTable={(tableName) => {
+                      const q =
+                        activeConnection.driver === 'mongodb' || activeConnection.driver === 'mongo'
+                          ? `db.${tableName}.find().limit(50)`
+                          : `SELECT * FROM ${tableName} LIMIT 50;`;
+                      setEditorQuery(q);
+                    }}
+                  />
+                  <div className="flex-1 overflow-hidden p-6">
+                    <QueryEditor
+                      key={`${activeConnection.id}-${editorQuery}`}
+                      connectionId={activeConnection.id}
+                      allowWrites={activeConnection.allowWrites && activeConnection.env !== 'prod'}
+                      defaultQuery={editorQuery}
+                    />
                   </div>
                 </div>
               ) : (
@@ -364,6 +377,20 @@ export function DatabasesPage() {
                   placeholder="e.g. app_development"
                   value={newDb}
                   onChange={(e) => setNewDb(e.target.value)}
+                  className="bg-surface-subtle border-border-subtle text-text-primary w-full rounded border px-3 py-1.5 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="conn-password" className="text-text-muted mb-1 block">
+                  Password (stored securely in Keychain)
+                </label>
+                <input
+                  id="conn-password"
+                  type="password"
+                  placeholder="Optional password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   className="bg-surface-subtle border-border-subtle text-text-primary w-full rounded border px-3 py-1.5 focus:outline-none"
                 />
               </div>

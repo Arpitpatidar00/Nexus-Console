@@ -673,6 +673,134 @@ pub async fn remote_read_file(
 }
 
 #[tauri::command]
+pub async fn remote_download_file(
+    app: AppHandle,
+    id: String,
+    remote_path: String,
+    local_destination: String,
+) -> AppResult<()> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Download Remote File",
+            format!("Download {remote_path} to {local_destination}"),
+            "remote_download_file",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
+        .target(&id),
+    );
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        let host = {
+            let s = state.read()?;
+            s.host(&id)?.clone()
+        };
+        let local_path = std::path::Path::new(&local_destination);
+        let res = files::download_file(&target, &remote_path, local_path);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let (result, msg) = match &res {
+            Ok(()) => ("ok", String::new()),
+            Err(e) => ("error", e.to_string()),
+        };
+
+        let _ = state.write(|s| {
+            s.append_journal(JournalEntry {
+                at_epoch: now,
+                host_id: host.id.clone(),
+                host_label: host.label.clone(),
+                env: host.env,
+                action: "file.download".to_string(),
+                target: remote_path.clone(),
+                result: result.into(),
+                message: msg,
+            });
+            Ok(())
+        });
+
+        res
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_upload_file(
+    app: AppHandle,
+    id: String,
+    local_source: String,
+    remote_path: String,
+    overwrite: bool,
+    confirm_token: Option<String>,
+) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let (host, target) = {
+            let s = state.read()?;
+            let h = s.host(&id)?.clone();
+            let t = state.target(&id)?;
+            (h, t)
+        };
+
+        let is_prod = host.env == crate::remote::store::Env::Prod;
+        if is_prod && confirm_token.as_deref() != Some("UPLOAD") {
+            return Err(AppError::Forbidden(
+                "Production upload requires explicit confirmation token 'UPLOAD'".into(),
+            ));
+        }
+
+        let radius = if is_prod {
+            crate::core::mutation::BlastRadius::RemoteProd
+        } else {
+            crate::core::mutation::BlastRadius::RemoteNonProd
+        };
+
+        let _guard = crate::core::mutation::mutation(
+            &app,
+            crate::core::mutation::MutationSpec::new(
+                "Upload Remote File",
+                format!("Upload {local_source} to {remote_path} on {}", host.label),
+                "remote_upload_file",
+            )
+            .blast_radius(radius)
+            .prod(is_prod)
+            .target(&id),
+        )?;
+
+        let local_path = std::path::Path::new(&local_source);
+        let res = files::upload_file(&target, local_path, &remote_path, overwrite);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let (result, msg) = match &res {
+            Ok(()) => ("ok", String::new()),
+            Err(e) => ("error", e.to_string()),
+        };
+
+        let _ = state.write(|s| {
+            s.append_journal(JournalEntry {
+                at_epoch: now,
+                host_id: host.id.clone(),
+                host_label: host.label.clone(),
+                env: host.env,
+                action: "file.upload".to_string(),
+                target: remote_path.clone(),
+                result: result.into(),
+                message: msg,
+            });
+            Ok(())
+        });
+
+        res
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn remote_get_note(app: AppHandle, id: String) -> AppResult<HostNote> {
     blocking(move || {
         let state = app.state::<RemoteState>();

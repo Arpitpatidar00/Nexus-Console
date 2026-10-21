@@ -57,7 +57,11 @@ pub async fn secrets_scan_projects(
 }
 
 #[tauri::command]
-pub async fn secrets_scan_history(_app: AppHandle) -> AppResult<Vec<SecretFinding>> {
+pub async fn secrets_scan_history(app: AppHandle) -> AppResult<Vec<SecretFinding>> {
+    // T-18: Rust-side consent check before reading shell history
+    if let Some(state) = app.try_state::<crate::services::remote::RemoteState>() {
+        state.read()?.require_consent()?;
+    }
     blocking(secrets::scan_shell_history)
         .await
         .map_err(|e| AppError::Shell(format!("scan shell history secrets task: {e}")))?

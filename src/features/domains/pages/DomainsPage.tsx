@@ -5,28 +5,14 @@ import {
   ShieldCheck,
   ShieldAlert,
   Search,
-  Plus,
-  Trash2,
   RefreshCw,
   Clock,
   Layers,
-  X,
   Radio,
 } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import {
-  useDnsLookup,
-  useSslCheck,
-  useRdapCheck,
-  usePropagationCheck,
-  useUptimeMonitors,
-  useSaveUptimeMonitor,
-  useDeleteUptimeMonitor,
-  usePingNow,
-} from '../api/useDomains';
-import type { UptimeMonitor } from '../api/domains.schema';
+import { Button } from '@/shared/ui/Button';
+import { useDnsLookup, useSslCheck, useRdapCheck, usePropagationCheck } from '../api/useDomains';
 
 export const DomainsPage = () => {
   const [activeTab, setActiveTab] = useState<'inspector' | 'uptime'>('inspector');
@@ -52,43 +38,6 @@ export const DomainsPage = () => {
     if (domainInput.trim()) {
       setQueryDomain(domainInput.trim());
     }
-  };
-
-  // Uptime State
-  const { data: monitors = [] } = useUptimeMonitors();
-  const saveMonitor = useSaveUptimeMonitor();
-  const deleteMonitor = useDeleteUptimeMonitor();
-  const pingNow = usePingNow();
-
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [newMonName, setNewMonName] = useState('');
-  const [newMonUrl, setNewMonUrl] = useState('https://');
-  const [newMonInterval, setNewMonInterval] = useState(5);
-
-  const handleAddMonitor = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMonName.trim() || !newMonUrl.trim()) return;
-
-    const monitor: UptimeMonitor = {
-      id: '',
-      name: newMonName.trim(),
-      url: newMonUrl.trim(),
-      intervalMins: newMonInterval,
-      enabled: true,
-      lastStatus: null,
-      lastLatencyMs: null,
-      isUp: true,
-      uptimePercent24h: 100.0,
-      history: [],
-    };
-
-    saveMonitor.mutate(monitor, {
-      onSuccess: () => {
-        setAddModalOpen(false);
-        setNewMonName('');
-        setNewMonUrl('https://');
-      },
-    });
   };
 
   return (
@@ -126,7 +75,7 @@ export const DomainsPage = () => {
             }`}
           >
             <Activity className="h-3.5 w-3.5" />
-            Uptime Monitors ({monitors.length})
+            Uptime Monitors (Frozen)
           </button>
         </div>
       </div>
@@ -351,178 +300,19 @@ export const DomainsPage = () => {
           </div>
         </div>
       ) : (
-        /* Uptime Monitors View */
+        /* Uptime Monitors View - Frozen */
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-fg-muted">
-              Endpoints pinged via background agent. Alerts on status code &gt;= 400 or latency
-              spike.
-            </span>
-            <Button variant="default" size="sm" onClick={() => setAddModalOpen(true)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Monitor
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
-            {monitors.map((mon) => (
-              <div
-                key={mon.id}
-                className="flex items-center justify-between rounded-xl border border-border bg-paper p-4 shadow-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                      mon.isUp ? 'bg-emerald-500/10 text-emerald-500' : 'bg-danger/10 text-danger'
-                    }`}
-                  >
-                    <Activity className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-semibold text-fg">{mon.name}</h4>
-                      <Badge variant={mon.isUp ? 'success' : 'danger'}>
-                        {mon.isUp ? 'Operational' : 'Down'}
-                      </Badge>
-                      {mon.lastStatus && (
-                        <span className="font-mono text-xs text-fg-muted">
-                          HTTP {mon.lastStatus}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-mono text-xs text-fg-muted">{mon.url}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="flex flex-col text-right">
-                    <span className="text-xs font-semibold text-fg">
-                      {mon.uptimePercent24h.toFixed(1)}% uptime
-                    </span>
-                    <span className="text-[11px] text-fg-muted">
-                      {mon.lastLatencyMs !== null && mon.lastLatencyMs !== undefined
-                        ? `${mon.lastLatencyMs}ms response`
-                        : 'Every ' + mon.intervalMins + 'm'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => pingNow.mutate({ id: mon.id, url: mon.url })}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => deleteMonitor.mutate(mon.id)}>
-                      <Trash2 className="h-3.5 w-3.5 text-danger" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {monitors.length === 0 && (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-                <Globe className="h-10 w-10 text-fg-muted/40" />
-                <h3 className="mt-3 text-sm font-semibold text-fg">No Uptime Monitors Added</h3>
-                <p className="mt-1 text-xs text-fg-muted">
-                  Add endpoints to track uptime, response time, and SSL validity.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => setAddModalOpen(true)}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add First Monitor
-                </Button>
-              </div>
-            )}
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+            <div>
+              <span className="font-bold">Coming back after safety review (T-14):</span>
+              <p className="mt-0.5 text-amber-300/80">
+                Uptime monitoring is temporarily frozen while real background periodic scheduling
+                and native system notifications are implemented in Phase B.
+              </p>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Add Monitor Modal */}
-      <Dialog.Root open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-paper p-5 shadow-xl">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <Dialog.Title className="text-base font-semibold text-fg">
-                Add Uptime Monitor
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <button type="button" className="text-fg-muted hover:text-fg">
-                  <X className="h-4 w-4" />
-                </button>
-              </Dialog.Close>
-            </div>
-
-            <form onSubmit={handleAddMonitor} className="mt-4 flex flex-col gap-3">
-              <div>
-                <label htmlFor="mon-name" className="text-xs font-semibold text-fg">
-                  Friendly Name
-                </label>
-                <input
-                  id="mon-name"
-                  type="text"
-                  required
-                  placeholder="e.g. Production API"
-                  value={newMonName}
-                  onChange={(e) => setNewMonName(e.target.value)}
-                  className="mt-1 w-full rounded border border-border bg-black/10 px-3 py-1.5 text-xs text-fg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="mon-url" className="text-xs font-semibold text-fg">
-                  Target URL
-                </label>
-                <input
-                  id="mon-url"
-                  type="url"
-                  required
-                  placeholder="https://api.example.com/health"
-                  value={newMonUrl}
-                  onChange={(e) => setNewMonUrl(e.target.value)}
-                  className="mt-1 w-full rounded border border-border bg-black/10 px-3 py-1.5 font-mono text-xs text-fg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="mon-interval" className="text-xs font-semibold text-fg">
-                  Check Interval (Minutes)
-                </label>
-                <input
-                  id="mon-interval"
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={newMonInterval}
-                  onChange={(e) => setNewMonInterval(parseInt(e.target.value, 10) || 5)}
-                  className="mt-1 w-full rounded border border-border bg-black/10 px-3 py-1.5 text-xs text-fg focus:outline-none"
-                />
-              </div>
-
-              <div className="mt-4 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAddModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="default" size="sm">
-                  Save Monitor
-                </Button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
     </div>
   );
 };

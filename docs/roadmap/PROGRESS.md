@@ -1,7 +1,7 @@
-# Roadmap v2 — Progress
+# Roadmap v2 — Progress (Superseded)
 
-> Agents: update this file at the end of every work session and every phase. The next session
-> starts from the first unchecked item. Keep entries short and factual.
+> **Superseded by docs/audit — roadmap items were not verified.**
+> See `docs/audit/PLAN.md` and `docs/audit/PROGRESS.md` for active status and verified gates.
 
 ## Current status
 

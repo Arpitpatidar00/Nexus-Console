@@ -27,7 +27,6 @@ import { TunnelsPanel } from '@/features/remote/components/TunnelsPanel';
 import { ComposeStacksView } from '@/features/remote/components/ComposeStacksView';
 import { InspectionPanel } from '@/features/remote/components/InspectionPanel';
 import { ServerDiskPanel } from '@/features/remote/components/ServerDiskPanel';
-import { FilesBrowser } from '@/features/remote/components/FilesBrowser';
 import { NotesTab } from '@/features/remote/components/NotesTab';
 import { TimelineTab } from '@/features/remote/components/TimelineTab';
 import { RunbooksPanel } from '@/features/remote/components/RunbooksPanel';
@@ -299,7 +298,18 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
           ) : view === 'disk' ? (
             <ServerDiskPanel host={host} connected={connected} />
           ) : view === 'files' ? (
-            <FilesBrowser host={host} connected={connected} />
+            <div className="flex min-h-0 flex-1 p-6">
+              <div className="flex w-full items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+                <div>
+                  <span className="font-bold">Coming back after safety review (T-04):</span>
+                  <p className="mt-0.5 text-amber-300/80">
+                    The SFTP remote file browser is temporarily frozen while remote path
+                    sanitization (prohibiting unescaped quotes, control characters, and directory
+                    traversal) and safe argv streaming are implemented in Phase A.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : view === 'logs' ? (
             <LogsViewer host={host} snapshot={s} />
           ) : view === 'timeline' ? (

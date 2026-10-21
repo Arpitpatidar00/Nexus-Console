@@ -23,25 +23,25 @@ disk cleanup and memory, Claude Code chats, and a built-in terminal.
 
 ## At a glance
 
-| Module       | Tabs                         | What it's for                                                  | Runs in the background                                          | On by default |
-| ------------ | ---------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- | ------------- |
-| Homebrew     | Services, Packages, Sessions | Start/stop services, manage packages and versions              | A light check every few seconds (keeps the menu-bar count live) | Yes           |
-| Ports        | Ports                        | See what's listening, kill what's stuck                        | Nothing                                                         | Yes           |
-| Servers      | Servers                      | Health, containers and logs of your own Linux servers over SSH | Optional re-check of connected servers                          | No (opt-in)   |
-| Doctor       | Doctor                       | Read-only machine health checks and cleanup                    | Optional daily VSCode cleanup                                   | Yes           |
-| Mac Clean    | Storage, Memory              | Where your disk went, safe cleanup, memory and swap            | Optional scheduled cleanup and low-disk warning                 | Yes           |
-| Claude Chats | Claude Chats                 | Browse and archive Claude Code history                         | Optional daily archiving                                        | Yes           |
-| Docker       | Containers                   | Local container runtime, compose stacks, and logs              | Nothing                                                         | No (opt-in)   |
-| Databases    | Databases                    | Local & remote database client, schema inspector, and APFS     | Nothing                                                         | No (opt-in)   |
-| Projects     | Projects                     | Git status, workspaces, saved commands, and GitHub PRs         | Nothing                                                         | Yes           |
-| Toolbox      | Dev Toolbox                  | Offline converters, regex tester, cron, hashes & tokens        | Nothing                                                         | Yes           |
-| Domains      | Domains & Uptime             | RDAP expiry, DNS lookup, SSL check & uptime monitoring         | Optional uptime monitoring                                      | No (opt-in)   |
-| Secrets      | Secrets Scanner              | Detect committed secrets, unignored .env files & leaked keys   | Nothing                                                         | No (opt-in)   |
-| Cloud        | Cloud AWS                    | AWS profiles, EC2 instances, S3 buckets & cached cost tracking | Nothing                                                         | No (opt-in)   |
-| Backups      | Backups                      | Automated database dumps & project .env archive (0600 perm)    | Nothing                                                         | No (opt-in)   |
-| Network      | Network & Chaos              | Live per-app bandwidth, DNS flush, hosts editor & chaos proxy  | Nothing                                                         | No (opt-in)   |
-| Devices      | Simulators & AVDs            | iOS Simulators, Android AVDs, lifecycle controls               | Nothing                                                         | No (opt-in)   |
-| Releases     | App Releases                 | Fastlane lanes, TestFlight / Google Play track inspector       | Nothing                                                         | No (opt-in)   |
+| Module       | Tabs                         | What it's for                                                                      | Runs in the background                                          | On by default |
+| ------------ | ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------- |
+| Homebrew     | Services, Packages, Sessions | Start/stop services, manage packages and versions                                  | A light check every few seconds (keeps the menu-bar count live) | Yes           |
+| Ports        | Ports                        | See what's listening, kill what's stuck                                            | Nothing                                                         | Yes           |
+| Servers      | Servers                      | Health, containers and logs of your own Linux servers over SSH                     | Optional re-check of connected servers                          | No (opt-in)   |
+| Doctor       | Doctor                       | Read-only machine health checks and cleanup                                        | Optional daily VSCode cleanup                                   | Yes           |
+| Mac Clean    | Storage, Memory              | Where your disk went, safe cleanup, memory and swap                                | Optional scheduled cleanup and low-disk warning                 | Yes           |
+| Claude Chats | Claude Chats                 | Browse and archive Claude Code history                                             | Optional daily archiving                                        | Yes           |
+| Docker       | Containers                   | Local container runtime, compose stacks, and logs                                  | Nothing                                                         | No (opt-in)   |
+| Databases    | Databases                    | Local & remote database client, schema inspector _(Query editor & restore frozen)_ | Nothing                                                         | No (opt-in)   |
+| Projects     | Projects                     | Git status, workspaces, saved commands, and GitHub PRs                             | Nothing                                                         | Yes           |
+| Toolbox      | Dev Toolbox                  | Offline converters, regex tester, cron, hashes & tokens                            | Nothing                                                         | Yes           |
+| Domains      | Domains & Uptime             | RDAP expiry, DNS lookup, SSL check _(Uptime monitoring frozen)_                    | Optional uptime monitoring (frozen)                             | No (opt-in)   |
+| Secrets      | Secrets Scanner              | Detect committed secrets, unignored .env files & leaked keys                       | Nothing                                                         | No (opt-in)   |
+| Cloud        | Cloud AWS                    | AWS profiles, EC2 read-only, S3 buckets _(Actions & Cost frozen)_                  | Nothing                                                         | No (opt-in)   |
+| Backups      | Backups                      | _(Temporarily frozen while being rebuilt for safety)_                              | Nothing                                                         | No (opt-in)   |
+| Network      | Network & Chaos              | Live per-app bandwidth, DNS flush _(/etc/hosts & Chaos frozen)_                    | Nothing                                                         | No (opt-in)   |
+| Devices      | Simulators & AVDs            | iOS Simulators, Android AVDs, lifecycle controls                                   | Nothing                                                         | No (opt-in)   |
+| Releases     | App Releases                 | _(Temporarily frozen while being rebuilt for safety)_                              | Nothing                                                         | No (opt-in)   |
 
 *Note: "On by default" applies to fresh installs only; existing installs keep their enabled modules.
 
@@ -320,8 +320,7 @@ Settings → Mac Clean:
 
 - **No account, no telemetry, no server of ours.** Settings, sessions, archives and journals are plain
   files on your Mac.
-- **Network**: Homebrew downloads what you ask for; Servers connects only to the servers you add,
-  with your own `ssh`; nothing else.
+- **Network**: Strictly controlled. OpenSSH to user-added servers; Homebrew package downloads; domain RDAP (`rdap.org`); public DNS resolvers (1.1.1.1, 8.8.8.8, 9.9.9.9) for propagation; update checks (`api.github.com`); AWS CLI when configured; local loopback Ollama (`127.0.0.1:11434`). Zero cloud telemetry.
 - **Read-only by default.** Every change is a button you press, confirmed in a **native macOS sheet**
   shown by Rust (the web UI can't skip it), and written to a journal.
 - **Admin rights** only through the native macOS prompt: Ports "Kill with admin", Mac Clean's

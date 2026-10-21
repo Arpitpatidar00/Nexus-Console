@@ -75,15 +75,15 @@ only appears if Claude Code is installed on your Mac.
 
 ### Cloud & AWS
 
-Inspect AWS profiles, monitor EC2 instance states with guarded production lifecycle controls (Start, Stop, Reboot), browse S3 buckets, and track month-to-date AWS costs via cached Cost Explorer reports.
+Inspect AWS profiles, monitor EC2 instance states with read-only inspection, and browse S3 buckets. _(EC2 lifecycle actions & Cost Explorer are temporarily frozen while being rebuilt for safety)._
 
 ### Automated Backups
 
-Stream database dumps (PostgreSQL, MySQL, SQLite, MongoDB) directly over encrypted SSH pipes without writing to remote disks. Automatically sets `0600` local permissions and packs project `.env` files into encrypted tarballs.
+_(Temporarily frozen while being rebuilt for safety)._ Automated database dumps and `.env` archiving are being rewritten with shell-free pipelines and atomic file permissions.
 
 ### Network & Chaos Engineering
 
-Monitor live per-process bandwidth using macOS `nettop`, flush DNS caches (`dscacheutil`), manage `/etc/hosts` with automatic timestamped backups, and inject TCP proxy chaos (latency, packet drop rate, rejection).
+Monitor live per-process bandwidth using macOS `nettop` and flush DNS caches (`dscacheutil`). _(/etc/hosts editor and TCP chaos proxy are temporarily frozen while being rebuilt for safety)._
 
 ### Mobile Simulators & AVDs
 
@@ -91,11 +91,11 @@ Discover, boot, shutdown, erase, and launch iOS Simulators (`xcrun simctl`) and 
 
 ### App Releases & Fastlane
 
-Scan project release configurations (Flutter, React Native, iOS, Android), inspect Fastlane lanes with one-click execution commands, and review multi-track release readiness (TestFlight, Google Play).
+_(Temporarily frozen while being rebuilt for safety)._ Scan project release configurations and Fastlane lanes.
 
 ### Local AI Assistant (Ollama)
 
-100% offline, privacy-guaranteed AI diagnostic assistant powered by local Ollama (`127.0.0.1:11434`). Automatically masks secrets before inference to explain shell errors, server logs, regexes, and cron syntax without cloud leakage.
+_(Temporarily frozen while being rebuilt for safety)._ Local Ollama integration is being overhauled with direct HTTP transport and selective pattern masking.
 
 ### Dev Toolbox
 
@@ -103,7 +103,7 @@ Offline utility converters: JSON formatter/validator, JWT decoder with expiry cl
 
 ### Domains & Uptime
 
-RDAP domain registration expiry checker, DNS records inspector (`dig`), SSL/TLS certificate validator with SANs inspection, multi-resolver propagation checker (1.1.1.1, 8.8.8.8, 9.9.9.9), and ping latency monitor.
+RDAP domain registration expiry checker, DNS records inspector (`dig`), SSL/TLS certificate validator with SANs inspection, and multi-resolver propagation checker. _(Uptime background monitoring is temporarily frozen while being rebuilt)._
 
 ### Secrets Scanner
 
@@ -111,7 +111,7 @@ Scan git-tracked source repositories for leaked credentials (AWS, Stripe, GitHub
 
 ### Docker & Databases
 
-Manage local Docker runtime, containers, and compose stacks. Introspect Postgres, MySQL, SQLite, and MongoDB databases, run safe queries, and create APFS `clonefile()` zero-copy database branches.
+Manage local Docker runtime, containers, and compose stacks. Introspect Postgres, MySQL, SQLite, and MongoDB databases. _(Query editor and snapshot restore are temporarily frozen while being rebuilt for safety)._
 
 ### Projects & Workspaces
 
@@ -159,9 +159,14 @@ Stackroost does not phone home, does not track you, and requires no external acc
 
 - **No telemetry or tracking:** No analytics, no crash reporting, no tracking beacons.
 - **Local-first data:** Settings, journals, and cache data are stored locally in your standard macOS Application Support folder.
-- **Controlled network access:** The app has no external API backend. Network access is strictly limited to:
-  1. Homebrew downloading packages or formula metadata when you request an install or upgrade.
-  2. Remote Linux servers that **you explicitly add**, connecting via `/usr/bin/ssh` with your local keys. Non-interactive background health checks use OpenSSH `BatchMode` and never prompt for passwords.
+- **Exhaustive network destination directory:**
+  1. **Homebrew:** Package and bottle downloads via `brew` when you request an install or upgrade.
+  2. **Remote Linux servers:** Connected via `/usr/bin/ssh` strictly to hosts that **you explicitly configure** using your local SSH keys. Non-interactive background checks use OpenSSH `BatchMode`.
+  3. **Domain RDAP queries:** HTTPS requests to `https://rdap.org` when inspecting domain expiration in the Domains module.
+  4. **Public DNS resolvers:** Cloudflare (`1.1.1.1`), Google (`8.8.8.8`), and Quad9 (`9.9.9.9`) for DNS propagation checks.
+  5. **Update checks:** HTTPS requests to `https://api.github.com` for release checks.
+  6. **AWS APIs:** AWS CLI queries using your local AWS profiles when the Cloud module is actively used.
+  7. **Local Ollama:** Loopback HTTP (`127.0.0.1:11434`) only; zero external transmission.
 
 ## License
 

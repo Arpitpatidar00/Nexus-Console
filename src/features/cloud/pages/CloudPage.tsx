@@ -1,38 +1,14 @@
 import { useState } from 'react';
-import {
-  Cloud,
-  Server,
-  Database,
-  DollarSign,
-  Play,
-  Square,
-  RotateCw,
-  RefreshCw,
-  AlertTriangle,
-  Search,
-} from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { Cloud, Server, Database, DollarSign, RefreshCw, Search } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import {
-  useAwsProfiles,
-  useEc2Instances,
-  useS3Buckets,
-  useAwsCosts,
-  useEc2Action,
-} from '../api/useCloud';
-import type { Ec2Instance } from '../api/cloud.schema';
+import { useAwsProfiles, useEc2Instances, useS3Buckets } from '../api/useCloud';
 
 export const CloudPage = () => {
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'instances' | 'buckets'>('instances');
   const [searchTerm, setSearchTerm] = useState('');
-  const [actionModal, setActionModal] = useState<{
-    open: boolean;
-    instance?: Ec2Instance;
-    action?: 'start' | 'stop' | 'reboot';
-  }>({ open: false });
 
   const { data: profiles = ['default'] } = useAwsProfiles();
   const {
@@ -45,27 +21,6 @@ export const CloudPage = () => {
     isLoading: bucketsLoading,
     refetch: refetchBuckets,
   } = useS3Buckets(selectedProfile);
-  const {
-    data: costReport,
-    isLoading: costsLoading,
-    refetch: refetchCosts,
-  } = useAwsCosts(selectedProfile);
-  const ec2ActionMutation = useEc2Action();
-
-  const handleAction = async () => {
-    if (!actionModal.instance || !actionModal.action) return;
-    try {
-      await ec2ActionMutation.mutateAsync({
-        profile: selectedProfile,
-        region: actionModal.instance.region,
-        instanceId: actionModal.instance.id,
-        action: actionModal.action,
-      });
-      setActionModal({ open: false });
-    } catch {
-      // Handled by UI/mutation
-    }
-  };
 
   const filteredInstances = instances.filter(
     (i) =>
@@ -134,54 +89,20 @@ export const CloudPage = () => {
         </div>
       </div>
 
-      {/* Daily Cost Card */}
-      <div className="rounded-lg border border-border bg-card/60 p-4 shadow-sm backdrop-blur">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-              <DollarSign className="h-5 w-5" />
+      {/* Daily Cost Card - Safety Freeze */}
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 shadow-sm backdrop-blur">
+        <div className="flex items-start gap-3">
+          <DollarSign className="h-5 w-5 shrink-0 text-amber-400" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-amber-200">
+                AWS Cost Explorer — Coming back after safety review (T-10)
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-fg text-xs font-semibold tracking-wider uppercase">
-                  Month-to-Date Cost (Cached 24h)
-                </span>
-                <Badge variant="neutral" className="text-[10px]">
-                  Daily Cache Active
-                </Badge>
-              </div>
-              <div className="mt-0.5 text-2xl font-extrabold text-fg">
-                {costsLoading ? (
-                  <span className="text-muted-fg text-sm font-normal">Loading cached costs...</span>
-                ) : costReport ? (
-                  `$${costReport.month_to_date_total.toFixed(2)} ${costReport.currency}`
-                ) : (
-                  'Not Available'
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {costReport?.top_services && costReport.top_services.length > 0 && (
-              <div className="hidden flex-col gap-1 text-right text-xs lg:flex">
-                {costReport.top_services.slice(0, 2).map((s) => (
-                  <div key={s.service} className="text-muted-fg">
-                    <span className="font-medium text-fg">{s.service.split(' - ')[0]}:</span> $
-                    {s.amount.toFixed(2)}
-                  </div>
-                ))}
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetchCosts()}
-              className="flex items-center gap-1.5 text-xs"
-            >
-              <RefreshCw className="h-3 w-3" />
-              Force Refresh
-            </Button>
+            <p className="mt-1 text-xs text-amber-300/80">
+              Automatic cost queries are frozen to prevent unexpected AWS API charges. Real Cost
+              Explorer queries will be loaded on demand with explicit confirmation in Phase B.
+            </p>
           </div>
         </div>
       </div>
@@ -297,47 +218,9 @@ export const CloudPage = () => {
                       </td>
                       <td className="text-muted-fg px-4 py-3">{inst.region}</td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {isStopped && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-[11px] text-emerald-400 hover:text-emerald-300"
-                              onClick={() =>
-                                setActionModal({ open: true, instance: inst, action: 'start' })
-                              }
-                            >
-                              <Play className="mr-1 h-3 w-3" />
-                              Start
-                            </Button>
-                          )}
-                          {isRunning && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-[11px] text-amber-400 hover:text-amber-300"
-                                onClick={() =>
-                                  setActionModal({ open: true, instance: inst, action: 'stop' })
-                                }
-                              >
-                                <Square className="mr-1 h-3 w-3" />
-                                Stop
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-[11px] text-sky-400 hover:text-sky-300"
-                                onClick={() =>
-                                  setActionModal({ open: true, instance: inst, action: 'reboot' })
-                                }
-                              >
-                                <RotateCw className="mr-1 h-3 w-3" />
-                                Reboot
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                        <span className="text-muted-fg text-[11px] italic">
+                          Actions frozen (T-06)
+                        </span>
                       </td>
                     </tr>
                   );
@@ -387,64 +270,6 @@ export const CloudPage = () => {
           </table>
         </div>
       )}
-
-      {/* Confirmation Dialog for Destructive / Production Actions */}
-      <Dialog.Root
-        open={actionModal.open}
-        onOpenChange={(open) => setActionModal({ ...actionModal, open })}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-2xl">
-            <Dialog.Title className="flex items-center gap-2 text-base font-bold text-fg">
-              {actionModal.instance?.is_prod && (
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              )}
-              Confirm {actionModal.action?.toUpperCase()} Action
-            </Dialog.Title>
-            <Dialog.Description className="text-muted-fg mt-2 text-xs">
-              {actionModal.instance?.is_prod ? (
-                <div className="rounded border border-destructive/40 bg-destructive/10 p-3 font-semibold text-destructive">
-                  ⚠️ WARNING: This is a marked PRODUCTION instance! Performing a{' '}
-                  {actionModal.action} may impact active users and customer traffic.
-                </div>
-              ) : (
-                `Are you sure you want to ${actionModal.action} this instance?`
-              )}
-            </Dialog.Description>
-
-            <div className="mt-4 space-y-1 rounded border border-border bg-muted/20 p-3 text-xs">
-              <div>
-                <span className="text-muted-fg font-semibold">Name:</span>{' '}
-                {actionModal.instance?.name || 'Unnamed'}
-              </div>
-              <div className="font-mono">
-                <span className="text-muted-fg font-semibold">ID:</span> {actionModal.instance?.id}
-              </div>
-              <div>
-                <span className="text-muted-fg font-semibold">Region:</span>{' '}
-                {actionModal.instance?.region}
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setActionModal({ open: false })}>
-                Cancel
-              </Button>
-              <Button
-                variant={actionModal.instance?.is_prod ? 'destructive' : 'default'}
-                size="sm"
-                onClick={handleAction}
-                disabled={ec2ActionMutation.isPending}
-              >
-                {ec2ActionMutation.isPending
-                  ? 'Executing...'
-                  : `Confirm ${actionModal.action?.toUpperCase()}`}
-              </Button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
     </div>
   );
 };

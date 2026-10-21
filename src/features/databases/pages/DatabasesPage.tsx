@@ -6,8 +6,6 @@ import {
   useAddDbConnection,
   useRemoveDbConnection,
 } from '../api/useDatabases';
-import { QueryEditor } from '../components/QueryEditor/QueryEditor';
-import { SchemaBrowser } from '../components/SchemaBrowser/SchemaBrowser';
 import { SnapshotsPanel } from '../components/SnapshotsPanel/SnapshotsPanel';
 import type { DbConnection } from '../api/databases.schema';
 
@@ -19,7 +17,6 @@ export function DatabasesPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'query' | 'branching'>('query');
-  const [activeQuery, setActiveQuery] = useState('SELECT 1;');
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   // New connection form state
@@ -232,19 +229,19 @@ export function DatabasesPage() {
             {/* Body */}
             <div className="flex flex-1 overflow-hidden">
               {activeTab === 'query' ? (
-                <>
-                  <SchemaBrowser
-                    connectionId={activeConnection.id}
-                    onSelectTable={(tbl) => setActiveQuery(`SELECT * FROM ${tbl} LIMIT 50;`)}
-                  />
-                  <div className="flex-1 overflow-hidden p-6">
-                    <QueryEditor
-                      connectionId={activeConnection.id}
-                      allowWrites={activeConnection.allowWrites}
-                      defaultQuery={activeQuery}
-                    />
+                <div className="flex-1 p-6">
+                  <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+                    <div>
+                      <span className="font-bold">Coming back after safety review (T-07):</span>
+                      <p className="mt-0.5 text-amber-300/80">
+                        The Database Query Editor is temporarily frozen while session-level
+                        read-only flags (PGOPTIONS default_transaction_read_only, MySQL SET SESSION
+                        TRANSACTION READ ONLY), 10s statement timeouts, host parameter sanitization,
+                        and Keychain credential storage are implemented in Phase A.
+                      </p>
+                    </div>
                   </div>
-                </>
+                </div>
               ) : (
                 <div className="flex-1 overflow-y-auto p-6">
                   <SnapshotsPanel connection={activeConnection} />

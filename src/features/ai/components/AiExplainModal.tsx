@@ -3,7 +3,7 @@ import { Bot, Sparkles, ShieldCheck, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import { useOllamaStatus, useAiExplain } from '../api/useAi';
+import { useOllamaStatus } from '../api/useAi';
 
 interface AiExplainModalProps {
   open: boolean;
@@ -12,35 +12,14 @@ interface AiExplainModalProps {
   initialContext?: string;
 }
 
-export const AiExplainModal = ({
-  open,
-  onOpenChange,
-  initialPrompt = '',
-  initialContext = '',
-}: AiExplainModalProps) => {
+export const AiExplainModal = ({ open, onOpenChange, initialPrompt = '' }: AiExplainModalProps) => {
   const { data: status } = useOllamaStatus();
-  const explainMutation = useAiExplain();
 
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [context] = useState(initialContext);
   const [selectedModel, setSelectedModel] = useState<string>('');
-  const [result, setResult] = useState<string | null>(null);
+  const [result] = useState<string | null>(null);
 
   const activeModel = selectedModel || (status?.models && status.models[0]) || '';
-
-  const handleExplain = async () => {
-    if (!prompt) return;
-    try {
-      const res = await explainMutation.mutateAsync({
-        prompt,
-        context: context || undefined,
-        model: activeModel || undefined,
-      });
-      setResult(res.explanation);
-    } catch {
-      // Handled by mutation error
-    }
-  };
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -66,12 +45,12 @@ export const AiExplainModal = ({
             </div>
           </div>
 
-          <div className="mt-3 flex items-start gap-2 rounded border border-indigo-500/30 bg-indigo-500/10 p-2.5 text-xs text-indigo-200">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+          <div className="mt-3 flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-200">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
             <div>
-              <span className="font-bold">Zero Telemetry Guarantee:</span> Runs 100% locally on your
-              loopback (127.0.0.1:11434). Prompts never leave your machine, and secret patterns (API
-              keys, tokens) are automatically masked before inference.
+              <span className="font-bold">Coming back after safety review (T-11):</span> Local AI
+              Explain is temporarily frozen while selective pattern masking and direct HTTP Ollama
+              transport (replacing argv prompt passing) are implemented in Phase B.
             </div>
           </div>
 
@@ -136,14 +115,8 @@ export const AiExplainModal = ({
               <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={handleExplain}
-                disabled={explainMutation.isPending || !status?.online}
-              >
-                {explainMutation.isPending ? 'Generating...' : 'Explain with Local AI'}
+              <Button type="button" variant="default" size="sm" disabled={true}>
+                Frozen (Safety Review)
               </Button>
             </div>
           </div>

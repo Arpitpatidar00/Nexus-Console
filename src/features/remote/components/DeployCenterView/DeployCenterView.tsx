@@ -1,16 +1,9 @@
 import { useState } from 'react';
-import { Rocket, History, ArrowDownToLine, Layers } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Rocket, History, Layers } from 'lucide-react';
 import { Badge } from '@/shared/ui/Badge';
 import { Spinner } from '@/shared/ui/Spinner';
-import { ProdConfirmDialog } from '@/features/remote/components/ProdConfirmDialog';
 import type { HostSnapshot, RemoteHost } from '@/features/remote/api/remote.schema';
-import {
-  useDeployHistory,
-  useDeployPreview,
-  useExecuteDeploy,
-  useRollbackDeploy,
-} from '@/features/remote/api/useDeploys';
+import { useDeployHistory, useDeployPreview } from '@/features/remote/api/useDeploys';
 
 interface Props {
   host: RemoteHost;
@@ -21,8 +14,6 @@ interface Props {
 export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
   const initialProject = snapshot.composeProjects[0]?.name || 'default';
   const [selectedProject, setSelectedProject] = useState(initialProject);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [rollbackDeployId, setRollbackDeployId] = useState<string | null>(null);
   const [deployLogs, setDeployLogs] = useState<string | null>(null);
 
   const { data: preview, isFetching: previewLoading } = useDeployPreview(
@@ -31,36 +22,6 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
     connected && !!selectedProject,
   );
   const { data: history, isLoading: historyLoading } = useDeployHistory(host.id);
-  const executeDeploy = useExecuteDeploy(host.id);
-  const rollbackDeploy = useRollbackDeploy(host.id);
-
-  const handleDeployClick = () => {
-    if (host.env === 'prod') {
-      setShowConfirm(true);
-    } else {
-      void runDeploy();
-    }
-  };
-
-  const runDeploy = async () => {
-    setShowConfirm(false);
-    try {
-      const res = await executeDeploy.mutateAsync({ project: selectedProject });
-      setDeployLogs(res.logs);
-    } catch {
-      // error handled by mutation
-    }
-  };
-
-  const handleRollbackConfirm = async () => {
-    if (!rollbackDeployId) return;
-    try {
-      const res = await rollbackDeploy.mutateAsync(rollbackDeployId);
-      setDeployLogs(res.logs);
-    } finally {
-      setRollbackDeployId(null);
-    }
-  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
@@ -98,6 +59,17 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
         )}
       </div>
 
+      {/* Safety Freeze Notice */}
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+        <div>
+          <span className="font-bold">Coming back after safety review (T-03):</span>
+          <p className="mt-0.5 text-amber-300/80">
+            Remote deploy, rollback, and promotion are temporarily frozen while docker compose argv
+            pipelines, snapshot verification, and Rust mutation gates are implemented.
+          </p>
+        </div>
+      </div>
+
       {/* Deploy Preview & Trigger Card */}
       <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center justify-between pb-4">
@@ -105,18 +77,9 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
             <Layers className="size-4 text-primary" />
             <h4 className="text-sm font-semibold text-fg">Deploy Preview: {selectedProject}</h4>
           </div>
-          <Button
-            size="sm"
-            disabled={executeDeploy.isPending || previewLoading}
-            onClick={handleDeployClick}
-          >
-            {executeDeploy.isPending ? (
-              <Spinner className="mr-1.5 size-3.5 text-current" />
-            ) : (
-              <Rocket className="mr-1.5 size-3.5" />
-            )}
-            {executeDeploy.isPending ? 'Deploying...' : `Deploy ${selectedProject}`}
-          </Button>
+          <Badge variant="warning" className="text-xs">
+            Deploy Frozen (T-03)
+          </Badge>
         </div>
 
         {previewLoading ? (
@@ -200,47 +163,12 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
                   <p className="mt-1 text-xs text-fg-muted">{record.message}</p>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={rollbackDeploy.isPending}
-                  onClick={() => setRollbackDeployId(record.id)}
-                  title="Roll back services to the digests saved before this deployment"
-                >
-                  <ArrowDownToLine className="mr-1.5 size-3.5 text-amber-500" />
-                  Roll Back
-                </Button>
+                <span className="text-xs text-fg-subtle italic">Rollback frozen (T-03)</span>
               </div>
             ))}
           </div>
         )}
       </div>
-
-      {/* Production Deploy Confirmation */}
-      {showConfirm && (
-        <ProdConfirmDialog
-          hostLabel={host.label}
-          title={`Deploy Production Stack: ${selectedProject}`}
-          description={`Pull latest images and restart services for stack "${selectedProject}" on production server ${host.label}?`}
-          actionLabel="Deploy to Production"
-          danger={true}
-          onConfirm={() => void runDeploy()}
-          onCancel={() => setShowConfirm(false)}
-        />
-      )}
-
-      {/* Rollback Confirmation */}
-      {rollbackDeployId && (
-        <ProdConfirmDialog
-          hostLabel={host.label}
-          title={`Roll Back to ${rollbackDeployId}?`}
-          description={`Re-tag images and restore services to the state captured before deployment ${rollbackDeployId} on ${host.label}?`}
-          actionLabel="Execute Rollback"
-          danger={host.env === 'prod'}
-          onConfirm={() => void handleRollbackConfirm()}
-          onCancel={() => setRollbackDeployId(null)}
-        />
-      )}
     </div>
   );
 };

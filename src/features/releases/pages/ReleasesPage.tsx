@@ -143,40 +143,15 @@ export const ReleasesPage = () => {
         </table>
       </div>
 
-      {/* Release Checklist Matrix */}
-      <div className="space-y-3 rounded-lg border border-border bg-card/40 p-4 shadow-sm">
-        <h3 className="text-muted-fg text-xs font-bold tracking-wider uppercase">
-          Release Track Readiness
-        </h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-          <div className="rounded border border-border bg-muted/10 p-3 text-xs">
-            <div className="font-semibold text-fg">TestFlight (iOS)</div>
-            <div className="text-muted-fg mt-1 text-[11px]">Internal & External testing groups</div>
-            <Badge variant="success" className="mt-2 text-[10px]">
-              Ready
-            </Badge>
-          </div>
-          <div className="rounded border border-border bg-muted/10 p-3 text-xs">
-            <div className="font-semibold text-fg">Google Play Internal</div>
-            <div className="text-muted-fg mt-1 text-[11px]">Rapid deployment track</div>
-            <Badge variant="success" className="mt-2 text-[10px]">
-              Ready
-            </Badge>
-          </div>
-          <div className="rounded border border-border bg-muted/10 p-3 text-xs">
-            <div className="font-semibold text-fg">App Store Production</div>
-            <div className="text-muted-fg mt-1 text-[11px]">Apple App Review pending</div>
-            <Badge variant="warning" className="mt-2 text-[10px]">
-              Review
-            </Badge>
-          </div>
-          <div className="rounded border border-border bg-muted/10 p-3 text-xs">
-            <div className="font-semibold text-fg">Google Play Production</div>
-            <div className="text-muted-fg mt-1 text-[11px]">Staged rollout (10% → 100%)</div>
-            <Badge variant="neutral" className="mt-2 text-[10px]">
-              Staged
-            </Badge>
-          </div>
+      {/* Release Checklist Matrix - Frozen (T-13) */}
+      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+        <div>
+          <span className="font-bold">Coming back after safety review (T-13):</span>
+          <p className="mt-0.5 text-amber-300/80">
+            Store release track inspection is temporarily hidden. In Phase B this module is renamed
+            to Release Config showing local versioning and Fastlane lanes only, without fake
+            TestFlight/Play tracks.
+          </p>
         </div>
       </div>
     </div>

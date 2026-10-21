@@ -84,29 +84,12 @@ pub fn list_profiles() -> AppResult<Vec<String>> {
     }
 }
 
-pub fn list_ec2_instances(profile: &str, region: &str) -> AppResult<Vec<Ec2Instance>> {
-    let out = Command::new("aws")
-        .args([
-            "ec2",
-            "describe-instances",
-            "--profile",
-            profile,
-            "--region",
-            region,
-            "--output",
-            "json",
-        ])
-        .output()
-        .map_err(|e| AppError::Io(format!("aws cli execution failed: {e}")))?;
+use crate::core::exec::{self, ExecOpts};
+use crate::core::validate::{AwsProfile, AwsRegion, Ec2InstanceId};
+use std::time::Duration;
 
-    if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        return Err(AppError::Shell(format!(
-            "aws describe-instances error: {stderr}"
-        )));
-    }
-
-    let json_val: serde_json::Value = serde_json::from_slice(&out.stdout)
+pub fn parse_ec2_instances_json(stdout: &[u8], region: &str) -> AppResult<Vec<Ec2Instance>> {
+    let json_val: serde_json::Value = serde_json::from_slice(stdout)
         .map_err(|e| AppError::Shell(format!("invalid ec2 json: {e}")))?;
 
     let mut list = Vec::new();
@@ -188,12 +171,72 @@ pub fn list_ec2_instances(profile: &str, region: &str) -> AppResult<Vec<Ec2Insta
     Ok(list)
 }
 
+pub fn list_ec2_instances(profile: &str, region: &str) -> AppResult<Vec<Ec2Instance>> {
+    let p = AwsProfile::try_from(profile)?;
+    let r = AwsRegion::try_from(region)?;
+
+    let opts = ExecOpts::default().with_timeout(Duration::from_secs(30));
+    let out = exec::run(
+        "aws",
+        &[
+            "ec2",
+            "describe-instances",
+            "--profile",
+            p.as_str(),
+            "--region",
+            r.as_str(),
+            "--output",
+            "json",
+        ],
+        opts,
+    )?;
+
+    parse_ec2_instances_json(&out.stdout, r.as_str())
+}
+
+pub fn get_instance_is_prod(profile: &str, region: &str, instance_id: &str) -> AppResult<bool> {
+    let p = AwsProfile::try_from(profile)?;
+    let r = AwsRegion::try_from(region)?;
+    let inst = Ec2InstanceId::try_from(instance_id)?;
+
+    let opts = ExecOpts::default().with_timeout(Duration::from_secs(30));
+    let out = exec::run(
+        "aws",
+        &[
+            "ec2",
+            "describe-instances",
+            "--profile",
+            p.as_str(),
+            "--region",
+            r.as_str(),
+            "--instance-ids",
+            inst.as_str(),
+            "--output",
+            "json",
+        ],
+        opts,
+    )?;
+
+    let list = parse_ec2_instances_json(&out.stdout, r.as_str())?;
+    let is_prod = list
+        .iter()
+        .find(|i| i.id == inst.as_str())
+        .map(|i| i.is_prod)
+        .unwrap_or(false);
+
+    Ok(is_prod)
+}
+
 pub fn ec2_action(
     profile: &str,
     region: &str,
     instance_id: &str,
     action: &str,
 ) -> AppResult<String> {
+    let p = AwsProfile::try_from(profile)?;
+    let r = AwsRegion::try_from(region)?;
+    let inst = Ec2InstanceId::try_from(instance_id)?;
+
     let subcmd = match action {
         "start" => "start-instances",
         "stop" => "stop-instances",
@@ -205,21 +248,23 @@ pub fn ec2_action(
         }
     };
 
-    let out = Command::new("aws")
-        .args([
+    let opts = ExecOpts::default().with_timeout(Duration::from_secs(45));
+    let out = exec::run(
+        "aws",
+        &[
             "ec2",
             subcmd,
             "--profile",
-            profile,
+            p.as_str(),
             "--region",
-            region,
+            r.as_str(),
             "--instance-ids",
-            instance_id,
+            inst.as_str(),
             "--output",
             "json",
-        ])
-        .output()
-        .map_err(|e| AppError::Io(format!("aws ec2 {subcmd} failed: {e}")))?;
+        ],
+        opts,
+    )?;
 
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
@@ -227,27 +272,26 @@ pub fn ec2_action(
     }
 
     Ok(format!(
-        "Instance {instance_id} {action} triggered successfully"
+        "Instance {} {action} triggered successfully",
+        inst.as_str()
     ))
 }
 
 pub fn list_s3_buckets(profile: &str) -> AppResult<Vec<S3Bucket>> {
-    let out = Command::new("aws")
-        .args([
+    let p = AwsProfile::try_from(profile)?;
+    let opts = ExecOpts::default().with_timeout(Duration::from_secs(30));
+    let out = exec::run(
+        "aws",
+        &[
             "s3api",
             "list-buckets",
             "--profile",
-            profile,
+            p.as_str(),
             "--output",
             "json",
-        ])
-        .output()
-        .map_err(|e| AppError::Io(format!("aws s3api failed: {e}")))?;
-
-    if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        return Err(AppError::Shell(format!("s3 error: {stderr}")));
-    }
+        ],
+        opts,
+    )?;
 
     let val: serde_json::Value = serde_json::from_slice(&out.stdout)
         .map_err(|e| AppError::Shell(format!("invalid s3 json: {e}")))?;
@@ -282,7 +326,8 @@ pub fn get_cached_or_fresh_costs(
     profile: &str,
     force_refresh: bool,
 ) -> AppResult<AwsCostReport> {
-    let cache_file = dir.join(format!("aws-cost-{profile}.json"));
+    let p = AwsProfile::try_from(profile)?;
+    let cache_file = dir.join(format!("aws-cost-{}.json", p.as_str()));
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -318,9 +363,73 @@ pub fn get_cached_or_fresh_costs(
 mod tests {
     use super::*;
 
+    const FIXTURE_EC2_JSON: &[u8] = br#"{
+        "Reservations": [
+            {
+                "Instances": [
+                    {
+                        "InstanceId": "i-0123456789abcdef0",
+                        "InstanceType": "t3.medium",
+                        "State": { "Name": "running" },
+                        "PublicIpAddress": "54.12.34.56",
+                        "PrivateIpAddress": "10.0.1.20",
+                        "Tags": [
+                            { "Key": "Name", "Value": "prod-api-server" },
+                            { "Key": "Environment", "Value": "prod" }
+                        ]
+                    },
+                    {
+                        "InstanceId": "i-12345678",
+                        "InstanceType": "t3.micro",
+                        "State": { "Name": "stopped" },
+                        "PrivateIpAddress": "10.0.2.15",
+                        "Tags": [
+                            { "Key": "Name", "Value": "staging-worker" },
+                            { "Key": "env", "Value": "staging" }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }"#;
+
     #[test]
     fn test_list_profiles_has_at_least_default() {
         let p = list_profiles().unwrap();
         assert!(!p.is_empty());
+    }
+
+    #[test]
+    fn test_parse_ec2_instances_fixture() {
+        let instances = parse_ec2_instances_json(FIXTURE_EC2_JSON, "us-east-1").unwrap();
+        assert_eq!(instances.len(), 2);
+
+        // First instance: prod
+        assert_eq!(instances[0].id, "i-0123456789abcdef0");
+        assert_eq!(instances[0].name, "prod-api-server");
+        assert_eq!(instances[0].state, "running");
+        assert!(instances[0].is_prod);
+        assert_eq!(instances[0].public_ip, Some("54.12.34.56".to_string()));
+
+        // Second instance: non-prod
+        assert_eq!(instances[1].id, "i-12345678");
+        assert_eq!(instances[1].name, "staging-worker");
+        assert_eq!(instances[1].state, "stopped");
+        assert!(!instances[1].is_prod);
+    }
+
+    #[test]
+    fn test_ec2_action_validation() {
+        // Unknown action rejected
+        let res = ec2_action("default", "us-east-1", "i-12345678", "terminate");
+        assert!(res.is_err());
+
+        // Injection payload in instance_id rejected
+        let res = ec2_action("default", "us-east-1", "i-12345678; rm -rf", "start");
+        assert!(res.is_err());
+
+        // Invalid region rejected
+        let res = ec2_action("default", "us-east-1; id", "i-12345678", "start");
+        assert!(res.is_err());
     }
 }

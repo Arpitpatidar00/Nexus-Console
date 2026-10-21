@@ -124,6 +124,16 @@ pub async fn kill_process(pid: u32, force: bool, sudo: bool) -> AppResult<()> {
     if pid == std::process::id() {
         return Err(AppError::Forbidden("refusing to kill Stackroost".into()));
     }
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Kill Process",
+            format!("Signal process PID {pid} (force={force}, sudo={sudo})"),
+            "kill_process",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalSystem)
+        .destructive(force)
+        .target(pid.to_string()),
+    );
     let sig_name = if force { "KILL" } else { "TERM" };
 
     if sudo {

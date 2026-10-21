@@ -1,5 +1,6 @@
-use crate::error::{AppError, AppResult};
-use crate::remote::ssh::{self, SshTarget};
+use crate::core::error::{AppError, AppResult};
+use crate::core::validate::{ComposeProject, ComposeService, ImageRef};
+use crate::services::remote::ssh::{self, SshTarget};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
@@ -91,8 +92,18 @@ impl DeployStore {
 }
 
 pub fn preview_deploy(target: &SshTarget, project: &str) -> AppResult<DeployPreview> {
-    let cmd = format!("docker compose -p {project} config --images 2>/dev/null || docker ps --filter label=com.docker.compose.project={project} --format '{{{{.Image}}}}'");
-    let out = ssh::exec(target, &["sh", "-c", &cmd], None, Duration::from_secs(15))?;
+    // 1. Validate compose project name
+    let valid_project = ComposeProject::try_from(project)?;
+    let proj_str = valid_project.as_str();
+
+    // 2. Strict argv execution without shell string interpolation
+    let out = ssh::exec(
+        target,
+        &["docker", "compose", "-p", proj_str, "config", "--images"],
+        None,
+        Duration::from_secs(15),
+    )?;
+
     let stdout = String::from_utf8_lossy(&out.stdout);
     let mut services = Vec::new();
 
@@ -101,28 +112,32 @@ pub fn preview_deploy(target: &SshTarget, project: &str) -> AppResult<DeployPrev
         if image.is_empty() {
             continue;
         }
-        let inspect_cmd = format!("docker inspect --format '{{{{.Id}}}}' {image} 2>/dev/null");
-        let digest_before = ssh::exec(
-            target,
-            &["sh", "-c", &inspect_cmd],
-            None,
-            Duration::from_secs(10),
-        )
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|| "unknown".to_string());
 
-        services.push(ServiceDigest {
-            service: image.to_string(),
-            image: image.to_string(),
-            digest_before,
-            digest_after: None,
-        });
+        // Validate image ref
+        if let Ok(valid_image) = ImageRef::try_from(image) {
+            let img_str = valid_image.as_str();
+            let digest_before = ssh::exec(
+                target,
+                &["docker", "inspect", "--format", "{{.Id}}", img_str],
+                None,
+                Duration::from_secs(10),
+            )
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+            services.push(ServiceDigest {
+                service: img_str.to_string(),
+                image: img_str.to_string(),
+                digest_before,
+                digest_after: None,
+            });
+        }
     }
 
     let has_changes = !services.is_empty();
     Ok(DeployPreview {
-        project: project.to_string(),
+        project: proj_str.to_string(),
         services_to_update: services,
         has_changes,
     })
@@ -134,32 +149,42 @@ pub fn execute_deploy(
     project: &str,
     services: Vec<String>,
 ) -> AppResult<DeployResult> {
-    let preview = preview_deploy(target, project)?;
+    let valid_project = ComposeProject::try_from(project)?;
+    let proj_str = valid_project.as_str();
 
-    let svc_args = if services.is_empty() {
-        String::new()
-    } else {
-        format!(" {}", services.join(" "))
-    };
-    let pull_up_cmd = format!(
-        "docker compose -p {project} pull{svc_args} && docker compose -p {project} up -d{svc_args}"
-    );
-    let out = ssh::exec(
-        target,
-        &["sh", "-c", &pull_up_cmd],
-        None,
-        Duration::from_secs(90),
-    )?;
+    let preview = preview_deploy(target, proj_str)?;
+
+    // Validate services if specified
+    let mut valid_services = Vec::new();
+    for s in &services {
+        let valid_svc = ComposeService::try_from(s.as_str())?;
+        valid_services.push(valid_svc.into_inner());
+    }
+
+    // 1. docker compose -p <proj> pull <services...>
+    let mut pull_cmd = vec!["docker", "compose", "-p", proj_str, "pull"];
+    for s in &valid_services {
+        pull_cmd.push(s.as_str());
+    }
+    let pull_out = ssh::exec(target, &pull_cmd, None, Duration::from_secs(90))?;
+
+    // 2. docker compose -p <proj> up -d <services...>
+    let mut up_cmd = vec!["docker", "compose", "-p", proj_str, "up", "-d"];
+    for s in &valid_services {
+        up_cmd.push(s.as_str());
+    }
+    let up_out = ssh::exec(target, &up_cmd, None, Duration::from_secs(90))?;
+
+    let mut combined_logs = String::new();
+    combined_logs.push_str(&String::from_utf8_lossy(&pull_out.stdout));
+    combined_logs.push('\n');
+    combined_logs.push_str(&String::from_utf8_lossy(&up_out.stdout));
 
     let mut updated_services = Vec::new();
     for mut s in preview.services_to_update {
-        let inspect_cmd = format!(
-            "docker inspect --format '{{{{.Id}}}}' {} 2>/dev/null",
-            s.image
-        );
         let digest_after = ssh::exec(
             target,
-            &["sh", "-c", &inspect_cmd],
+            &["docker", "inspect", "--format", "{{.Id}}", s.image.as_str()],
             None,
             Duration::from_secs(10),
         )
@@ -177,20 +202,23 @@ pub fn execute_deploy(
     let record = DeployRecord {
         id: new_deploy_id(),
         host_id: host_id.to_string(),
-        project: project.to_string(),
+        project: proj_str.to_string(),
         deployed_at: now,
         services: updated_services,
         status: "success".to_string(),
-        message: format!("Successfully deployed compose stack {project}"),
+        message: format!("Successfully deployed compose stack {proj_str}"),
     };
 
     Ok(DeployResult {
         record,
-        logs: String::from_utf8_lossy(&out.stdout).to_string(),
+        logs: combined_logs,
     })
 }
 
 pub fn rollback_deploy(target: &SshTarget, record: &DeployRecord) -> AppResult<DeployResult> {
+    let valid_project = ComposeProject::try_from(record.project.as_str())?;
+    let proj_str = valid_project.as_str();
+
     let mut logs = String::new();
     let mut rollback_services = Vec::new();
 
@@ -198,13 +226,17 @@ pub fn rollback_deploy(target: &SshTarget, record: &DeployRecord) -> AppResult<D
         if s.digest_before.is_empty() || s.digest_before == "unknown" {
             continue;
         }
-        let tag_cmd = format!("docker tag {} {} 2>/dev/null", s.digest_before, s.image);
-        let _ = ssh::exec(
+        // docker tag <digest_before> <image>
+        let tag_out = ssh::exec(
             target,
-            &["sh", "-c", &tag_cmd],
+            &["docker", "tag", s.digest_before.as_str(), s.image.as_str()],
             None,
             Duration::from_secs(15),
         );
+        if let Ok(to) = tag_out {
+            logs.push_str(&String::from_utf8_lossy(&to.stdout));
+        }
+
         rollback_services.push(ServiceDigest {
             service: s.service.clone(),
             image: s.image.clone(),
@@ -213,14 +245,14 @@ pub fn rollback_deploy(target: &SshTarget, record: &DeployRecord) -> AppResult<D
         });
     }
 
-    let up_cmd = format!("docker compose -p {} up -d", record.project);
-    let out = ssh::exec(
+    // docker compose -p <proj> up -d
+    let up_out = ssh::exec(
         target,
-        &["sh", "-c", &up_cmd],
+        &["docker", "compose", "-p", proj_str, "up", "-d"],
         None,
         Duration::from_secs(60),
     )?;
-    logs.push_str(&String::from_utf8_lossy(&out.stdout));
+    logs.push_str(&String::from_utf8_lossy(&up_out.stdout));
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -230,14 +262,11 @@ pub fn rollback_deploy(target: &SshTarget, record: &DeployRecord) -> AppResult<D
     let roll_record = DeployRecord {
         id: new_deploy_id(),
         host_id: record.host_id.clone(),
-        project: record.project.clone(),
+        project: proj_str.to_string(),
         deployed_at: now,
         services: rollback_services,
         status: "rolledBack".to_string(),
-        message: format!(
-            "Rolled back stack {} to deploy {}",
-            record.project, record.id
-        ),
+        message: format!("Rolled back stack {proj_str} to deploy {}", record.id),
     };
 
     Ok(DeployResult {
@@ -272,5 +301,13 @@ mod tests {
     fn test_new_deploy_id() {
         let id = new_deploy_id();
         assert!(id.starts_with("dep_"));
+    }
+
+    #[test]
+    fn test_preview_deploy_rejects_injection() {
+        let target = SshTarget::alias("localhost");
+        let res = preview_deploy(&target, "my_app; rm -rf /");
+        assert!(res.is_err());
+        assert!(matches!(res.unwrap_err(), AppError::InvalidName(_)));
     }
 }

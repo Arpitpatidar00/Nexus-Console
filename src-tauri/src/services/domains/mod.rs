@@ -1,8 +1,10 @@
 pub mod uptime;
 
-use crate::error::{AppError, AppResult};
+use crate::core::error::{AppError, AppResult};
+use crate::core::validate::HostName;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,14 +66,20 @@ pub struct PropagationResult {
     pub answers: Vec<PropagationAnswer>,
 }
 
-pub fn lookup_dns(domain: &str, record_type: &str) -> AppResult<DnsLookupResult> {
-    let clean_domain = domain
+fn sanitize_domain(domain: &str) -> AppResult<String> {
+    let clean = domain
         .trim()
         .trim_start_matches("https://")
         .trim_start_matches("http://")
         .split('/')
         .next()
         .unwrap_or(domain);
+    let validated = HostName::try_from(clean)?;
+    Ok(validated.into_inner())
+}
+
+pub fn lookup_dns(domain: &str, record_type: &str) -> AppResult<DnsLookupResult> {
+    let clean_domain = sanitize_domain(domain)?;
     let qtype = match record_type.to_uppercase().as_str() {
         "AAAA" => "AAAA",
         "CNAME" => "CNAME",
@@ -82,7 +90,7 @@ pub fn lookup_dns(domain: &str, record_type: &str) -> AppResult<DnsLookupResult>
     };
 
     let out = Command::new("/usr/bin/dig")
-        .args(["+noall", "+answer", clean_domain, qtype])
+        .args(["+noall", "+answer", &clean_domain, qtype])
         .output()
         .map_err(|e| AppError::Io(format!("failed to run dig: {e}")))?;
 
@@ -110,36 +118,59 @@ pub fn lookup_dns(domain: &str, record_type: &str) -> AppResult<DnsLookupResult>
     }
 
     Ok(DnsLookupResult {
-        domain: clean_domain.to_string(),
+        domain: clean_domain,
         records,
     })
 }
 
 pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
-    let clean_domain = domain
-        .trim()
-        .trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .split('/')
-        .next()
-        .unwrap_or(domain);
+    let clean_domain = sanitize_domain(domain)?;
     let target = format!("{clean_domain}:{port}");
 
-    // Connect via openssl s_client and pipe through openssl x509
-    let cmd = format!(
-        "echo | /usr/bin/openssl s_client -connect {target} -servername {clean_domain} 2>/dev/null | /usr/bin/openssl x509 -noout -dates -issuer -subject -text 2>/dev/null"
-    );
+    // Connect via openssl s_client with strict argv arguments and piped stdin
+    let mut s_client = Command::new("/usr/bin/openssl")
+        .args([
+            "s_client",
+            "-connect",
+            &target,
+            "-servername",
+            &clean_domain,
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| AppError::Io(format!("failed to spawn openssl s_client: {e}")))?;
 
-    let out = Command::new("sh")
-        .arg("-c")
-        .arg(&cmd)
-        .output()
-        .map_err(|e| AppError::Io(format!("failed to run openssl: {e}")))?;
+    if let Some(mut stdin) = s_client.stdin.take() {
+        let _ = stdin.write_all(b"\n");
+        let _ = stdin.flush();
+    }
 
-    let text = String::from_utf8_lossy(&out.stdout);
+    let s_client_stdout = s_client
+        .stdout
+        .take()
+        .ok_or_else(|| AppError::Io("failed to capture s_client stdout".into()))?;
+
+    // Pipe s_client stdout into openssl x509 via argv
+    let x509 = Command::new("/usr/bin/openssl")
+        .args(["x509", "-noout", "-dates", "-issuer", "-subject", "-text"])
+        .stdin(s_client_stdout)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| AppError::Io(format!("failed to spawn openssl x509: {e}")))?;
+
+    let x509_out = x509
+        .wait_with_output()
+        .map_err(|e| AppError::Io(format!("error waiting for openssl x509: {e}")))?;
+
+    let _ = s_client.wait();
+
+    let text = String::from_utf8_lossy(&x509_out.stdout);
     if text.trim().is_empty() {
         return Ok(SslCertResult {
-            domain: clean_domain.to_string(),
+            domain: clean_domain,
             valid: false,
             issuer: String::new(),
             subject: String::new(),
@@ -188,12 +219,12 @@ pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
         }
     }
 
-    // Estimate days remaining using openssl checkend or date parsing
+    // Pure Rust date calculation
     let days_remaining = calculate_days_remaining(&not_after);
     let valid = days_remaining > 0;
 
     Ok(SslCertResult {
-        domain: clean_domain.to_string(),
+        domain: clean_domain,
         valid,
         issuer,
         subject,
@@ -205,35 +236,69 @@ pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
     })
 }
 
+/// Convert Howard Hinnant algorithm from civil calendar to unix epoch days.
+fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
+    let y = y - if m <= 2 { 1 } else { 0 };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = (y - era * 400) as u32;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era as i64 * 146097 + doe as i64 - 719468
+}
+
+/// Parse OpenSSL format timestamps like "May 24 12:00:00 2027 GMT" in pure Rust.
+pub fn parse_openssl_date(s: &str) -> Option<i64> {
+    let parts: Vec<&str> = s.split_whitespace().collect();
+    if parts.len() < 4 {
+        return None;
+    }
+
+    let month = match parts[0] {
+        "Jan" => 1,
+        "Feb" => 2,
+        "Mar" => 3,
+        "Apr" => 4,
+        "May" => 5,
+        "Jun" => 6,
+        "Jul" => 7,
+        "Aug" => 8,
+        "Sep" => 9,
+        "Oct" => 10,
+        "Nov" => 11,
+        "Dec" => 12,
+        _ => return None,
+    };
+
+    let day: u32 = parts[1].parse().ok()?;
+    let time_parts: Vec<&str> = parts[2].split(':').collect();
+    if time_parts.len() < 3 {
+        return None;
+    }
+    let hour: u32 = time_parts[0].parse().ok()?;
+    let min: u32 = time_parts[1].parse().ok()?;
+    let sec: u32 = time_parts[2].parse().ok()?;
+
+    let year: i32 = parts[3].parse().ok()?;
+
+    let days = days_from_civil(year, month, day);
+    let secs = days * 86400 + (hour as i64 * 3600) + (min as i64 * 60) + (sec as i64);
+    Some(secs)
+}
+
 fn calculate_days_remaining(not_after: &str) -> i64 {
-    if not_after.is_empty() {
-        return 0;
+    if let Some(expiry_epoch) = parse_openssl_date(not_after) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        (expiry_epoch - now) / 86400
+    } else {
+        0
     }
-    let cmd = format!(
-        r#"/bin/date -j -f "%b %e %T %Y %Z" "{0}" +%s 2>/dev/null || /bin/date -j -f "%b %d %T %Y %Z" "{0}" +%s 2>/dev/null"#,
-        not_after
-    );
-    if let Ok(out) = Command::new("sh").arg("-c").arg(&cmd).output() {
-        let s = String::from_utf8_lossy(&out.stdout);
-        if let Ok(expiry_epoch) = s.trim().parse::<i64>() {
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
-            return (expiry_epoch - now) / 86400;
-        }
-    }
-    30
 }
 
 pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
-    let clean_domain = domain
-        .trim()
-        .trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .split('/')
-        .next()
-        .unwrap_or(domain);
+    let clean_domain = sanitize_domain(domain)?;
     let url = format!("https://rdap.org/domain/{clean_domain}");
 
     let out = Command::new("/usr/bin/curl")
@@ -244,7 +309,7 @@ pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
     let text = String::from_utf8_lossy(&out.stdout);
     if text.trim().is_empty() || text.starts_with("<!DOCTYPE") || text.contains("404 Not Found") {
         return Ok(RdapResult {
-            domain: clean_domain.to_string(),
+            domain: clean_domain,
             registrar: None,
             expiration_date: None,
             created_date: None,
@@ -318,7 +383,7 @@ pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
         }
 
         return Ok(RdapResult {
-            domain: clean_domain.to_string(),
+            domain: clean_domain,
             registrar,
             expiration_date,
             created_date,
@@ -329,7 +394,7 @@ pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
     }
 
     Ok(RdapResult {
-        domain: clean_domain.to_string(),
+        domain: clean_domain,
         registrar: None,
         expiration_date: None,
         created_date: None,
@@ -340,13 +405,7 @@ pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
 }
 
 pub fn check_propagation(domain: &str, record_type: &str) -> AppResult<PropagationResult> {
-    let clean_domain = domain
-        .trim()
-        .trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .split('/')
-        .next()
-        .unwrap_or(domain);
+    let clean_domain = sanitize_domain(domain)?;
     let qtype = match record_type.to_uppercase().as_str() {
         "AAAA" => "AAAA",
         "CNAME" => "CNAME",
@@ -372,7 +431,7 @@ pub fn check_propagation(domain: &str, record_type: &str) -> AppResult<Propagati
                 "+answer",
                 "+time=2",
                 "+tries=1",
-                clean_domain,
+                &clean_domain,
                 qtype,
             ])
             .output();
@@ -406,7 +465,7 @@ pub fn check_propagation(domain: &str, record_type: &str) -> AppResult<Propagati
     }
 
     Ok(PropagationResult {
-        domain: clean_domain.to_string(),
+        domain: clean_domain,
         record_type: qtype.to_string(),
         answers,
     })
@@ -425,8 +484,16 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_days_remaining() {
-        let days = calculate_days_remaining("Dec 25 22:56:35 2026 GMT");
-        assert!(days >= 0);
+    fn test_domain_injection_rejected() {
+        let res = lookup_dns("example.com; id", "A");
+        assert!(res.is_err());
+        assert!(matches!(res.unwrap_err(), AppError::InvalidName(_)));
+    }
+
+    #[test]
+    fn test_parse_openssl_date() {
+        let epoch = parse_openssl_date("Dec 25 22:56:35 2026 GMT").unwrap();
+        // 2026-12-25 22:56:35 UTC
+        assert_eq!(epoch, 1798239395);
     }
 }

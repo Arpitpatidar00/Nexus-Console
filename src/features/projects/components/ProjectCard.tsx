@@ -36,13 +36,7 @@ export function ProjectCard({ project, onOpenWorkspace, onOpenCommands }: Projec
   const handleDeleteMerged = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!git?.mergedBranches.length) return;
-    if (
-      confirm(
-        `Delete ${git.mergedBranches.length} merged branch(es)?\n\n${git.mergedBranches.join(', ')}`,
-      )
-    ) {
-      deleteMerged.mutate({ path: project.path, branches: git.mergedBranches });
-    }
+    deleteMerged.mutate({ path: project.path, branches: git.mergedBranches });
   };
 
   return (

@@ -30,15 +30,9 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
     );
   };
 
-  const handleRestore = (snapPath: string, snapLabel: string) => {
+  const handleRestore = (snapPath: string, _snapLabel: string) => {
     if (!dataDir) return;
-    if (
-      confirm(
-        `Restore database to branch "${snapLabel}"? A safety backup of the current state will be preserved.`,
-      )
-    ) {
-      restoreSnap.mutate({ serviceName: connection.driver, dataDir, snapshotPath: snapPath });
-    }
+    restoreSnap.mutate({ serviceName: connection.driver, dataDir, snapshotPath: snapPath });
   };
 
   if (!dataDir) {

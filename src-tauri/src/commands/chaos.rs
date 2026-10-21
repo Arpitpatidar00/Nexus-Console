@@ -9,6 +9,14 @@ pub async fn chaos_start_proxy(
     chaos_port: u16,
     profile: ChaosProfile,
 ) -> AppResult<ChaosProxyInfo> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Start Chaos Proxy",
+            format!("Start chaos proxy on :{chaos_port} -> :{target_port}"),
+            "chaos_start_proxy",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
+    );
     // Return proxy metadata
     Ok(ChaosProxyInfo {
         id: format!("chaos_{chaos_port}"),

@@ -153,9 +153,7 @@ export function DatabasesPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm(`Remove connection "${c.name}"?`)) {
-                        removeConn.mutate(c.id);
-                      }
+                      removeConn.mutate(c.id);
                     }}
                     className="p-1 text-zinc-500 opacity-60 transition-opacity hover:text-red-400 hover:opacity-100"
                     title="Remove connection"

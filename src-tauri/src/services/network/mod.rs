@@ -1,6 +1,5 @@
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,16 +18,6 @@ pub struct NetworkInfo {
     pub ipv4_address: Option<String>,
     pub ipv6_address: Option<String>,
     pub dns_servers: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HostEntry {
-    pub id: String,
-    pub ip: String,
-    pub hostnames: Vec<String>,
-    pub comment: Option<String>,
-    pub enabled: bool,
 }
 
 pub fn get_network_info() -> AppResult<NetworkInfo> {
@@ -126,100 +115,13 @@ pub fn get_per_app_bandwidth() -> AppResult<Vec<ProcessBandwidth>> {
     Ok(list)
 }
 
+pub mod hosts;
+pub use hosts::{read_hosts_file, save_hosts_file, HostEntry};
+
 pub fn flush_dns_cache() -> AppResult<String> {
-    let _ = Command::new("/usr/bin/dscacheutil")
-        .arg("-flushcache")
-        .output();
-    let _ = Command::new("/usr/bin/killall")
-        .args(["-HUP", "mDNSResponder"])
-        .output();
+    let opts =
+        crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(10));
+    let _ = crate::core::exec::run("/usr/bin/dscacheutil", &["-flushcache"], opts.clone())?;
+    let _ = crate::core::exec::run("/usr/bin/killall", &["-HUP", "mDNSResponder"], opts)?;
     Ok("DNS cache flushed successfully".into())
-}
-
-pub fn read_hosts_file() -> AppResult<Vec<HostEntry>> {
-    let content = std::fs::read_to_string("/etc/hosts")
-        .map_err(|e| AppError::Io(format!("read /etc/hosts: {e}")))?;
-
-    let mut entries = Vec::new();
-
-    for (idx, line) in content.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let is_comment = trimmed.starts_with('#');
-        let unhashed = if is_comment {
-            trimmed.trim_start_matches('#').trim()
-        } else {
-            trimmed
-        };
-
-        let parts: Vec<&str> = unhashed.split_whitespace().collect();
-        if parts.len() >= 2 && (parts[0].contains('.') || parts[0].contains(':')) {
-            let ip = parts[0].to_string();
-            let hostnames: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
-            entries.push(HostEntry {
-                id: format!("host_{idx}"),
-                ip,
-                hostnames,
-                comment: None,
-                enabled: !is_comment,
-            });
-        }
-    }
-
-    Ok(entries)
-}
-
-pub fn save_hosts_file(dir: &Path, entries: &[HostEntry]) -> AppResult<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
-    // Create backup in AppData
-    let backup_dir = dir.join("hosts-backups");
-    std::fs::create_dir_all(&backup_dir)
-        .map_err(|e| AppError::Io(format!("create hosts backup dir: {e}")))?;
-    if let Ok(current) = std::fs::read_to_string("/etc/hosts") {
-        let _ = std::fs::write(backup_dir.join(format!("hosts-{now}.bak")), current);
-    }
-
-    let mut output = String::from("##\n# Host Database managed by Stackroost\n##\n");
-    for e in entries {
-        if !e.enabled {
-            output.push_str("# ");
-        }
-        output.push_str(&format!(
-            "{}	{}
-",
-            e.ip,
-            e.hostnames.join(" ")
-        ));
-    }
-
-    let temp_path = dir.join("hosts.new");
-    std::fs::write(&temp_path, output)
-        .map_err(|e| AppError::Io(format!("write staging hosts: {e}")))?;
-
-    let cmd = format!(
-        r#"cp "{0}" /etc/hosts 2>/dev/null || osascript -e 'do shell script "cp "{0}" /etc/hosts" with administrator privileges'"#,
-        temp_path.display()
-    );
-    let _ = Command::new("sh").arg("-c").arg(&cmd).output();
-
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_read_hosts_file() {
-        let entries = read_hosts_file().unwrap();
-        assert!(!entries.is_empty());
-        assert!(entries.iter().any(|e| e.ip == "127.0.0.1"));
-    }
 }

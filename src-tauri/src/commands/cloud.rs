@@ -29,13 +29,40 @@ pub async fn aws_list_ec2_instances(
         .map_err(|e| AppError::Shell(format!("list ec2 instances task: {e}")))?
 }
 
+use crate::core::mutation::{mutation, MutationSpec};
+
 #[tauri::command]
 pub async fn aws_instance_action(
+    app: AppHandle,
     profile: String,
     region: String,
     instance_id: String,
     action: String,
 ) -> AppResult<String> {
+    let p_clone = profile.clone();
+    let r_clone = region.clone();
+    let id_clone = instance_id.clone();
+
+    let is_prod = blocking(move || cloud::get_instance_is_prod(&p_clone, &r_clone, &id_clone))
+        .await
+        .map_err(|e| AppError::Shell(format!("check ec2 tags task: {e}")))?
+        .unwrap_or(false);
+
+    let is_destructive = is_prod || action == "stop" || action == "reboot";
+    let spec = MutationSpec::new(
+        format!("EC2 {}: {}", action, instance_id),
+        format!(
+            "Perform '{}' on AWS EC2 instance {} ({}/{})",
+            action, instance_id, profile, region
+        ),
+        format!("ec2_{action}"),
+    )
+    .target(&instance_id)
+    .destructive(is_destructive)
+    .prod(is_prod);
+
+    let _guard = mutation(&app, spec)?;
+
     blocking(move || cloud::ec2_action(&profile, &region, &instance_id, &action))
         .await
         .map_err(|e| AppError::Shell(format!("ec2 action task: {e}")))?

@@ -1,3 +1,4 @@
+use super::confirm_action;
 use crate::brew::{run_brew, BrewLock};
 use crate::context::AppContext;
 use crate::error::{AppError, AppResult};
@@ -184,6 +185,13 @@ pub async fn upgrade_package(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    confirm_action(
+        &app,
+        &format!("Upgrade package '{name}'?"),
+        &format!("Upgrade Homebrew formula/cask '{name}' to the latest version."),
+        "Upgrade",
+        false,
+    )?;
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -200,6 +208,13 @@ pub async fn upgrade_package(
 
 #[tauri::command]
 pub async fn upgrade_all(ctx: State<'_, AppContext>, app: AppHandle) -> AppResult<()> {
+    confirm_action(
+        &app,
+        "Upgrade all outdated packages?",
+        "This will upgrade all installed Homebrew formulae and casks to their latest versions.",
+        "Upgrade All",
+        false,
+    )?;
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -316,6 +331,8 @@ mod tests {
     }
 }
 
+use crate::core::mutation::{mutation_unattended, BlastRadius, MutationSpec};
+
 #[tauri::command]
 pub async fn package_pin(
     name: String,
@@ -323,6 +340,11 @@ pub async fn package_pin(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new("Pin package", format!("Pin package {name}"), "package_pin")
+            .blast_radius(BlastRadius::LocalSystem)
+            .target(&name),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -344,6 +366,15 @@ pub async fn package_unpin(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Unpin package",
+            format!("Unpin package {name}"),
+            "package_unpin",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -395,6 +426,16 @@ pub async fn package_rollback(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Rollback package",
+            format!("Rollback package {name} to version {version}"),
+            "package_rollback",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name)
+        .destructive(true),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     let prefix = ctx.brew_prefix.as_deref().unwrap_or("/opt/homebrew");
     let keg_path = std::path::PathBuf::from(prefix)

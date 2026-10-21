@@ -1,4 +1,6 @@
 use super::blocking;
+use crate::core::exec::{self, ExecOpts};
+use crate::core::mutation::{mutation_unattended, BlastRadius, MutationSpec};
 use crate::error::{AppError, AppResult};
 use crate::services::projects::discovery::{self, DiscoveredProject};
 use crate::services::projects::git;
@@ -8,6 +10,7 @@ use crate::services::projects::store::{
 };
 use crate::services::projects::ProjectsState;
 use std::path::Path;
+use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 #[tauri::command]
@@ -29,6 +32,16 @@ pub async fn projects_delete_merged_branches(
     path: String,
     branches: Vec<String>,
 ) -> AppResult<Vec<String>> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Delete merged branches",
+            format!("Delete {} merged branch(es) in {}", branches.len(), path),
+            "delete_merged_branches",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&path)
+        .destructive(true),
+    );
     blocking(move || git::delete_merged_branches(Path::new(&path), &branches)).await
 }
 
@@ -55,6 +68,15 @@ pub async fn projects_save_workspace(
     app: AppHandle,
     mut config: WorkspaceConfig,
 ) -> AppResult<WorkspaceConfig> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Save workspace",
+            format!("Save workspace {}", config.name),
+            "save_workspace",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&config.name),
+    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
         let mut store = state
@@ -78,6 +100,16 @@ pub async fn projects_save_workspace(
 
 #[tauri::command]
 pub async fn projects_delete_workspace(app: AppHandle, id: String) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Delete workspace",
+            format!("Delete workspace {id}"),
+            "delete_workspace",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id)
+        .destructive(true),
+    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
         let mut store = state
@@ -96,6 +128,15 @@ pub async fn projects_delete_workspace(app: AppHandle, id: String) -> AppResult<
 
 #[tauri::command]
 pub async fn projects_start_workspace(app: AppHandle, id: String) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Start workspace",
+            format!("Start workspace {id}"),
+            "start_workspace",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id),
+    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
         let mut store = state
@@ -114,34 +155,23 @@ pub async fn projects_start_workspace(app: AppHandle, id: String) -> AppResult<(
         let mut started_compose = Vec::new();
 
         // Start Homebrew services
+        let opts = ExecOpts::default().with_timeout(Duration::from_secs(15));
         for svc in &ws.brew_services {
-            let out = std::process::Command::new("brew")
-                .args(["services", "start", svc])
-                .status();
-            if let Ok(s) = out {
-                if s.success() {
-                    started_brew.push(svc.clone());
-                }
+            if exec::run("brew", &["services", "start", svc], opts.clone()).is_ok() {
+                started_brew.push(svc.clone());
             }
         }
 
         // Start Compose projects
         for comp in &ws.compose_projects {
-            let out = std::process::Command::new("docker")
-                .args(["compose", "-p", comp, "start"])
-                .status();
-            if let Ok(s) = out {
-                if s.success() {
-                    started_compose.push(comp.clone());
-                }
+            if exec::run("docker", &["compose", "-p", comp, "start"], opts.clone()).is_ok() {
+                started_compose.push(comp.clone());
             }
         }
 
         // Open in VS Code if requested
         if ws.open_vscode {
-            let _ = std::process::Command::new("code")
-                .arg(&ws.project_path)
-                .spawn();
+            let _ = exec::run("code", &[&ws.project_path], opts);
         }
 
         // Record ownership state
@@ -162,6 +192,16 @@ pub async fn projects_start_workspace(app: AppHandle, id: String) -> AppResult<(
 
 #[tauri::command]
 pub async fn projects_stop_workspace(app: AppHandle, id: String) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Stop workspace",
+            format!("Stop workspace {id}"),
+            "stop_workspace",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id)
+        .destructive(true),
+    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
         let mut store = state
@@ -175,17 +215,14 @@ pub async fn projects_stop_workspace(app: AppHandle, id: String) -> AppResult<()
             .find(|a| a.workspace_id == id)
             .cloned()
         {
+            let opts = ExecOpts::default().with_timeout(Duration::from_secs(15));
             // Stop ONLY what this workspace started
             for svc in &active.started_brew_services {
-                let _ = std::process::Command::new("brew")
-                    .args(["services", "stop", svc])
-                    .status();
+                let _ = exec::run("brew", &["services", "stop", svc], opts.clone());
             }
 
             for comp in &active.started_compose_projects {
-                let _ = std::process::Command::new("docker")
-                    .args(["compose", "-p", comp, "stop"])
-                    .status();
+                let _ = exec::run("docker", &["compose", "-p", comp, "stop"], opts.clone());
             }
 
             store.active_workspaces.retain(|a| a.workspace_id != id);
@@ -225,6 +262,15 @@ pub async fn projects_save_command(
     app: AppHandle,
     mut command: SavedCommand,
 ) -> AppResult<SavedCommand> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Save command",
+            format!("Save command {}", command.name),
+            "save_command",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&command.name),
+    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
         let mut store = state
@@ -248,6 +294,16 @@ pub async fn projects_save_command(
 
 #[tauri::command]
 pub async fn projects_delete_command(app: AppHandle, id: String) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Delete command",
+            format!("Delete command {id}"),
+            "delete_command",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id)
+        .destructive(true),
+    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
         let mut store = state

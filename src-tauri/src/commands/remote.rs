@@ -510,6 +510,13 @@ pub async fn remote_update_tunnel(
 
 #[tauri::command]
 pub async fn remote_remove_tunnel(app: AppHandle, id: String) -> AppResult<()> {
+    confirm_action(
+        &app,
+        "Remove SSH tunnel?",
+        "This will close the local forward port and remove the tunnel configuration.",
+        "Remove Tunnel",
+        false,
+    )?;
     blocking(move || {
         let state = app.state::<RemoteState>();
         let _ = state.tunnels.close(&state, &id);
@@ -680,6 +687,15 @@ pub async fn remote_get_note(app: AppHandle, id: String) -> AppResult<HostNote> 
 
 #[tauri::command]
 pub async fn remote_save_note(app: AppHandle, id: String, content: String) -> AppResult<HostNote> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Save Host Note",
+            format!("Update note for host {id}"),
+            "remote_save_note",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
+        .target(&id),
+    );
     blocking(move || {
         let state = app.state::<RemoteState>();
         let mut n = state
@@ -781,6 +797,13 @@ pub async fn remote_add_runbook(app: AppHandle, input: AddRunbookInput) -> AppRe
 
 #[tauri::command]
 pub async fn remote_remove_runbook(app: AppHandle, id: String) -> AppResult<()> {
+    confirm_action(
+        &app,
+        "Remove Runbook?",
+        "This will permanently delete the saved runbook.",
+        "Remove Runbook",
+        true,
+    )?;
     blocking(move || {
         let state = app.state::<RemoteState>();
         let mut r = state

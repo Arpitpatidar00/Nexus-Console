@@ -183,6 +183,7 @@ pub fn run() {
             commands::network::network_flush_dns,
             commands::network::network_get_hosts,
             commands::network::network_save_hosts,
+            commands::network::network_restore_hosts,
             commands::chaos::chaos_start_proxy,
             commands::chaos::chaos_simulate,
             commands::devices::devices_list_ios,

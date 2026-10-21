@@ -56,15 +56,38 @@ pub fn clonefile(_src: &Path, _dst: &Path) -> AppResult<()> {
     ))
 }
 
+fn validate_service_name(svc: &str) -> AppResult<()> {
+    if svc.is_empty()
+        || svc.len() > 64
+        || !svc
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(AppError::InvalidName(format!(
+            "invalid service name: {svc}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_local_path(p: &Path) -> AppResult<()> {
+    let s = p.to_string_lossy();
+    if s.is_empty() || s.contains('\0') || s.contains("..") {
+        return Err(AppError::Forbidden("path traversal or invalid path".into()));
+    }
+    Ok(())
+}
+
 pub fn measure_dir_size_bytes(dir: &Path) -> u64 {
-    let out = std::process::Command::new("du")
-        .args(["-sk", dir.to_str().unwrap_or("")])
-        .output();
-    if let Ok(o) = out {
-        let s = String::from_utf8_lossy(&o.stdout);
-        if let Some(first) = s.split_whitespace().next() {
-            if let Ok(kb) = first.parse::<u64>() {
-                return kb * 1024;
+    if let Some(s) = dir.to_str() {
+        let opts =
+            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(5));
+        if let Ok(out) = crate::core::exec::run("du", &["-sk", s], opts) {
+            let text = String::from_utf8_lossy(&out.stdout);
+            if let Some(first) = text.split_whitespace().next() {
+                if let Ok(kb) = first.parse::<u64>() {
+                    return kb * 1024;
+                }
             }
         }
     }
@@ -72,6 +95,9 @@ pub fn measure_dir_size_bytes(dir: &Path) -> u64 {
 }
 
 pub fn list_snapshots(service_data_dir: &Path) -> Vec<DbSnapshot> {
+    if validate_local_path(service_data_dir).is_err() {
+        return Vec::new();
+    }
     let snap_dir = snapshot_parent_dir(service_data_dir);
     let mut list = Vec::new();
 
@@ -124,6 +150,7 @@ pub fn create_snapshot(
     data_dir: &Path,
     label: &str,
 ) -> AppResult<DbSnapshot> {
+    validate_local_path(data_dir)?;
     if !data_dir.exists() {
         return Err(AppError::NotFound(format!(
             "data dir {}",
@@ -147,9 +174,10 @@ pub fn create_snapshot(
 
     // Stop service if provided
     if let Some(svc) = service_name {
-        let _ = std::process::Command::new("brew")
-            .args(["services", "stop", svc])
-            .status();
+        validate_service_name(svc)?;
+        let opts =
+            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
+        let _ = crate::core::exec::run("brew", &["services", "stop", svc], opts);
     }
 
     // APFS CoW clone
@@ -157,9 +185,9 @@ pub fn create_snapshot(
 
     // Always restart service if stopped
     if let Some(svc) = service_name {
-        let _ = std::process::Command::new("brew")
-            .args(["services", "start", svc])
-            .status();
+        let opts =
+            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
+        let _ = crate::core::exec::run("brew", &["services", "start", svc], opts);
     }
 
     clone_res?;
@@ -181,6 +209,8 @@ pub fn restore_snapshot(
     data_dir: &Path,
     snapshot_path: &Path,
 ) -> AppResult<()> {
+    validate_local_path(data_dir)?;
+    validate_local_path(snapshot_path)?;
     if !snapshot_path.exists() {
         return Err(AppError::NotFound(format!(
             "snapshot {}",
@@ -190,9 +220,10 @@ pub fn restore_snapshot(
 
     // Stop service
     if let Some(svc) = service_name {
-        let _ = std::process::Command::new("brew")
-            .args(["services", "stop", svc])
-            .status();
+        validate_service_name(svc)?;
+        let opts =
+            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
+        let _ = crate::core::exec::run("brew", &["services", "stop", svc], opts);
     }
 
     let now = std::time::SystemTime::now()
@@ -211,9 +242,9 @@ pub fn restore_snapshot(
 
     // Restart service
     if let Some(svc) = service_name {
-        let _ = std::process::Command::new("brew")
-            .args(["services", "start", svc])
-            .status();
+        let opts =
+            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
+        let _ = crate::core::exec::run("brew", &["services", "start", svc], opts);
     }
 
     clone_res

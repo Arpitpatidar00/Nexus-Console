@@ -372,7 +372,18 @@ pub async fn maclean_ghost_scan(
 }
 
 #[tauri::command]
-pub async fn maclean_ghost_clean(_app: AppHandle, ids: Vec<String>) -> AppResult<u64> {
+pub async fn maclean_ghost_clean(app: AppHandle, ids: Vec<String>) -> AppResult<u64> {
+    confirm_action(
+        &app,
+        &format!(
+            "Clean {} ghost leftover item{}?",
+            ids.len(),
+            if ids.len() == 1 { "" } else { "s" }
+        ),
+        "This will permanently delete leftover application support folders for uninstalled apps.",
+        "Delete Leftovers",
+        true,
+    )?;
     blocking(move || {
         let home = crate::doctor::paths::home()
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
@@ -391,20 +402,26 @@ pub async fn maclean_energy_sample(
 }
 
 #[tauri::command]
-pub async fn maclean_pause_service(service_name: String) -> AppResult<()> {
+pub async fn maclean_pause_service(app: AppHandle, service_name: String) -> AppResult<()> {
+    crate::core::validate::validate_alphanumeric_slug(&service_name, "service name")?;
+    confirm_action(
+        &app,
+        &format!("Pause/stop service '{service_name}'?"),
+        &format!("This will send SIGSTOP or stop brew service '{service_name}'."),
+        "Pause Service",
+        false,
+    )?;
     blocking(move || {
         if service_name.contains("homebrew")
             || service_name.contains("redis")
             || service_name.contains("postgres")
             || service_name.contains("nginx")
         {
-            let _ = std::process::Command::new("brew")
-                .args(["services", "stop", &service_name])
-                .status();
+            let opts = crate::core::exec::ExecOpts::default();
+            let _ = crate::core::exec::run("brew", &["services", "stop", &service_name], opts);
         } else if let Ok(pid) = service_name.parse::<i32>() {
-            let _ = std::process::Command::new("kill")
-                .args(["-STOP", &pid.to_string()])
-                .status();
+            let opts = crate::core::exec::ExecOpts::default();
+            let _ = crate::core::exec::run("kill", &["-STOP", &pid.to_string()], opts);
         }
         Ok(())
     })
@@ -449,7 +466,18 @@ pub async fn maclean_duplicates_scan(
 }
 
 #[tauri::command]
-pub async fn maclean_duplicates_delete(_app: AppHandle, paths: Vec<String>) -> AppResult<u64> {
+pub async fn maclean_duplicates_delete(app: AppHandle, paths: Vec<String>) -> AppResult<u64> {
+    confirm_action(
+        &app,
+        &format!(
+            "Delete {} duplicate file{}?",
+            paths.len(),
+            if paths.len() == 1 { "" } else { "s" }
+        ),
+        "This will permanently delete the selected duplicate files.",
+        "Delete Duplicates",
+        true,
+    )?;
     blocking(move || {
         let home = crate::doctor::paths::home()
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;

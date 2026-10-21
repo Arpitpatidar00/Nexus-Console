@@ -28,6 +28,7 @@ export const BlueprintCard = () => {
   const [diffReport, setDiffReport] = useState<BlueprintDiffReport | null>(null);
   const [parsedBlueprint, setParsedBlueprint] = useState<NexusBlueprint | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [jsonError, setJsonError] = useState<string | null>(null);
 
   const handleExport = () => {
     exportMutation.mutate(undefined, {
@@ -46,6 +47,7 @@ export const BlueprintCard = () => {
 
   const handleAnalyze = () => {
     if (!importJson.trim()) return;
+    setJsonError(null);
     try {
       const parsed = JSON.parse(importJson) as NexusBlueprint;
       setParsedBlueprint(parsed);
@@ -55,7 +57,7 @@ export const BlueprintCard = () => {
         },
       });
     } catch {
-      alert('Invalid JSON format in blueprint');
+      setJsonError('Invalid JSON format in blueprint');
     }
   };
 
@@ -164,6 +166,7 @@ export const BlueprintCard = () => {
                   onChange={(e) => setImportJson(e.target.value)}
                   className="bg-subtle w-full rounded-lg border border-border p-3 font-mono text-xs text-fg focus:border-accent focus:outline-none"
                 />
+                {jsonError && <p className="text-xs font-medium text-danger">{jsonError}</p>}
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"

@@ -116,10 +116,7 @@ export const ArchiverPage = () => {
           onClose={() => setSearchOpen(false)}
           onResume={(sessionId) => {
             const cmd = 'claude --resume ' + sessionId;
-            navigator.clipboard.writeText(cmd);
-            alert(
-              'Copied resume command: ' + cmd + '\n\nPaste into your terminal drawer to resume.',
-            );
+            void navigator.clipboard.writeText(cmd);
             setSearchOpen(false);
           }}
         />

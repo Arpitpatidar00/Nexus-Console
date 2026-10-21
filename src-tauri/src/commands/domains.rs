@@ -67,6 +67,15 @@ pub async fn uptime_save_monitor(
     app: AppHandle,
     monitor: UptimeMonitor,
 ) -> AppResult<Vec<UptimeMonitor>> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Save Uptime Monitor",
+            format!("Save uptime monitor for '{}'", monitor.name),
+            "uptime_save_monitor",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
+        .target(&monitor.name),
+    );
     let dir = app
         .path()
         .app_data_dir()
@@ -83,6 +92,13 @@ pub async fn uptime_save_monitor(
 
 #[tauri::command]
 pub async fn uptime_delete_monitor(app: AppHandle, id: String) -> AppResult<Vec<UptimeMonitor>> {
+    super::confirm_action(
+        &app,
+        "Delete uptime monitor?",
+        "This will permanently remove the uptime monitor and all historical ping data.",
+        "Delete Monitor",
+        true,
+    )?;
     let dir = app
         .path()
         .app_data_dir()

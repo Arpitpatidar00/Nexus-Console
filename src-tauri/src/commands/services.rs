@@ -1,5 +1,6 @@
 use crate::brew::{brew_error, run_brew, BrewLock, BREW_BUSY_MSG};
 use crate::context::AppContext;
+use crate::core::mutation::{mutation_unattended, BlastRadius, MutationSpec};
 use crate::error::{AppError, AppResult};
 use crate::util::{launchctl, lsof, ps, validate};
 use std::collections::HashMap;
@@ -370,6 +371,15 @@ pub async fn start_service(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Start service",
+            format!("Start service {name}"),
+            "start_service",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -399,11 +409,6 @@ pub async fn start_service(
         }
 
         let action = if linked { "start" } else { "run" };
-        // A wedged launchd label (bootstrapped-but-not-running) makes `brew
-        // services start` fail with EIO 5 ("Bootstrap failed: 5"). brew's list
-        // still reports it "stopped", so the UI only ever shows Start and never
-        // a Stop to clear it — a deadlock. Bootout + retry once so Start
-        // self-heals. ponytail: retry only on the failure path (happy path stays fast).
         if run_brew(&bin, &["services", action, &name]).is_err() {
             let _ = run_brew(&bin, &["services", "stop", &name]);
             run_brew(&bin, &["services", action, &name])?;
@@ -423,6 +428,16 @@ pub async fn stop_service(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Stop service",
+            format!("Stop service {name}"),
+            "stop_service",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name)
+        .destructive(true),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -447,6 +462,15 @@ pub async fn restart_service(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Restart service",
+            format!("Restart service {name}"),
+            "restart_service",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -474,6 +498,15 @@ pub async fn set_link_intent(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Set link intent",
+            format!("Set link intent for {name}"),
+            "set_link_intent",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -517,6 +550,15 @@ pub async fn install_formula(
     app: AppHandle,
 ) -> AppResult<String> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Install formula",
+            format!("Install package {name}"),
+            "install_formula",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -612,6 +654,16 @@ pub async fn uninstall_formula(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Uninstall formula",
+            format!("Uninstall package {name}"),
+            "uninstall_formula",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name)
+        .destructive(true),
+    );
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();

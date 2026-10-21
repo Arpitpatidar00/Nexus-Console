@@ -34,11 +34,8 @@ export function ProjectsPage() {
   );
 
   const handleRunTerminal = (command: string, cwd: string) => {
-    // Open in terminal drawer via clipboard or custom event
-    navigator.clipboard.writeText(`cd "${cwd}" && ${command}`);
-    alert(
-      `Command copied to clipboard with project directory:\n\ncd "${cwd}" && ${command}\n\nPaste in the Terminal Drawer (bottom bar) to run.`,
-    );
+    // Open in terminal drawer via clipboard
+    void navigator.clipboard.writeText(`cd "${cwd}" && ${command}`);
   };
 
   return (

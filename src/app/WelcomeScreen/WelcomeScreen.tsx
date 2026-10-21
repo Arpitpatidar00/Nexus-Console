@@ -31,7 +31,7 @@ export const WelcomeScreen = () => {
     availableModules(DEFAULT_MODULES, { claudeInstalled }),
   );
 
-  const confirm = () => {
+  const handleContinue = () => {
     dispatch(setEnabledModules(selected));
     // Land on something that exists — Services may not be in the selection.
     dispatch(setActiveTab(visibleTabs(selected)[0]));
@@ -43,7 +43,7 @@ export const WelcomeScreen = () => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Enter') {
-        confirm();
+        handleContinue();
         return;
       }
       const nth = Number(e.key);
@@ -151,7 +151,7 @@ export const WelcomeScreen = () => {
           <p className="text-xs text-fg-subtle">
             {MODULES.length > 0 && `1–${MODULES.length} to toggle · Enter to continue`}
           </p>
-          <Button onClick={confirm}>Continue</Button>
+          <Button onClick={handleContinue}>Continue</Button>
         </motion.footer>
       </div>
     </div>

@@ -167,20 +167,18 @@ pub fn run_parity_audit(
     let salt = generate_salt();
 
     let mut local_versions = HashMap::new();
-    let version_cmds = [
-        ("node", "node -v"),
-        ("python3", "python3 --version"),
-        ("docker", "docker --version"),
-        ("compose", "docker compose version"),
-        ("postgres", "psql --version"),
-        ("redis", "redis-server --version"),
+    let version_cmds: [(&str, &str, &[&str]); 6] = [
+        ("node", "node", &["-v"]),
+        ("python3", "python3", &["--version"]),
+        ("docker", "docker", &["--version"]),
+        ("compose", "docker", &["compose", "version"]),
+        ("postgres", "psql", &["--version"]),
+        ("redis", "redis-server", &["--version"]),
     ];
 
-    for (name, cmd) in version_cmds {
-        let out = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
-            .output()
+    for (name, prog, args) in version_cmds {
+        let opts = crate::core::exec::ExecOpts::default().with_timeout(Duration::from_secs(5));
+        let out = crate::core::exec::run(prog, args, opts)
             .ok()
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string());
         local_versions.insert(name.to_string(), out.and_then(|o| clean_version_output(&o)));
@@ -209,15 +207,48 @@ pub fn run_parity_audit(
     let mut remote_keys_by_host = HashMap::new();
     let mut host_envs = HashMap::new();
 
+    const REMOTE_PROBE_SCRIPT: &str = r#"
+import subprocess
+tools = [
+    ('NODE', ['node', '-v']),
+    ('PYTHON', ['python3', '--version']),
+    ('DOCKER', ['docker', '--version']),
+    ('COMPOSE', ['docker', 'compose', 'version']),
+    ('POSTGRES', ['psql', '--version']),
+    ('REDIS', ['redis-server', '--version']),
+]
+for label, cmd in tools:
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=5)
+        out = res.stdout.decode('utf-8', errors='ignore').strip()
+        print(f"{label}:{out}")
+    except Exception:
+        pass
+"#;
+
+    const REMOTE_HMAC_SCRIPT: &str = r##"
+import hmac, hashlib, sys
+try:
+    salt = sys.argv[1].encode()
+    with open(sys.argv[2]) as f:
+        for line in f:
+            t = line.strip()
+            if t and not t.startswith("#") and "=" in t:
+                k, v = t.split("=", 1)
+                h = hmac.new(salt, v.strip().encode(), hashlib.sha256).hexdigest()
+                print(f"{k.strip()}:{h}")
+except Exception:
+    pass
+"##;
+
     for &(id, target, env, app_dir) in hosts {
         host_envs.insert(id.to_string(), env.to_string());
 
-        let ver_script = "echo NODE:$(node -v 2>/dev/null); echo PYTHON:$(python3 --version 2>/dev/null); echo DOCKER:$(docker --version 2>/dev/null); echo COMPOSE:$(docker compose version 2>/dev/null); echo POSTGRES:$(psql --version 2>/dev/null); echo REDIS:$(redis-server --version 2>/dev/null)";
         if let Ok(out) = ssh::exec(
             target,
-            &["sh", "-c", ver_script],
+            &["python3", "-c", REMOTE_PROBE_SCRIPT],
             None,
-            Duration::from_secs(10),
+            Duration::from_secs(12),
         ) {
             let stdout = String::from_utf8_lossy(&out.stdout);
             for line in stdout.lines() {
@@ -240,13 +271,11 @@ pub fn run_parity_audit(
             }
         }
 
-        if !app_dir.is_empty() && !app_dir.contains("..") {
-            let hmac_cmd = format!(
-                "python3 -c 'import hmac, hashlib, os, sys; salt = sys.argv[1].encode(); [print(f\"{{k}}:{{hmac.new(salt, v.encode(), hashlib.sha256).hexdigest()}}\") for line in open(sys.argv[2]) if line.strip() and not line.strip().startswith(\"#\") and \"=\" in line for k, v in [line.strip().split(\"=\", 1)]]' \"{salt}\" \"{app_dir}/.env\" 2>/dev/null || cat \"{app_dir}/.env\" 2>/dev/null | grep -v '^\\s*#' | grep '=' | cut -d= -f1 | sed 's/$/:none/'"
-            );
+        if let Ok(valid_app_dir) = crate::core::validate::RemotePath::try_from(app_dir) {
+            let env_path = format!("{}/.env", valid_app_dir.as_str());
             if let Ok(out) = ssh::exec(
                 target,
-                &["sh", "-c", &hmac_cmd],
+                &["python3", "-c", REMOTE_HMAC_SCRIPT, &salt, &env_path],
                 None,
                 Duration::from_secs(15),
             ) {
@@ -258,7 +287,7 @@ pub fn run_parity_audit(
     }
 
     let mut versions = Vec::new();
-    for (name, _) in version_cmds {
+    for (name, _, _) in version_cmds {
         let loc = local_versions.get(name).cloned().flatten();
         let remotes = remote_versions_by_name.remove(name).unwrap_or_default();
         let mut matches = true;

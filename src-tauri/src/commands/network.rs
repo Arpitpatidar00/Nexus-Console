@@ -40,8 +40,21 @@ pub async fn network_get_hosts() -> AppResult<Vec<HostEntry>> {
         .map_err(|e| AppError::Shell(format!("read hosts task: {e}")))?
 }
 
+use crate::core::mutation::{mutation_unattended, BlastRadius, MutationSpec};
+
 #[tauri::command]
 pub async fn network_save_hosts(app: AppHandle, entries: Vec<HostEntry>) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Update /etc/hosts",
+            format!("Modify {} host mapping(s) in /etc/hosts", entries.len()),
+            "save_hosts",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target("/etc/hosts")
+        .destructive(true),
+    );
+
     let dir = app
         .path()
         .app_data_dir()
@@ -49,4 +62,26 @@ pub async fn network_save_hosts(app: AppHandle, entries: Vec<HostEntry>) -> AppR
     blocking(move || network::save_hosts_file(&dir, &entries))
         .await
         .map_err(|e| AppError::Shell(format!("save hosts task: {e}")))?
+}
+
+#[tauri::command]
+pub async fn network_restore_hosts(app: AppHandle) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Restore /etc/hosts",
+            "Restore /etc/hosts from the most recent backup",
+            "restore_hosts",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target("/etc/hosts")
+        .destructive(true),
+    );
+
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::Io(format!("data dir: {e}")))?;
+    blocking(move || network::hosts::restore_previous_hosts(&dir))
+        .await
+        .map_err(|e| AppError::Shell(format!("restore hosts task: {e}")))?
 }

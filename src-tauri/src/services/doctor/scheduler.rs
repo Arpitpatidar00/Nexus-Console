@@ -11,7 +11,6 @@
 use super::{claude, vscode};
 use std::time::{Duration, Instant};
 
-const TICK: Duration = Duration::from_secs(5 * 60);
 const DAILY: Duration = Duration::from_secs(24 * 60 * 60);
 const DEFAULT_CUTOFF_DAYS: u32 = 30;
 
@@ -49,33 +48,26 @@ fn read_settings(app: &tauri::AppHandle) -> Automation {
     parse_settings(crate::settings::read(app).as_ref())
 }
 
-pub fn start(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        let mut last_archive: Option<Instant> = None;
-        loop {
-            let auto = read_settings(&app);
+pub fn tick(app: &tauri::AppHandle, last_archive: &mut Option<Instant>) {
+    let auto = read_settings(app);
 
-            if auto.archive && last_archive.is_none_or(|t| t.elapsed() >= DAILY) {
-                if let Some(msg) = auto_archive_all(auto.cutoff_days) {
-                    notify(&app, &msg);
-                }
-                last_archive = Some(Instant::now());
-            }
-
-            // Bloat check is a few PRAGMA reads — cheap enough to poll; the
-            // fix itself only fires when VSCode is closed AND something is
-            // actually bloated.
-            if auto.vacuum && !vscode::state_dbs_in_use() {
-                if let Ok(msg) = vscode::vacuum_bloated() {
-                    if msg.starts_with("Freed") {
-                        notify(&app, &msg);
-                    }
-                }
-            }
-
-            std::thread::sleep(TICK);
+    if auto.archive && last_archive.is_none_or(|t| t.elapsed() >= DAILY) {
+        if let Some(msg) = auto_archive_all(auto.cutoff_days) {
+            notify(app, &msg);
         }
-    });
+        *last_archive = Some(Instant::now());
+    }
+
+    // Bloat check is a few PRAGMA reads — cheap enough to poll; the
+    // fix itself only fires when VSCode is closed AND something is
+    // actually bloated.
+    if auto.vacuum && !vscode::state_dbs_in_use() {
+        if let Ok(msg) = vscode::vacuum_bloated() {
+            if msg.starts_with("Freed") {
+                notify(app, &msg);
+            }
+        }
+    }
 }
 
 /// Archive-by-age across every project; per-project failures are skipped.

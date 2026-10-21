@@ -64,7 +64,7 @@ export const PackageActions = ({
             <DropdownMenu.Item className={`${itemCls} text-fg`} onSelect={handleTogglePin}>
               {pkg.pinned ? (
                 <>
-                  <PinOff className="h-4 w-4 text-amber-500" />
+                  <PinOff className="h-4 w-4 text-warning" />
                   Unpin formula
                 </>
               ) : (

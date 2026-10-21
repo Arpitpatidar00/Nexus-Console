@@ -189,4 +189,8 @@ export const CMD = {
   AI_EXPLAIN: 'ai_explain',
   AI_GET_MODEL_PRICING: 'ai_get_model_pricing',
   AI_SAVE_MODEL_PRICING: 'ai_save_model_pricing',
+  CONSENT_GET_ALL: 'consent_get_all',
+  CONSENT_SET: 'consent_set',
+  CONSENT_REVOKE_ALL: 'consent_revoke_all',
+  NET_GET_DECLARED_DESTINATIONS: 'net_get_declared_destinations',
 } as const;

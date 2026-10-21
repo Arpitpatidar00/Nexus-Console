@@ -76,16 +76,13 @@ pub fn run() {
             ));
             app.manage(crate::services::chaos::ChaosManager::default());
             tray::build_tray(app.handle())?;
-            // Doctor tray automation (opt-in via Archiver settings): daily
-            // auto-archive + VACUUM-when-VSCode-closes. Daemon thread, 5-min tick.
-            doctor::scheduler::start(app.handle().clone());
-            // Servers background health (opt-in; never connects on its own).
-            remote::background::start(app.handle().clone());
-            remote::deadman::start(app.handle().clone());
-            // Mac Clean scheduled cleanup + low-disk warning (opt-in).
-            maclean::background::start(app.handle().clone());
-            // Uptime monitors background checks + SSL expiration warnings (opt-in).
-            crate::services::domains::uptime::start_background_monitoring(app.handle().clone());
+            // Consent lives with the other stores (A-06); set before anything reads it.
+            if let Ok(dir) = app.path().app_data_dir() {
+                core::consent::set_consent_dir(dir);
+            }
+            // Unified background scheduler (A-10 / PLAN.md E.5): one battery-aware daemon
+            // managing remote health, dead-man switch, Mac Clean, uptime, and Doctor.
+            crate::services::scheduler::start(app.handle().clone());
             // brew --version costs 100-500ms — resolve it off the startup path so
             // it never blocks first paint. Consumers render "v—" until it lands.
             if let Some(bin) = brew_bin {
@@ -105,10 +102,16 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(module_gate(tauri::generate_handler![
+            // Core & System
             commands::confirm_bulk,
             commands::trust_tap,
             commands::context::get_app_context,
+            commands::consent::consent_get_all,
+            commands::consent::consent_set,
+            commands::consent::consent_revoke_all,
+            commands::consent::net_get_declared_destinations,
+            // Doctor
             commands::doctor::doctor_scan,
             commands::doctor::doctor_deep_scan,
             commands::doctor::doctor_cancel_deep_scan,
@@ -188,8 +191,6 @@ pub fn run() {
             commands::network::network_get_hosts,
             commands::network::network_save_hosts,
             commands::network::network_restore_hosts,
-            commands::chaos::chaos_start_proxy,
-            commands::chaos::chaos_simulate,
             commands::devices::devices_list_ios,
             commands::devices::devices_control_ios,
             commands::devices::devices_list_android,
@@ -297,7 +298,7 @@ pub fn run() {
             commands::chaos::chaos_stop_proxy,
             commands::chaos::chaos_list_proxies,
             commands::chaos::chaos_simulate,
-        ])
+        ]))
         .build(tauri::generate_context!())
         .expect("error while building Stackroost")
         .run(|app, event| {
@@ -311,4 +312,25 @@ pub fn run() {
                 quit::stop_session_services(app);
             }
         });
+}
+
+/// Disabled modules expose no commands (A-08 / PLAN.md E.4): a call into a
+/// switched-off module is rejected before the command body runs.
+fn module_gate<F>(handler: F) -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static
+where
+    F: Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static,
+{
+    move |invoke| {
+        let cmd = invoke.message.command();
+        if let Some(module) = core::capabilities::command_module(cmd) {
+            let app = invoke.message.webview().app_handle().clone();
+            if !settings::module_enabled(settings::read(&app).as_ref(), module) {
+                invoke.resolver.reject(AppError::Forbidden(format!(
+                    "The {module} module is turned off. Enable it in Settings to use it."
+                )));
+                return true;
+            }
+        }
+        handler(invoke)
+    }
 }

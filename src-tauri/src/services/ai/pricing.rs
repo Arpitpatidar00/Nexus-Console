@@ -1,6 +1,5 @@
-use crate::core::error::{AppError, AppResult};
+use crate::core::error::AppResult;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -65,11 +64,10 @@ pub fn get_pricing() -> Vec<ModelPricing> {
 
     if let Some(path) = pricing_file_path() {
         if path.exists() {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(parsed) = serde_json::from_str::<Vec<ModelPricing>>(&content) {
-                    *cache = Some(parsed.clone());
-                    return parsed;
-                }
+            let loaded: Vec<ModelPricing> = crate::core::store::load_store(&path);
+            if !loaded.is_empty() {
+                *cache = Some(loaded.clone());
+                return loaded;
             }
         }
     }
@@ -81,12 +79,7 @@ pub fn get_pricing() -> Vec<ModelPricing> {
 
 pub fn save_pricing(list: Vec<ModelPricing>) -> AppResult<()> {
     if let Some(path) = pricing_file_path() {
-        if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let json = serde_json::to_string_pretty(&list)
-            .map_err(|e| AppError::Parse(format!("serialize pricing: {e}")))?;
-        fs::write(&path, json).map_err(|e| AppError::Io(format!("save pricing: {e}")))?;
+        crate::core::store::save_store(&path, &list, false)?;
     }
 
     let mut cache = PRICING_CACHE.lock().unwrap_or_else(|e| e.into_inner());

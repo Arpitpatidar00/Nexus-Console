@@ -65,16 +65,16 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                     <span
                       className={cn(
                         'flex h-full flex-col gap-3 rounded-xl border p-4 transition-colors duration-[var(--duration-fast)]',
-                        'peer-focus-visible:ring-2 peer-focus-visible:ring-accent',
-                        checked ? 'bg-accent-soft border-accent' : 'border-border bg-paper',
-                        available ? 'hover:border-accent/60' : 'opacity-60',
+                        'peer-focus-visible:ring-2 peer-focus-visible:ring-ember',
+                        checked ? 'border-ember bg-ember-soft' : 'border-border bg-paper',
+                        available ? 'hover:border-ember/60' : 'opacity-60',
                       )}
                     >
                       <span className="flex items-start gap-3">
                         <span
                           className={cn(
                             'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                            checked ? 'text-accent-fg bg-accent' : 'bg-list text-fg-muted',
+                            checked ? 'bg-ember text-ember-foreground' : 'bg-list text-fg-muted',
                           )}
                         >
                           <Icon className="h-4 w-4" />
@@ -87,10 +87,12 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                           aria-hidden
                           className={cn(
                             'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                            checked ? 'border-accent bg-accent' : 'border-fg-subtle/50',
+                            checked ? 'border-ember bg-ember' : 'border-fg-subtle/50',
                           )}
                         >
-                          {checked && <Check className="text-accent-fg h-3 w-3" strokeWidth={3} />}
+                          {checked && (
+                            <Check className="h-3 w-3 text-ember-foreground" strokeWidth={3} />
+                          )}
                         </span>
                       </span>
 

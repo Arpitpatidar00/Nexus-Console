@@ -29,7 +29,7 @@ pub struct BackupConfig {
     pub destination_dir: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupIndex {
     pub backups: Vec<BackupRecord>,
@@ -45,19 +45,11 @@ pub fn new_backup_id() -> String {
 
 impl BackupIndex {
     pub fn load(dir: &Path) -> Self {
-        let path = dir.join("backups-index.json");
-        std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        crate::core::store::load_store(dir.join("backups-index.json"))
     }
 
     pub fn save(&self, dir: &Path) -> AppResult<()> {
-        let path = dir.join("backups-index.json");
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| AppError::Io(format!("serialize backups: {e}")))?;
-        std::fs::write(&path, json)
-            .map_err(|e| AppError::Io(format!("save backups index to {}: {e}", path.display())))
+        crate::core::store::save_store(dir.join("backups-index.json"), self, false)
     }
 
     pub fn add(&mut self, record: BackupRecord) {

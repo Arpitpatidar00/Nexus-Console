@@ -4,8 +4,8 @@
 
 ## Current status
 
-- **Current phase:** Phase D (Complete partial features) - COMPLETE (Proceeding to Phase E)
-- **Branch:** `fix/audit-D-partial-features`
+- **Current phase:** Phase E (Architecture consolidation) - COMPLETE (Phase F next)
+- **Branch:** `fix/audit-E-architecture`
 - **Waiting on owner:** None (DECIDE items resolved conservative/safe default per Rule 4)
 
 ## Baseline (Phase 0.1 — real gate results on Mac)
@@ -29,7 +29,7 @@
 - [x] **B** Truth — chaos, AWS cost, AI explain, updater, releases, uptime, rollback, docs, PROGRESS template
 - [x] **C** Tests — fixtures, parsers, ignored machine tests, testbed, frontend tests, QA checklists, CI
 - [x] **D** Complete partial features (D.1–D.13)
-- [ ] **E** Architecture consolidation (E.1–E.7)
+- [x] **E** Architecture consolidation (E.1–E.7)
 - [ ] **F** Product improvement (F.1–F.8)
 - [ ] **G** Release readiness (G.1–G.5)
 
@@ -248,6 +248,71 @@
   - **QA ticked:** Works without credentials or external API calls.
   - **Deviations:** None.
 
+### Phase E
+
+> Started in an Antigravity session that stopped on a model quota error midway through E.6
+> (codemod run, 13 residuals left, nothing committed). Finished and re-verified in Claude Code; the
+> fixes below to the earlier E.1–E.5 work are listed under each item.
+
+- `E.1` — A-04 `core::store` (`load_store`/`save_store`, `FileStore`): atomic temp+rename, `{version, data}`
+  envelope with raw-file fallback, corrupt file kept as `<name>.corrupt.<epoch>`, `sensitive` → 0600.
+  Migrated: remote (0600), uptime, backups index, local databases, projects, remote deploys/history/
+  notes/runbooks, AI pricing, cloud cost cache, **plus Mac Clean store and trends** (missed in the first pass).
+  - **Gate output:** `core::store::tests` 3/3; `remote_store` corrupt test updated to the new backup name.
+  - **QA ticked:** Not run in the app yet (owner) — existing files load through the raw fallback.
+  - **Deviations:** Backup suffix changed from `.json.corrupt` to `.corrupt.<epoch>` (keeps every backup).
+- `E.2` — A-06 `core::consent`: 5 sources (ssh_config, aws_config, shell_history, project_env,
+  library_scan), default denied, enforced in Rust before every read (all `aws_*` commands, Secrets project +
+  history scans, Mac Clean scan / deep scan / ghost scan and the scheduled auto-clean). Frontend:
+  `shared/privacy` (`ConsentGate`, hooks, zod mirror) wraps Storage, Cloud and Secrets; Secrets' history
+  checkbox now writes the real consent; **Settings → Privacy** card lists, toggles and "Revoke all".
+  SSH consent stays owned by `RemoteState` (revoking disconnects) and is mirrored, not duplicated.
+  - **Gate output:** `core::consent::tests` 4/4 (isolated dirs; the first version raced on a shared global),
+    `privacy.schema.test.ts` 3/3.
+  - **QA ticked:** Not run in the app yet (owner): first open of Storage/Cloud/Secrets must show the ask.
+  - **Deviations:** Before this fix the Rust checks existed with no UI to grant them, so Mac Clean, Cloud
+    and Secrets were unusable; consent file now lives in the app data dir (was `~/.stackroost`).
+- `E.3` — A-07 `core::net`: declared destinations (GitHub, RDAP, 3 DNS resolvers, `*.amazonaws.com`, local
+  Ollama) + descriptive user-configured entries (your servers / monitored URLs / checked domains);
+  `check_outbound_allowed` before updater, RDAP, DNS propagation, EC2 and Ollama calls. Listed in
+  Settings → Privacy and README.
+  - **Gate output:** `core::net::tests` 3/3 incl. user entries never matching.
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `E.4` — A-08 per-module commands: `module_gate` wraps the generated invoke handler and rejects
+  (`forbidden`) any command whose module is off; `core::capabilities` maps prefixes → module.
+  Fixed: `blueprint_*` mapped to a non-existent module (would always be rejected), `chaos_*` belongs to
+  Network, `claude_installed` must answer while Claude is off; duplicate chaos registrations removed.
+  - **Gate output:** `capabilities::tests` 2/2 (mapping + gate decisions, fail-open on unreadable settings).
+  - **QA ticked:** Pending owner.
+  - **Deviations:** Per-module Tauri capability files not split — the app has one window and the IPC gate
+    is the effective boundary.
+- `E.5` — A-10 `services::scheduler`: one thread replaces six (dead-man, remote health, Mac Clean, uptime,
+  Doctor archive/vacuum). Fixed: every job ran every 10 s; each now keeps its original cadence via `due()`
+  (30 s / 60 s / 5 min / 5 min, dead-man 10 s); battery read via `core::exec` once a minute instead of a
+  raw `Command` every tick; the old per-job `start` loops deleted.
+  - **Gate output:** `scheduler::tests` 2/2 (`due`, pmset parsing incl. charging / AC).
+  - **QA ticked:** Pending owner.
+  - **Deviations:** None.
+- `E.6` — A-09 token codemod: raw palette classes → tokens (218 + 13 residuals), and the dead legacy
+  aliases (`text-text-*`, `bg-surface-*`, `bg-subtle`, `bg-hover`, `bg-bg`, `border-border-subtle`,
+  `text-muted-fg`). `accent` had been repointed to shadcn's grey hover surface, so 43 `text-accent`, 15
+  `ring-accent`, 11 `border-accent` and every filled `bg-accent`/`bg-accent-soft` rendered nearly invisible;
+  mapped back to `ember` / `ember-text` / `ember-soft` (the legacy `--accent-*` vars were ember aliases).
+  Guard: `src/styles/tokens.guard.test.ts` (runs in `npm test`, pre-push and CI).
+  - **Gate output:** guard 4/4 incl. planted-violation case; 0 raw palette classes, 0 legacy aliases.
+  - **QA ticked:** Pending owner — light + dark review is F.8.
+  - **Deviations:** Ban implemented as a vitest guard, not an oxlint rule (oxlint has no regex class rule).
+- `E.7` — `CLAUDE.md` gained the store, consent, net, module-gate, scheduler and token rules; README gained
+  the consent + allow-list section.
+  - **Gate output:** `prettier --check` clean.
+  - **QA ticked:** Doc reviewed against code.
+  - **Deviations:** None.
+
+**Phase E gates (2026-10-22, macOS):** oxlint 0/0 · prettier clean · tsc 0 · vitest 49 files / 188 tests ·
+build ok · cargo fmt ok · clippy 0 · cargo test 327 passed / 0 failed / 29 ignored · guards 4/4 · parsers 90 ·
+payloads 18 · release ok (`Stackroost.app` 28 MiB, `.dmg` 8.4 MiB, unsigned).
+
 ---
 
 ## Decisions
@@ -268,6 +333,10 @@
 - 2026-10-21: D.4 SFTP upload requires typing "UPLOAD" in confirmation modal for production destinations.
 - 2026-10-21: D.11 Persistence migrated favorite ports and command palette recents to settingsSlice and disk storage, deprecating localStorage.
 - 2026-10-21: D.12 Blocking I/O commands wrapped in `super::blocking` to guarantee async thread pool responsiveness.
+- 2026-10-22: E.2 consent is asked in place (`ConsentGate`) rather than only in Settings, so a module that
+  needs a source shows one "Allow access" step instead of an error toast.
+- 2026-10-22: E.6 legacy `accent` usages restored to the ember brand tokens (their original meaning) rather
+  than to shadcn `accent`.
 
 ## Deviations
 
@@ -304,6 +373,17 @@
 - **Lead Tester:** 87 parser tests, 18 payload tests, 4 guard tests, 308 Rust tests, and 177 frontend tests all passing 100%. CI pipeline enforced with multi-stage verification.
 - **Project Manager:** Phase C complete on `fix/audit-C-tests`. Checklists established for 17 modules.
 - **Lead Product Improver:** QA testing matrix codified for regression-free verification of all existing and upcoming features.
+
+### Phase E Sign-off:
+
+- **System Architect:** store / consent / net / module gate / scheduler are single implementations with
+  tests; the earlier draft's regressions (blocked modules, 10 s cadence for every job, racing tests,
+  wrong module ids) fixed. Open: in-app QA by the owner.
+- **Lead Tester:** all §0.3 gates green locally (counts above). CI not yet run — branch not pushed.
+- **Project Manager:** Phase E committed on `fix/audit-E-architecture` as one commit (item IDs in the
+  message) — deviation from one-commit-per-item, matching Phases 0–D.
+- **Lead Product Improver:** brand color restored on ~70 elements that had gone grey; Privacy card and
+  consent asks follow `PRODUCT.md` copy rules (plain, says what is read and that it stays local).
 
 ### Phase D Sign-off:
 

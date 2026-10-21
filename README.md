@@ -51,6 +51,24 @@ Every module in Stackroost strictly declares what it reads, what it changes, and
 | **Secrets Scanner**  | Local git repositories and git commit history                                                   | None (read-only credential pattern scanner)                                                          | None                                                                     |
 | **App Updater**      | Compares `CARGO_PKG_VERSION` against GitHub Releases API (opt-in check)                         | None (opens browser to release download page)                                                        | `https://api.github.com/repos/Arpitpatidar00/Stackroost/releases/latest` |
 
+### Consent and network allow-list
+
+Five local sources are read only after you allow them, and the check runs in Rust before every read:
+`~/.ssh/config` (Servers), `~/.aws` (Cloud), shell history and project `.env` files (Secrets), and
+`~/Library` (Mac Clean). **Settings → Privacy** lists each one with an on/off switch and a "Revoke all".
+
+The same screen lists every network destination the app can reach (`src-tauri/src/core/net.rs`), and
+outbound calls outside that list are refused:
+
+| Destination                           | Module           | Why                                       |
+| ------------------------------------- | ---------------- | ----------------------------------------- |
+| `api.github.com`, `github.com`        | Updater          | Release check and download link           |
+| `rdap.org`                            | Domains          | Registration / expiry lookup              |
+| `1.1.1.1`, `8.8.8.8`, `9.9.9.9`       | Domains          | DNS propagation check                     |
+| `*.amazonaws.com`                     | Cloud            | EC2, S3, Cost Explorer via your `aws` CLI |
+| `127.0.0.1:11434`                     | AI               | Local Ollama (never leaves this Mac)      |
+| Servers, URLs and domains **you** add | Servers, Domains | SSH, uptime checks, TLS / DNS lookups     |
+
 ## Getting Started
 
 ### Prerequisites

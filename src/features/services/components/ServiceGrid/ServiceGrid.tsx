@@ -50,7 +50,7 @@ export const ServiceGrid = ({ services, onReorder }: ServiceGridProps) => {
           className={cn(
             'h-full cursor-grab rounded-xl transition active:cursor-grabbing',
             dragId === s.formula && 'opacity-40',
-            overId === s.formula && dragId !== s.formula && 'ring-2 ring-accent',
+            overId === s.formula && dragId !== s.formula && 'ring-2 ring-ember',
           )}
         >
           <ServiceCard service={s} />

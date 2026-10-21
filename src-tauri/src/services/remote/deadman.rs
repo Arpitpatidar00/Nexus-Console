@@ -12,7 +12,6 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 pub const DEFAULT_IDLE_MINUTES: u64 = 10;
-const TICK_INTERVAL: Duration = Duration::from_secs(10);
 const SLEEP_LEAP_THRESHOLD: Duration = Duration::from_secs(25);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -184,21 +183,15 @@ pub fn check_deadman_tick(
     }
 }
 
-pub fn start(app: AppHandle) {
-    std::thread::spawn(move || {
-        let mut last_tick = Instant::now();
-        loop {
-            std::thread::sleep(TICK_INTERVAL);
-            let now_inst = Instant::now();
-            let slept = now_inst.duration_since(last_tick) >= SLEEP_LEAP_THRESHOLD;
-            last_tick = now_inst;
+pub fn tick(app: &AppHandle, last_tick: &mut Instant) {
+    let now_inst = Instant::now();
+    let slept = now_inst.duration_since(*last_tick) >= SLEEP_LEAP_THRESHOLD;
+    *last_tick = now_inst;
 
-            let locked = check_screen_locked();
-            let now_epoch = crate::doctor::claude::now_epoch();
+    let locked = check_screen_locked();
+    let now_epoch = crate::doctor::claude::now_epoch();
 
-            check_deadman_tick(&app, locked, slept, now_epoch);
-        }
-    });
+    check_deadman_tick(app, locked, slept, now_epoch);
 }
 
 fn notify(app: &AppHandle, body: &str) {

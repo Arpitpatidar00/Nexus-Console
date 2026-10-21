@@ -37,7 +37,7 @@ const RowMenu = ({ actions, file }: { actions: RowAction[]; file: string }) => (
       <button
         type="button"
         aria-label="Chat actions"
-        className="shrink-0 rounded-md p-1.5 text-fg-muted transition-colors hover:bg-list hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="shrink-0 rounded-md p-1.5 text-fg-muted transition-colors hover:bg-list hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
       >
         <MoreVertical className="h-4 w-4" />
       </button>

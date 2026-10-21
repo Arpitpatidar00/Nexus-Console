@@ -3,6 +3,7 @@ pub mod backups;
 pub mod blueprint;
 pub mod chaos;
 pub mod cloud;
+pub mod consent;
 pub mod context;
 pub mod doctor;
 pub mod domains;

@@ -45,30 +45,26 @@ export function SavedCommandsModal({ project, onClose, onRunTerminal }: SavedCom
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="bg-surface-elevated border-border-subtle w-full max-w-lg space-y-4 rounded-xl border p-5 shadow-2xl">
-        <div className="border-border-subtle flex items-center justify-between border-b pb-3">
+      <div className="w-full max-w-lg space-y-4 rounded-xl border border-border bg-card p-5 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-blue-400" />
+            <Terminal className="h-4 w-4 text-info" />
             <h3 className="text-sm font-semibold">Saved Commands — {project.name}</h3>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-text-muted hover:text-text-primary"
-          >
+          <button type="button" onClick={onClose} className="text-fg-muted hover:text-fg">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Action Button: New Command */}
         <div className="flex items-center justify-between">
-          <p className="text-text-muted text-xs">
+          <p className="text-xs text-fg-muted">
             Execute author-defined terminal workflows in the interactive terminal drawer.
           </p>
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-500"
+            className="flex items-center gap-1 rounded-lg bg-info px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-info"
           >
             <Plus className="h-3.5 w-3.5" />
             New Command
@@ -79,10 +75,10 @@ export function SavedCommandsModal({ project, onClose, onRunTerminal }: SavedCom
         {isAdding && (
           <form
             onSubmit={handleAdd}
-            className="bg-surface-subtle border-border-subtle space-y-2.5 rounded-lg border p-3 text-xs"
+            className="space-y-2.5 rounded-lg border border-border bg-muted p-3 text-xs"
           >
             <div>
-              <label htmlFor="cmd-label" className="text-text-muted mb-1 block">
+              <label htmlFor="cmd-label" className="mb-1 block text-fg-muted">
                 Command Name
               </label>
               <input
@@ -92,11 +88,11 @@ export function SavedCommandsModal({ project, onClose, onRunTerminal }: SavedCom
                 placeholder="e.g. Run Tests, Lint Code"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="bg-surface-elevated border-border-subtle text-text-primary w-full rounded border px-2.5 py-1.5 focus:outline-none"
+                className="w-full rounded border border-border bg-card px-2.5 py-1.5 text-fg focus:outline-none"
               />
             </div>
             <div>
-              <label htmlFor="cmd-str" className="text-text-muted mb-1 block">
+              <label htmlFor="cmd-str" className="mb-1 block text-fg-muted">
                 Shell Command Line
               </label>
               <input
@@ -106,21 +102,21 @@ export function SavedCommandsModal({ project, onClose, onRunTerminal }: SavedCom
                 placeholder="e.g. npm test, cargo check"
                 value={newCmd}
                 onChange={(e) => setNewCmd(e.target.value)}
-                className="bg-surface-elevated border-border-subtle text-text-primary w-full rounded border px-2.5 py-1.5 font-mono text-[11px] focus:outline-none"
+                className="w-full rounded border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-fg focus:outline-none"
               />
             </div>
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="text-text-muted hover:text-text-primary rounded px-2.5 py-1"
+                className="rounded px-2.5 py-1 text-fg-muted hover:text-fg"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saveCommand.isPending}
-                className="rounded bg-blue-600 px-3 py-1 font-medium text-white transition-colors hover:bg-blue-500"
+                className="rounded bg-info px-3 py-1 font-medium text-white transition-colors hover:bg-info"
               >
                 Save
               </button>
@@ -129,38 +125,36 @@ export function SavedCommandsModal({ project, onClose, onRunTerminal }: SavedCom
         )}
 
         {/* Commands List */}
-        <div className="border-border-subtle bg-surface-elevated divide-border-subtle divide-y overflow-hidden rounded-lg border">
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {isLoading ? (
-            <div className="text-text-muted p-4 text-center text-xs">Loading commands...</div>
+            <div className="p-4 text-center text-xs text-fg-muted">Loading commands...</div>
           ) : commands.length === 0 ? (
-            <div className="text-text-muted p-6 text-center text-xs">
+            <div className="p-6 text-center text-xs text-fg-muted">
               No saved commands for this project. Author frequently used commands above.
             </div>
           ) : (
             commands.map((cmd) => (
               <div
                 key={cmd.id}
-                className="hover:bg-surface-subtle/30 flex items-center justify-between p-3 px-4 transition-colors"
+                className="flex items-center justify-between p-3 px-4 transition-colors hover:bg-muted/30"
               >
                 <div className="max-w-[300px] space-y-0.5 truncate">
-                  <div className="text-text-primary truncate text-xs font-semibold">{cmd.name}</div>
-                  <div className="text-text-muted truncate font-mono text-[11px]">
-                    {cmd.command}
-                  </div>
+                  <div className="truncate text-xs font-semibold text-fg">{cmd.name}</div>
+                  <div className="truncate font-mono text-[11px] text-fg-muted">{cmd.command}</div>
                 </div>
 
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => handleRun(cmd.command)}
-                    className="flex items-center gap-1 rounded bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                    className="flex items-center gap-1 rounded bg-success-soft px-2.5 py-1 text-xs font-medium text-success transition-colors hover:bg-success-soft"
                   >
                     <Play className="h-3 w-3 fill-current" /> Run
                   </button>
                   <button
                     type="button"
                     onClick={() => deleteCommand.mutate({ id: cmd.id, projectPath: project.path })}
-                    className="p-1 text-zinc-500 transition-colors hover:text-red-400"
+                    className="p-1 text-muted-foreground transition-colors hover:text-destructive"
                     title="Delete command"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

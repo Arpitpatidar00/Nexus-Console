@@ -59,7 +59,7 @@ export const SessionsPage = () => {
               className={cn(
                 'cursor-grab rounded-xl transition active:cursor-grabbing',
                 dragId === s.formula && 'opacity-40',
-                overId === s.formula && dragId !== s.formula && 'ring-2 ring-accent',
+                overId === s.formula && dragId !== s.formula && 'ring-2 ring-ember',
               )}
             >
               <SessionCard

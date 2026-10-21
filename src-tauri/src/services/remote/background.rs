@@ -13,8 +13,6 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 
-const TICK: Duration = Duration::from_secs(60);
-
 /// Fresh snapshots taken here, so an open Servers tab shows them too.
 pub const SNAPSHOT_EVENT: &str = "remote://snapshot";
 
@@ -88,21 +86,13 @@ pub fn auto_connect_all(app: &tauri::AppHandle) {
     }
 }
 
-pub fn start(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        auto_connect_all(&app);
-
-        let mut last: Option<Instant> = None;
-        loop {
-            if let Some(every) = interval(crate::settings::read(&app).as_ref()) {
-                if last.is_none_or(|t| t.elapsed() >= every) {
-                    run_once(&app);
-                    last = Some(Instant::now());
-                }
-            }
-            std::thread::sleep(TICK);
+pub fn tick(app: &tauri::AppHandle, last: &mut Option<Instant>) {
+    if let Some(every) = interval(crate::settings::read(app).as_ref()) {
+        if last.is_none_or(|t| t.elapsed() >= every) {
+            run_once(app);
+            *last = Some(Instant::now());
         }
-    });
+    }
 }
 
 fn run_once(app: &tauri::AppHandle) {

@@ -155,7 +155,7 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
   const liveActions: RowAction[] = [
     {
       label: 'Resume in Terminal',
-      icon: <Terminal className="h-4 w-4 text-emerald-400" />,
+      icon: <Terminal className="h-4 w-4 text-success" />,
       disabled: busy,
       onAct: (f) => {
         const id = f.replace('.jsonl', '');
@@ -166,7 +166,7 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
     },
     {
       label: 'Export Markdown',
-      icon: <FileText className="h-4 w-4 text-blue-400" />,
+      icon: <FileText className="h-4 w-4 text-info" />,
       disabled: busy,
       onAct: async (f) => {
         if (!row.live) return;
@@ -188,7 +188,7 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
     },
     {
       label: 'Context Analysis',
-      icon: <Brain className="h-4 w-4 text-purple-400" />,
+      icon: <Brain className="h-4 w-4 text-info" />,
       disabled: busy,
       onAct: (f) => setInspectContextFile(f),
     },
@@ -236,18 +236,18 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
       </div>
 
       {usage.data && (
-        <div className="bg-surface-subtle border-border-subtle mx-6 mb-2 flex items-center justify-between rounded-lg border p-2.5 text-xs">
+        <div className="mx-6 mb-2 flex items-center justify-between rounded-lg border border-border bg-muted p-2.5 text-xs">
           <div className="flex items-center gap-3">
-            <span className="text-text-muted">Estimated Spend:</span>
-            <span className="font-mono font-semibold text-emerald-400">
+            <span className="text-fg-muted">Estimated Spend:</span>
+            <span className="font-mono font-semibold text-success">
               ${usage.data.estimatedCostUsd.toFixed(2)}
             </span>
-            <span className="text-text-muted">·</span>
-            <span className="text-text-muted font-mono">
+            <span className="text-fg-muted">·</span>
+            <span className="font-mono text-fg-muted">
               {((usage.data.inputTokens + usage.data.outputTokens) / 1000).toFixed(0)}k tokens
             </span>
           </div>
-          <span className="text-text-muted text-[10px]">
+          <span className="text-[10px] text-fg-muted">
             Estimated spend (model price table estimate, editable in Settings)
           </span>
         </div>

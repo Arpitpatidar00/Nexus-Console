@@ -51,6 +51,8 @@ pub async fn remote_state(app: AppHandle) -> AppResult<RemoteStateDto> {
 /// Revoking also closes every open connection; imported hosts are kept.
 #[tauri::command]
 pub async fn remote_set_consent(app: AppHandle, granted: bool) -> AppResult<()> {
+    // Mirror into the unified consent store so Settings -> Privacy shows it too.
+    crate::core::consent::set_consent(crate::core::DataSource::SshConfig, granted)?;
     blocking(move || {
         let state = app.state::<RemoteState>();
         if !granted {

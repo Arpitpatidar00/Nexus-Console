@@ -21,10 +21,11 @@ import { StorageSkeleton } from '@/features/maclean/components/StorageSkeleton';
 import { WeeklyTrendsCard } from '@/features/maclean/components/WeeklyTrendsCard';
 import { GhostLeftoversCard } from '@/features/maclean/components/GhostLeftoversCard';
 import { DuplicateFilesCard } from '@/features/maclean/components/DuplicateFilesCard';
+import { ConsentGate } from '@/shared/privacy';
 
 /** `~/mac-clean.sh` as a page: the report fills in from one read-only scan;
  * the only mutation is the cleanup plan's button (native confirm in Rust). */
-export const StoragePage = () => {
+const StorageView = () => {
   const report = useStorageReport();
   const clean = useClean();
   const journal = useCleanJournal(true);
@@ -123,3 +124,12 @@ export const StoragePage = () => {
     </div>
   );
 };
+
+export const StoragePage = () => (
+  <ConsentGate
+    source="library_scan"
+    reason="Storage measures folder sizes under ~/Library (caches, logs, app leftovers) to show what can be cleaned. It reads sizes and names only, never file contents."
+  >
+    <StorageView />
+  </ConsentGate>
+);

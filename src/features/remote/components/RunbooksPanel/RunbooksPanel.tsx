@@ -94,7 +94,7 @@ export const RunbooksPanel = ({ host }: Props) => {
           />
         </div>
       ) : (
-        <div className="bg-surface/50 divide-y divide-hairline rounded-2xl border border-hairline shadow-sm backdrop-blur-sm">
+        <div className="divide-y divide-hairline rounded-2xl border border-hairline bg-card/50 shadow-sm backdrop-blur-sm">
           {runbooks.map((rb) => (
             <div key={rb.id} className="flex items-center justify-between gap-4 p-4">
               <div className="min-w-0 flex-1">
@@ -117,7 +117,7 @@ export const RunbooksPanel = ({ host }: Props) => {
                   title="Copy command to clipboard"
                 >
                   {copiedId === rb.id ? (
-                    <Check className="size-3.5 text-emerald-500" />
+                    <Check className="size-3.5 text-success" />
                   ) : (
                     <Copy className="size-3.5" />
                   )}
@@ -127,7 +127,7 @@ export const RunbooksPanel = ({ host }: Props) => {
                   onClick={() => handleRun(rb.command, rb.name)}
                   title="Open terminal shell for this host"
                 >
-                  <Play className="mr-1.5 size-3.5 text-emerald-500" />
+                  <Play className="mr-1.5 size-3.5 text-success" />
                   Run
                 </Button>
                 <Button
@@ -137,7 +137,7 @@ export const RunbooksPanel = ({ host }: Props) => {
                   onClick={() => removeRunbook.mutate(rb.id)}
                   title="Delete runbook"
                 >
-                  <Trash2 className="size-3.5 text-rose-500" />
+                  <Trash2 className="size-3.5 text-destructive" />
                 </Button>
               </div>
             </div>
@@ -148,7 +148,7 @@ export const RunbooksPanel = ({ host }: Props) => {
       {/* Add Runbook Modal */}
       {dialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-surface w-full max-w-lg rounded-2xl border border-hairline p-6 shadow-xl">
+          <div className="w-full max-w-lg rounded-2xl border border-hairline bg-card p-6 shadow-xl">
             <h3 className="mb-4 text-lg font-semibold text-fg">Create Server Runbook</h3>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>

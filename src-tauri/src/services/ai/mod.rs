@@ -58,6 +58,7 @@ pub fn prepare_prompt(prompt: &str, context: Option<&str>) -> PreparedPrompt {
 }
 
 pub async fn check_ollama_status() -> AppResult<OllamaStatus> {
+    crate::core::net::check_outbound_allowed(OLLAMA_ADDR)?;
     let connect_future = TcpStream::connect(OLLAMA_ADDR);
     let mut stream = match timeout(Duration::from_millis(1500), connect_future).await {
         Ok(Ok(s)) => s,
@@ -149,6 +150,7 @@ pub async fn explain_with_ai(
     context: Option<&str>,
     model: Option<&str>,
 ) -> AppResult<ExplainResponse> {
+    crate::core::net::check_outbound_allowed(OLLAMA_ADDR)?;
     let status = check_ollama_status().await?;
     if !status.online || status.models.is_empty() {
         return Err(AppError::Io(

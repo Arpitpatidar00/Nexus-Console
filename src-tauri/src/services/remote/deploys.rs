@@ -1,4 +1,4 @@
-use crate::core::error::{AppError, AppResult};
+use crate::core::error::AppResult;
 use crate::core::validate::{ComposeProject, ComposeService, ImageRef};
 use crate::services::remote::ssh::{self, SshTarget};
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,7 @@ pub struct DeployResult {
     pub logs: String,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployStore {
     pub deploys: Vec<DeployRecord>,
@@ -57,19 +57,11 @@ pub fn new_deploy_id() -> String {
 
 impl DeployStore {
     pub fn load(dir: &Path) -> DeployStore {
-        let path = dir.join("remote-deploys.json");
-        std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        crate::core::store::load_store(dir.join("remote-deploys.json"))
     }
 
     pub fn save(&self, dir: &Path) -> AppResult<()> {
-        let path = dir.join("remote-deploys.json");
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| AppError::Io(format!("serialize deploys: {e}")))?;
-        std::fs::write(&path, json)
-            .map_err(|e| AppError::Io(format!("save deploys to {}: {e}", path.display())))
+        crate::core::store::save_store(dir.join("remote-deploys.json"), self, false)
     }
 
     pub fn add(&mut self, record: DeployRecord) {
@@ -278,6 +270,7 @@ pub fn rollback_deploy(target: &SshTarget, record: &DeployRecord) -> AppResult<D
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::error::AppError;
 
     #[test]
     fn test_deploy_store_add_and_truncate() {

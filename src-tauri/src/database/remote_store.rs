@@ -121,31 +121,14 @@ pub const JOURNAL_CAP: usize = 500;
 
 impl Store {
     /// Missing file → defaults. Unreadable/corrupt file → defaults, with the
-    /// bad file moved aside to `remote.json.corrupt` so nothing is silently lost.
+    /// bad file moved aside to `remote.corrupt.<epoch>` so nothing is silently lost.
     pub fn load(path: &Path) -> Store {
-        let Ok(raw) = fs::read_to_string(path) else {
-            return Store::default();
-        };
-        match serde_json::from_str::<Store>(&raw) {
-            Ok(s) => s,
-            Err(_) => {
-                let _ = fs::rename(path, path.with_extension("json.corrupt"));
-                Store::default()
-            }
-        }
+        crate::core::store::load_store(path)
     }
 
-    /// Atomic: write a sibling temp file, then rename over the real one.
+    /// Atomic: write a sibling temp file, then rename over the real one with 0600 permissions.
     pub fn save(&self, path: &Path) -> AppResult<()> {
-        let io = |e: std::io::Error| AppError::Io(format!("saving {FILE_NAME}: {e}"));
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir).map_err(io)?;
-        }
-        let json = serde_json::to_vec_pretty(self)
-            .map_err(|e| AppError::Parse(format!("serializing {FILE_NAME}: {e}")))?;
-        let tmp = path.with_extension("json.tmp");
-        fs::write(&tmp, json).map_err(io)?;
-        fs::rename(&tmp, path).map_err(io)
+        crate::core::store::save_store(path, self, true)
     }
 
     /// Reading ssh config (or anything derived from it) is gated here, in Rust.
@@ -310,10 +293,12 @@ mod tests {
         let s = Store::load(&path);
         assert!(s.hosts.is_empty());
         assert!(!path.exists());
-        assert_eq!(
-            fs::read_to_string(path.with_extension("json.corrupt")).unwrap(),
-            "{ not json"
-        );
+        let backup = fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .find(|e| e.file_name().to_string_lossy().contains("corrupt"))
+            .expect("corrupt backup kept");
+        assert_eq!(fs::read_to_string(backup.path()).unwrap(), "{ not json");
     }
 
     #[test]

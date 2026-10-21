@@ -125,7 +125,7 @@ export const ToolboxPage = () => {
           onClick={() => setAiModalOpen(true)}
           className="flex items-center gap-1.5 text-xs"
         >
-          <Bot className="h-3.5 w-3.5 text-indigo-400" />
+          <Bot className="h-3.5 w-3.5 text-info" />
           Explain with Local AI
         </Button>
       </div>
@@ -143,7 +143,7 @@ export const ToolboxPage = () => {
                 onClick={() => setActiveTool(t.id)}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors ${
                   active
-                    ? 'bg-accent-soft font-semibold text-accent shadow-xs'
+                    ? 'bg-ember-soft font-semibold text-ember-text shadow-xs'
                     : 'text-fg-muted hover:bg-list hover:text-fg'
                 }`}
               >
@@ -212,7 +212,7 @@ export const ToolboxPage = () => {
                     onClick={() => copyToClipboard('json', jsonInput)}
                   >
                     {copiedKey === 'json' ? (
-                      <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      <Check className="h-3.5 w-3.5 text-success" />
                     ) : (
                       <Copy className="h-3.5 w-3.5" />
                     )}
@@ -233,7 +233,7 @@ export const ToolboxPage = () => {
                   setJsonError(null);
                 }}
                 rows={16}
-                className="w-full rounded-lg border border-border bg-black/10 p-3 font-mono text-xs text-fg focus:border-accent focus:outline-none dark:bg-black/30"
+                className="w-full rounded-lg border border-border bg-black/10 p-3 font-mono text-xs text-fg focus:border-ember focus:outline-none dark:bg-black/30"
                 placeholder="Paste JSON here..."
               />
             </div>
@@ -247,7 +247,7 @@ export const ToolboxPage = () => {
                 value={jwtInput}
                 onChange={(e) => setJwtInput(e.target.value)}
                 rows={4}
-                className="w-full rounded-lg border border-border bg-black/10 p-2.5 font-mono text-xs text-fg focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-border bg-black/10 p-2.5 font-mono text-xs text-fg focus:border-ember focus:outline-none"
                 placeholder="eyJhbGciOiJIUzI1NiIsInR5..."
               />
 
@@ -369,7 +369,7 @@ export const ToolboxPage = () => {
                       onClick={() => copyToClipboard('b64', b64Output)}
                     >
                       {copiedKey === 'b64' ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        <Check className="h-3.5 w-3.5 text-success" />
                       ) : (
                         <Copy className="h-3.5 w-3.5" />
                       )}
@@ -465,7 +465,7 @@ export const ToolboxPage = () => {
                     onClick={() => copyToClipboard('uuid', uuidOutput)}
                   >
                     {copiedKey === 'uuid' ? (
-                      <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      <Check className="h-3.5 w-3.5 text-success" />
                     ) : (
                       <Copy className="h-3.5 w-3.5" />
                     )}
@@ -545,7 +545,7 @@ export const ToolboxPage = () => {
                     <div className="mt-2 max-h-48 divide-y divide-border overflow-y-auto">
                       {res.matchesList.map((m, idx) => (
                         <div key={idx} className="flex items-center justify-between py-1.5 text-xs">
-                          <span className="font-mono text-accent">
+                          <span className="font-mono text-ember-text">
                             #{idx + 1}: {m.match}
                           </span>
                           <span className="text-fg-muted">Index {m.index}</span>

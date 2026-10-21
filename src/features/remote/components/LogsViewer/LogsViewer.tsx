@@ -337,11 +337,7 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
           </Button>
 
           <Button variant="outline" size="sm" onClick={handleCopy} title="Copy visible logs">
-            {copied ? (
-              <Check className="size-3.5 text-emerald-500" />
-            ) : (
-              <Copy className="size-3.5" />
-            )}
+            {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
           </Button>
         </div>
       </div>
@@ -443,16 +439,16 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
 
       {/* Request-ID active filter pill */}
       {activeRequestId && (
-        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">
-          <Filter className="size-3.5 text-amber-400" />
+        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-warning-soft bg-warning-soft px-3 py-1.5 text-xs text-warning">
+          <Filter className="size-3.5 text-warning" />
           <span>
             Tracing Request ID:{' '}
-            <strong className="font-mono text-amber-300">{activeRequestId}</strong>
+            <strong className="font-mono text-warning">{activeRequestId}</strong>
           </span>
           <button
             type="button"
             onClick={() => setActiveRequestId(null)}
-            className="ml-auto cursor-pointer rounded p-0.5 hover:bg-amber-500/20"
+            className="ml-auto cursor-pointer rounded p-0.5 hover:bg-warning-soft"
             title="Clear Request ID filter"
           >
             <X className="size-3.5" />
@@ -471,7 +467,7 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
               key={c.id}
               type="button"
               onClick={() => handleOpenStream(host?.id ?? 'local', c.name)}
-              className="bg-surface/60 cursor-pointer rounded-lg border border-hairline px-2 py-0.5 font-mono text-xs text-fg-muted transition-colors hover:border-primary/40 hover:text-fg"
+              className="cursor-pointer rounded-lg border border-hairline bg-card/60 px-2 py-0.5 font-mono text-xs text-fg-muted transition-colors hover:border-primary/40 hover:text-fg"
             >
               {c.name}
             </button>
@@ -503,7 +499,7 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
                 <div
                   key={entry.id}
                   className={`group flex items-start gap-2.5 px-3 py-2 transition-colors hover:bg-muted/20 ${
-                    isReqActive ? 'bg-amber-500/10' : ''
+                    isReqActive ? 'bg-warning-soft' : ''
                   }`}
                 >
                   {/* Timestamp & Ordering Badge */}
@@ -516,8 +512,8 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
                   <span
                     className={`py-0.2 inline-flex shrink-0 items-center rounded px-1.5 text-[10px] font-semibold ${
                       entry.sourceType === 'local'
-                        ? 'bg-blue-500/15 text-blue-400'
-                        : 'bg-emerald-500/15 text-emerald-400'
+                        ? 'bg-info/15 text-info'
+                        : 'bg-success/15 text-success'
                     }`}
                   >
                     {entry.sourceLabel}
@@ -527,9 +523,9 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
                   <span
                     className={`py-0.2 inline-flex shrink-0 items-center rounded px-1 text-[10px] font-bold ${
                       entry.level === 'error'
-                        ? 'bg-red-500/20 text-red-400'
+                        ? 'bg-danger-soft text-destructive'
                         : entry.level === 'warn'
-                          ? 'bg-amber-500/20 text-amber-400'
+                          ? 'bg-warning-soft text-warning'
                           : 'bg-muted text-fg-subtle'
                     }`}
                   >
@@ -554,7 +550,7 @@ export const LogsViewer = ({ host, snapshot, allHosts }: Props) => {
                       type="button"
                       onClick={() => setActiveRequestId(entry.requestId ?? null)}
                       title={`Filter by request ID: ${entry.requestId}`}
-                      className="shrink-0 cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300 transition-colors hover:bg-amber-500/25"
+                      className="shrink-0 cursor-pointer rounded border border-warning-soft bg-warning-soft px-1.5 py-0.5 text-[10px] text-warning transition-colors hover:bg-warning/25"
                     >
                       {entry.requestId}
                     </button>

@@ -39,10 +39,10 @@ export const DevicesPage = () => {
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <Smartphone className="h-6 w-6 text-violet-400" />
+            <Smartphone className="h-6 w-6 text-info" />
             Simulators & Emulators Manager
           </h1>
-          <p className="text-muted-fg mt-1 text-xs">
+          <p className="mt-1 text-xs text-fg-muted">
             Manage local iOS Simulators (simctl) and Android AVDs without opening heavy IDEs.
           </p>
         </div>
@@ -75,8 +75,8 @@ export const DevicesPage = () => {
             onClick={() => setActiveTab('ios')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'ios'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             iOS Simulators ({iosDevices.length})
@@ -86,8 +86,8 @@ export const DevicesPage = () => {
             onClick={() => setActiveTab('android')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'android'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             Android AVDs ({androidAvds.length})
@@ -95,13 +95,13 @@ export const DevicesPage = () => {
         </div>
 
         <div className="relative">
-          <Search className="text-muted-fg absolute top-2.5 left-2.5 h-3.5 w-3.5" />
+          <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
           <input
             type="text"
             placeholder={`Search ${activeTab === 'ios' ? 'simulators' : 'AVDs'}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="placeholder:text-muted-fg rounded-md border border-border bg-card/60 py-1.5 pr-3 pl-8 text-xs text-fg focus:outline-none"
+            className="rounded-md border border-border bg-card/60 py-1.5 pr-3 pl-8 text-xs text-fg placeholder:text-fg-muted focus:outline-none"
           />
         </div>
       </div>
@@ -111,7 +111,7 @@ export const DevicesPage = () => {
         <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="text-muted-fg border-b border-border bg-muted/40 font-semibold">
+              <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
                 <th className="px-4 py-3">Device Name & UDID</th>
                 <th className="px-4 py-3">Runtime</th>
                 <th className="px-4 py-3">State</th>
@@ -121,13 +121,13 @@ export const DevicesPage = () => {
             <tbody className="divide-y divide-border">
               {iosLoading ? (
                 <tr>
-                  <td colSpan={4} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={4} className="px-4 py-8 text-center text-fg-muted">
                     Querying xcrun simctl devices...
                   </td>
                 </tr>
               ) : filteredIos.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={4} className="px-4 py-8 text-center text-fg-muted">
                     No iOS simulators found matching search.
                   </td>
                 </tr>
@@ -138,9 +138,9 @@ export const DevicesPage = () => {
                     <tr key={sim.udid} className="transition-colors hover:bg-muted/20">
                       <td className="px-4 py-3">
                         <div className="font-semibold text-fg">{sim.name}</div>
-                        <div className="text-muted-fg font-mono text-[10px]">{sim.udid}</div>
+                        <div className="font-mono text-[10px] text-fg-muted">{sim.udid}</div>
                       </td>
-                      <td className="text-muted-fg px-4 py-3">{sim.runtime}</td>
+                      <td className="px-4 py-3 text-fg-muted">{sim.runtime}</td>
                       <td className="px-4 py-3">
                         <Badge variant={isBooted ? 'success' : 'neutral'} className="text-[10px]">
                           {sim.state}
@@ -152,7 +152,7 @@ export const DevicesPage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-7 px-2 text-[11px] text-amber-400 hover:text-amber-300"
+                              className="h-7 px-2 text-[11px] text-warning hover:text-warning"
                               onClick={() =>
                                 controlIosMutation.mutate({ udid: sim.udid, action: 'shutdown' })
                               }
@@ -164,7 +164,7 @@ export const DevicesPage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-7 px-2 text-[11px] text-emerald-400 hover:text-emerald-300"
+                              className="h-7 px-2 text-[11px] text-success hover:text-success"
                               onClick={() =>
                                 controlIosMutation.mutate({ udid: sim.udid, action: 'boot' })
                               }
@@ -176,7 +176,7 @@ export const DevicesPage = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-muted-fg h-7 px-2 text-[11px] hover:text-destructive"
+                            className="h-7 px-2 text-[11px] text-fg-muted hover:text-destructive"
                             onClick={() =>
                               controlIosMutation.mutate({ udid: sim.udid, action: 'erase' })
                             }
@@ -197,7 +197,7 @@ export const DevicesPage = () => {
         <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="text-muted-fg border-b border-border bg-muted/40 font-semibold">
+              <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
                 <th className="px-4 py-3">AVD Name</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Launch</th>
@@ -206,13 +206,13 @@ export const DevicesPage = () => {
             <tbody className="divide-y divide-border">
               {androidLoading ? (
                 <tr>
-                  <td colSpan={3} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                     Querying emulator -list-avds...
                   </td>
                 </tr>
               ) : filteredAndroid.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                     No Android Virtual Devices (AVDs) configured in Android SDK.
                   </td>
                 </tr>
@@ -230,7 +230,7 @@ export const DevicesPage = () => {
                         variant="outline"
                         size="sm"
                         disabled={avd.running}
-                        className="h-7 px-2.5 text-[11px] text-emerald-400 hover:text-emerald-300"
+                        className="h-7 px-2.5 text-[11px] text-success hover:text-success"
                         onClick={() => launchAndroidMutation.mutate(avd.name)}
                       >
                         <Play className="mr-1 h-3 w-3" />

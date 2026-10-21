@@ -37,10 +37,10 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
 
   if (!dataDir) {
     return (
-      <div className="bg-surface-elevated border-border-subtle space-y-3 rounded-xl border p-8 text-center">
-        <HardDrive className="mx-auto h-8 w-8 text-zinc-500" />
+      <div className="space-y-3 rounded-xl border border-border bg-card p-8 text-center">
+        <HardDrive className="mx-auto h-8 w-8 text-muted-foreground" />
         <div className="text-sm font-medium">No Local Data Directory Configured</div>
-        <p className="text-text-muted mx-auto max-w-sm text-xs">
+        <p className="mx-auto max-w-sm text-xs text-fg-muted">
           APFS Instant Branching requires a local data directory path (e.g.{' '}
           <code>/opt/homebrew/var/postgresql@16</code>).
         </p>
@@ -51,13 +51,13 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
   return (
     <div className="space-y-4">
       {/* Header & Create Branch */}
-      <div className="bg-surface-elevated border-border-subtle flex items-center justify-between rounded-xl border p-4">
+      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
         <div>
           <div className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-purple-400" />
+            <GitBranch className="h-4 w-4 text-info" />
             <h2 className="text-sm font-semibold">APFS Copy-on-Write Branches</h2>
           </div>
-          <p className="text-text-muted mt-0.5 text-xs">
+          <p className="mt-0.5 text-xs text-fg-muted">
             Instantaneous zero-copy snapshots of <code>{dataDir}</code> via macOS APFS.
           </p>
         </div>
@@ -65,7 +65,7 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
         <button
           type="button"
           onClick={() => setIsCreating(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-500"
+          className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-info"
         >
           <Plus className="h-3.5 w-3.5" />
           New Branch
@@ -76,7 +76,7 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
       {isCreating && (
         <form
           onSubmit={handleCreate}
-          className="bg-surface-subtle border-border-subtle space-y-3 rounded-xl border p-4"
+          className="space-y-3 rounded-xl border border-border bg-muted p-4"
         >
           <div className="text-xs font-semibold">Create New Database Branch</div>
           <div className="flex items-center gap-2">
@@ -85,19 +85,19 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
               placeholder="Branch label (e.g. before-migration-v2)"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              className="bg-surface-elevated border-border-subtle text-text-primary flex-1 rounded-md border px-3 py-1.5 text-xs focus:outline-none"
+              className="flex-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs text-fg focus:outline-none"
             />
             <button
               type="submit"
               disabled={createSnap.isPending || !label.trim()}
-              className="rounded-md bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-500 disabled:opacity-50"
+              className="rounded-md bg-info px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-info disabled:opacity-50"
             >
               {createSnap.isPending ? 'Cloning APFS...' : 'Create Snapshot'}
             </button>
             <button
               type="button"
               onClick={() => setIsCreating(false)}
-              className="text-text-muted hover:text-text-primary rounded-md px-3 py-1.5 text-xs font-medium"
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-fg-muted hover:text-fg"
             >
               Cancel
             </button>
@@ -106,13 +106,13 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
       )}
 
       {/* Snapshots List */}
-      <div className="border-border-subtle bg-surface-elevated divide-border-subtle divide-y overflow-hidden rounded-xl border">
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {isLoading ? (
-          <div className="text-text-muted p-6 text-center text-xs">Scanning APFS branches...</div>
+          <div className="p-6 text-center text-xs text-fg-muted">Scanning APFS branches...</div>
         ) : snapshots.length === 0 ? (
           <div className="space-y-2 p-8 text-center">
-            <AlertCircle className="mx-auto h-6 w-6 text-zinc-500" />
-            <div className="text-text-muted text-xs">
+            <AlertCircle className="mx-auto h-6 w-6 text-muted-foreground" />
+            <div className="text-xs text-fg-muted">
               No snapshots created yet. Create a branch before testing risky migrations.
             </div>
           </div>
@@ -124,23 +124,23 @@ export function SnapshotsPanel({ connection }: SnapshotsPanelProps) {
             return (
               <div
                 key={s.id}
-                className="hover:bg-surface-subtle/30 flex items-center justify-between p-3.5 px-4 transition-colors"
+                className="flex items-center justify-between p-3.5 px-4 transition-colors hover:bg-muted/30"
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-text-primary text-xs font-semibold">{s.label}</span>
-                    <span className="rounded bg-zinc-500/10 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                    <span className="text-xs font-semibold text-fg">{s.label}</span>
+                    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                       {sizeStr}
                     </span>
                   </div>
-                  <div className="text-text-muted font-mono text-[11px]">{dateStr}</div>
+                  <div className="font-mono text-[11px] text-fg-muted">{dateStr}</div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleRestore(s.path, s.label)}
                   disabled={restoreSnap.isPending}
-                  className="bg-surface-subtle border-border-subtle flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-purple-500/10 hover:text-purple-400"
+                  className="flex items-center gap-1.5 rounded border border-border bg-muted px-2.5 py-1 text-xs font-medium transition-colors hover:bg-info-soft hover:text-info"
                 >
                   <RotateCcw className="h-3 w-3" />
                   Restore

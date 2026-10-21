@@ -14,7 +14,7 @@ export const AppUpdateCard = () => {
     <div className="rounded-xl border border-border bg-paper p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-lg text-accent">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ember-soft text-ember-text">
             <ArrowUpCircle className="h-5 w-5" />
           </div>
           <div>
@@ -51,20 +51,20 @@ export const AppUpdateCard = () => {
           <div>
             {update.hasUpdate ? (
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-amber-500">
+                <span className="font-semibold text-warning">
                   New version available: v{update.latestVersion}
                 </span>
                 <a
                   href={update.releaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded bg-accent px-2 py-1 text-xs font-medium text-white hover:bg-accent/90"
+                  className="inline-flex items-center gap-1 rounded bg-ember px-2 py-1 text-xs font-medium text-white hover:bg-accent/90"
                 >
                   View Release <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-emerald-500">
+              <div className="flex items-center gap-1.5 text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>You are running the latest release</span>
               </div>

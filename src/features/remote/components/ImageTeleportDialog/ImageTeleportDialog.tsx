@@ -45,7 +45,7 @@ export const ImageTeleportDialog = ({ host, open, onClose }: Props) => {
     >
       <form onSubmit={handleSubmit} className="space-y-4 pt-2">
         {isProd ? (
-          <div className="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-500">
+          <div className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-danger-soft p-3.5 text-xs text-destructive">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" />
             <div>
               <strong className="font-semibold">Disabled on Production:</strong> Direct image
@@ -64,7 +64,7 @@ export const ImageTeleportDialog = ({ host, open, onClose }: Props) => {
         )}
 
         {successMsg && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-500">
+          <div className="flex items-center gap-2 rounded-xl border border-success-soft bg-success-soft p-3 text-xs font-medium text-success">
             <CheckCircle2 className="size-4 shrink-0" />
             <span>{successMsg}</span>
           </div>

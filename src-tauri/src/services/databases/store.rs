@@ -1,4 +1,4 @@
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -36,7 +36,7 @@ pub struct QueryResult {
     pub duration_ms: u64,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DbStore {
     pub connections: Vec<DbConnection>,
@@ -52,19 +52,11 @@ pub fn new_connection_id() -> String {
 
 impl DbStore {
     pub fn load(dir: &Path) -> DbStore {
-        let path = dir.join("local-databases.json");
-        std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        crate::core::store::load_store(dir.join("local-databases.json"))
     }
 
     pub fn save(&self, dir: &Path) -> AppResult<()> {
-        let path = dir.join("local-databases.json");
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| AppError::Io(format!("serialize databases: {e}")))?;
-        std::fs::write(&path, json)
-            .map_err(|e| AppError::Io(format!("save databases to {}: {e}", path.display())))
+        crate::core::store::save_store(dir.join("local-databases.json"), self, true)
     }
 
     pub fn add(&mut self, conn: DbConnection) {

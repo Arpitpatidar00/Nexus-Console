@@ -85,7 +85,7 @@ export const BlueprintCard = () => {
     <div className="rounded-xl border border-border bg-paper p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-lg text-accent">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ember-soft text-ember-text">
             <Cpu className="h-5 w-5" />
           </div>
           <div>
@@ -132,7 +132,7 @@ export const BlueprintCard = () => {
           <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-dialog)] max-h-[85vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-paper p-6 shadow-xl">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
-                <Cpu className="h-5 w-5 text-accent" />
+                <Cpu className="h-5 w-5 text-ember-text" />
                 <Dialog.Title className="text-base font-semibold text-fg">
                   Import & Diff Mac Blueprint
                 </Dialog.Title>
@@ -141,7 +141,7 @@ export const BlueprintCard = () => {
                 <button
                   type="button"
                   aria-label="Close dialog"
-                  className="hover:bg-hover rounded-lg p-1 text-fg-muted hover:text-fg"
+                  className="rounded-lg p-1 text-fg-muted hover:bg-accent hover:text-fg"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -164,7 +164,7 @@ export const BlueprintCard = () => {
 }'
                   value={importJson}
                   onChange={(e) => setImportJson(e.target.value)}
-                  className="bg-subtle w-full rounded-lg border border-border p-3 font-mono text-xs text-fg focus:border-accent focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-muted p-3 font-mono text-xs text-fg focus:border-ember focus:outline-none"
                 />
                 {jsonError && <p className="text-xs font-medium text-danger">{jsonError}</p>}
                 <div className="flex justify-end gap-2">
@@ -194,7 +194,7 @@ export const BlueprintCard = () => {
                   <button
                     type="button"
                     onClick={() => setDiffReport(null)}
-                    className="text-accent hover:underline"
+                    className="text-ember-text hover:underline"
                   >
                     Load another file
                   </button>
@@ -203,7 +203,7 @@ export const BlueprintCard = () => {
                 {/* Diff Results Grid */}
                 <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
                   {/* Homebrew Missing */}
-                  <div className="bg-subtle flex flex-col justify-between rounded-lg border border-border p-3">
+                  <div className="flex flex-col justify-between rounded-lg border border-border bg-muted p-3">
                     <div>
                       <div className="mb-1 flex items-center justify-between font-semibold text-fg">
                         <span>Homebrew Differences</span>
@@ -235,7 +235,7 @@ export const BlueprintCard = () => {
                   </div>
 
                   {/* Remote Hosts Missing */}
-                  <div className="bg-subtle flex flex-col justify-between rounded-lg border border-border p-3">
+                  <div className="flex flex-col justify-between rounded-lg border border-border bg-muted p-3">
                     <div>
                       <div className="mb-1 flex items-center justify-between font-semibold text-fg">
                         <span>Servers & Hosts</span>
@@ -260,7 +260,7 @@ export const BlueprintCard = () => {
                   </div>
 
                   {/* Workspaces Missing */}
-                  <div className="bg-subtle flex flex-col justify-between rounded-lg border border-border p-3">
+                  <div className="flex flex-col justify-between rounded-lg border border-border bg-muted p-3">
                     <div>
                       <div className="mb-1 flex items-center justify-between font-semibold text-fg">
                         <span>Workspaces</span>
@@ -287,7 +287,7 @@ export const BlueprintCard = () => {
                   </div>
 
                   {/* VS Code Extensions */}
-                  <div className="bg-subtle flex flex-col justify-between rounded-lg border border-border p-3">
+                  <div className="flex flex-col justify-between rounded-lg border border-border bg-muted p-3">
                     <div>
                       <div className="mb-1 flex items-center justify-between font-semibold text-fg">
                         <span>VS Code Extensions</span>

@@ -16,6 +16,7 @@ import { ServersSettingsCard } from '@/features/settings/components/ServersSetti
 import { MacCleanSettingsCard } from '@/features/settings/components/MacCleanSettingsCard';
 import { BlueprintCard } from '@/features/settings/components/BlueprintCard';
 import { AppUpdateCard } from '@/features/settings/components/AppUpdateCard';
+import { PrivacyCard } from '@/features/settings/components/PrivacyCard';
 
 import { THEME_OPTIONS, LAYOUT_OPTIONS } from './SettingsPage.config';
 
@@ -114,6 +115,8 @@ export const SettingsPage = () => {
         {enabledModules.includes('maclean') && <MacCleanSettingsCard />}
 
         <AppUpdateCard />
+
+        <PrivacyCard />
 
         <div className="xl:col-span-2">
           <BlueprintCard />

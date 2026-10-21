@@ -54,7 +54,7 @@ export const ContainerMenu = ({
             type="button"
             aria-label={`Actions for ${c.name}`}
             disabled={action.isPending}
-            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-list hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-list hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
           >
             {action.isPending ? <Spinner /> : <MoreVertical className="h-4 w-4" />}
           </button>

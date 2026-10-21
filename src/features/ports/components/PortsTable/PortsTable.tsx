@@ -32,13 +32,13 @@ function buildColumns(
             aria-label={
               isFav ? `Unfavorite port ${row.original.port}` : `Favorite port ${row.original.port}`
             }
-            className="cursor-pointer p-1 text-muted-foreground transition-colors hover:text-amber-400"
+            className="cursor-pointer p-1 text-muted-foreground transition-colors hover:text-warning"
             onClick={() => toggleFavorite(row.original.port)}
           >
             <Star
               className={cn(
                 'size-3.5',
-                isFav ? 'fill-amber-400 text-amber-400' : 'fill-none opacity-40 hover:opacity-100',
+                isFav ? 'fill-warning text-warning' : 'fill-none opacity-40 hover:opacity-100',
               )}
             />
           </button>

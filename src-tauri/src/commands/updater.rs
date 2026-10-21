@@ -48,6 +48,7 @@ pub fn parse_release_json(
 
 #[tauri::command]
 pub async fn app_check_update() -> AppResult<UpdateCheckResult> {
+    crate::core::net::check_outbound_allowed("api.github.com")?;
     super::blocking(move || {
         let current_version = env!("CARGO_PKG_VERSION").to_string();
         let api_url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest");

@@ -73,7 +73,7 @@ export const ComposeStacksView = ({ host, snapshot }: Props) => {
         return (
           <div
             key={project}
-            className="bg-surface/50 flex flex-col overflow-hidden rounded-2xl border border-hairline shadow-sm backdrop-blur-sm"
+            className="flex flex-col overflow-hidden rounded-2xl border border-hairline bg-card/50 shadow-sm backdrop-blur-sm"
           >
             {/* Stack Header */}
             <div className="flex items-center justify-between border-b border-hairline bg-muted/20 px-5 py-3.5">
@@ -107,7 +107,7 @@ export const ComposeStacksView = ({ host, snapshot }: Props) => {
                     onClick={() => handleAction(project, 'start')}
                     title="Start all containers in this stack"
                   >
-                    <Play className="mr-1.5 size-3.5 text-emerald-500" />
+                    <Play className="mr-1.5 size-3.5 text-success" />
                     Start
                   </Button>
                   <Button
@@ -117,7 +117,7 @@ export const ComposeStacksView = ({ host, snapshot }: Props) => {
                     onClick={() => handleAction(project, 'restart')}
                     title="Restart all containers in this stack"
                   >
-                    <RotateCw className="mr-1.5 size-3.5 text-amber-500" />
+                    <RotateCw className="mr-1.5 size-3.5 text-warning" />
                     Restart
                   </Button>
                   <Button
@@ -127,7 +127,7 @@ export const ComposeStacksView = ({ host, snapshot }: Props) => {
                     onClick={() => handleAction(project, 'stop')}
                     title="Stop all containers in this stack"
                   >
-                    <Square className="mr-1.5 size-3.5 text-rose-500" />
+                    <Square className="mr-1.5 size-3.5 text-destructive" />
                     Stop
                   </Button>
                 </div>
@@ -145,8 +145,8 @@ export const ComposeStacksView = ({ host, snapshot }: Props) => {
                     <div
                       className={`size-2.5 shrink-0 rounded-full ${
                         c.state === 'running'
-                          ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                          : 'bg-rose-500'
+                          ? 'bg-success shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                          : 'bg-destructive'
                       }`}
                     />
                     <div className="min-w-0">

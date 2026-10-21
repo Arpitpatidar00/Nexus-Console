@@ -57,7 +57,7 @@ export const StorageMap = ({ report }: StorageMapProps) => {
                   type="button"
                   aria-expanded={expanded}
                   onClick={() => setOpen((prev) => (prev === m.id ? null : m.id))}
-                  className="-mx-2 block w-[calc(100%+1rem)] space-y-1.5 rounded-lg px-2 py-1 text-left transition hover:bg-list focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="-mx-2 block w-[calc(100%+1rem)] space-y-1.5 rounded-lg px-2 py-1 text-left transition hover:bg-list focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
                 >
                   {head}
                 </button>

@@ -52,7 +52,7 @@ export const EnergyPage = () => {
           <h1 className="text-2xl font-bold text-fg">Energy Accounting</h1>
           <p className="mt-1 text-xs text-fg-muted">
             Real-time per-process idle wakeups, interrupt wakeups, and disk write measurement via{' '}
-            <code className="font-mono text-accent">proc_pid_rusage</code>
+            <code className="font-mono text-ember-text">proc_pid_rusage</code>
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -60,12 +60,12 @@ export const EnergyPage = () => {
           <div className="flex items-center gap-2 rounded-xl border border-border bg-paper px-3 py-2 shadow-sm">
             {isBattery ? (
               energy?.isCharging ? (
-                <BatteryCharging className="h-5 w-5 text-emerald-500" />
+                <BatteryCharging className="h-5 w-5 text-success" />
               ) : (
-                <Battery className="h-5 w-5 text-amber-500" />
+                <Battery className="h-5 w-5 text-warning" />
               )
             ) : (
-              <Plug className="h-5 w-5 text-blue-500" />
+              <Plug className="h-5 w-5 text-info" />
             )}
             <div className="text-left">
               <span className="text-xs font-semibold text-fg">
@@ -82,9 +82,9 @@ export const EnergyPage = () => {
 
       {/* Unplugged Suggestion Banner (Opt-in) */}
       {isBattery && energy?.unpluggedSuggestion && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-fg">
+        <div className="flex items-center justify-between rounded-xl border border-warning-soft bg-warning-soft p-4 text-fg">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
+            <AlertCircle className="h-5 w-5 shrink-0 text-warning" />
             <div>
               <p className="text-xs font-semibold text-fg">{energy.unpluggedSuggestion.message}</p>
               <p className="mt-0.5 text-[11px] text-fg-muted">
@@ -101,7 +101,7 @@ export const EnergyPage = () => {
             size="sm"
             onClick={handlePauseAllUnplugged}
             disabled={pauseMutation.isPending}
-            className="border-amber-500/40 text-amber-500 hover:bg-amber-500/20"
+            className="border-warning-soft text-warning hover:bg-warning-soft"
           >
             <Pause className="mr-1.5 h-3.5 w-3.5" />
             Pause Background Watchers
@@ -114,7 +114,7 @@ export const EnergyPage = () => {
         <div className="rounded-xl border border-border bg-paper p-4 shadow-sm">
           <span className="text-xs font-medium text-fg-muted">Monitored User Processes</span>
           <div className="mt-2 flex items-center gap-2">
-            <Layers className="h-5 w-5 text-accent" />
+            <Layers className="h-5 w-5 text-ember-text" />
             <span className="text-2xl font-bold text-fg">{processes.length}</span>
           </div>
           <p className="mt-1 text-[11px] text-fg-muted">Filtered strictly to your user account</p>
@@ -123,7 +123,7 @@ export const EnergyPage = () => {
         <div className="rounded-xl border border-border bg-paper p-4 shadow-sm">
           <span className="text-xs font-medium text-fg-muted">Total Idle Wakeups</span>
           <div className="mt-2 flex items-center gap-2">
-            <Zap className="h-5 w-5 text-amber-500" />
+            <Zap className="h-5 w-5 text-warning" />
             <span className="font-mono text-2xl font-bold text-fg">
               {processes.reduce((acc, p) => acc + p.idleWakeups, 0).toLocaleString()}
             </span>
@@ -134,7 +134,7 @@ export const EnergyPage = () => {
         <div className="rounded-xl border border-border bg-paper p-4 shadow-sm">
           <span className="text-xs font-medium text-fg-muted">Interrupt Wakeups</span>
           <div className="mt-2 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-blue-500" />
+            <Activity className="h-5 w-5 text-info" />
             <span className="font-mono text-2xl font-bold text-fg">
               {processes.reduce((acc, p) => acc + p.interruptWakeups, 0).toLocaleString()}
             </span>
@@ -163,8 +163,8 @@ export const EnergyPage = () => {
               onClick={() => setFilterCategory(cat)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                 filterCategory === cat
-                  ? 'bg-accent text-white'
-                  : 'hover:bg-hover border border-border bg-paper text-fg-muted hover:text-fg'
+                  ? 'bg-ember text-white'
+                  : 'border border-border bg-paper text-fg-muted hover:bg-accent hover:text-fg'
               }`}
             >
               {cat === 'all' ? 'All Processes' : cat + 's'}
@@ -179,7 +179,7 @@ export const EnergyPage = () => {
             placeholder="Search process or PID…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-border bg-paper py-1.5 pr-3 pl-8 text-xs text-fg focus:border-accent focus:outline-none"
+            className="w-full rounded-lg border border-border bg-paper py-1.5 pr-3 pl-8 text-xs text-fg focus:border-ember focus:outline-none"
           />
         </div>
       </div>
@@ -188,7 +188,7 @@ export const EnergyPage = () => {
       <div className="overflow-hidden rounded-xl border border-border bg-paper shadow-sm">
         <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="bg-subtle border-b border-border text-[11px] font-semibold tracking-wider text-fg-muted uppercase">
+            <tr className="border-b border-border bg-muted text-[11px] font-semibold tracking-wider text-fg-muted uppercase">
               <th className="px-4 py-2.5">PID</th>
               <th className="px-4 py-2.5">Process Name</th>
               <th className="px-4 py-2.5">Category</th>
@@ -215,7 +215,7 @@ export const EnergyPage = () => {
               </tr>
             ) : (
               filteredProcesses.slice(0, 50).map((proc) => (
-                <tr key={proc.pid} className="hover:bg-hover transition-colors">
+                <tr key={proc.pid} className="transition-colors hover:bg-accent">
                   <td className="px-4 py-2.5 font-mono text-[11px] text-fg-muted">{proc.pid}</td>
                   <td className="px-4 py-2.5 font-medium text-fg">{proc.name}</td>
                   <td className="px-4 py-2.5">
@@ -235,7 +235,7 @@ export const EnergyPage = () => {
                   <td className="px-4 py-2.5 text-right font-mono text-fg-muted">
                     {formatBytes(proc.diskWriteBytes)}
                   </td>
-                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-accent">
+                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-ember-text">
                     {proc.energyImpactScore.toFixed(1)}
                   </td>
                   <td className="px-4 py-2.5 text-right">

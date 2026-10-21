@@ -33,10 +33,10 @@ export const NetworkPage = () => {
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <Wifi className="h-6 w-6 text-cyan-400" />
+            <Wifi className="h-6 w-6 text-info" />
             Network & Chaos Engineering
           </h1>
-          <p className="text-muted-fg mt-1 text-xs">
+          <p className="mt-1 text-xs text-fg-muted">
             Live per-app traffic inspection via nettop, DNS flush, guarded /etc/hosts editor, and
             TCP chaos proxy.
           </p>
@@ -49,8 +49,8 @@ export const NetworkPage = () => {
             onClick={() => setActiveTab('bandwidth')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'bandwidth'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Activity className="h-3.5 w-3.5" />
@@ -61,8 +61,8 @@ export const NetworkPage = () => {
             onClick={() => setActiveTab('hosts')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'hosts'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <ShieldCheck className="h-3.5 w-3.5" />
@@ -73,8 +73,8 @@ export const NetworkPage = () => {
             onClick={() => setActiveTab('chaos')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'chaos'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Sliders className="h-3.5 w-3.5" />
@@ -88,7 +88,7 @@ export const NetworkPage = () => {
           {/* Top Interface Cards */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
-              <span className="text-muted-fg text-xs font-semibold tracking-wider uppercase">
+              <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
                 Primary Network Interface
               </span>
               <div className="mt-2 flex items-center justify-between">
@@ -96,7 +96,7 @@ export const NetworkPage = () => {
                   <div className="text-lg font-bold text-fg">
                     {netInfo?.primary_interface || 'en0'}
                   </div>
-                  <div className="text-muted-fg mt-1 font-mono text-xs">
+                  <div className="mt-1 font-mono text-xs text-fg-muted">
                     IPv4: {netInfo?.ipv4_address || '127.0.0.1'}
                   </div>
                 </div>
@@ -108,7 +108,7 @@ export const NetworkPage = () => {
 
             <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-fg text-xs font-semibold tracking-wider uppercase">
+                <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
                   System DNS Resolvers
                 </span>
                 <Button
@@ -136,7 +136,7 @@ export const NetworkPage = () => {
           <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">
             <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-3">
               <div className="flex items-center gap-2 text-xs font-semibold text-fg">
-                <Activity className="h-4 w-4 text-cyan-400" />
+                <Activity className="h-4 w-4 text-info" />
                 Live Per-App Bandwidth (nettop live sampler)
               </div>
               <Badge variant="neutral" className="text-[10px]">
@@ -146,7 +146,7 @@ export const NetworkPage = () => {
 
             <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="text-muted-fg border-b border-border bg-muted/40 font-semibold">
+                <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
                   <th className="px-4 py-3">Process Name</th>
                   <th className="px-4 py-3">PID</th>
                   <th className="px-4 py-3 text-right">Bytes In</th>
@@ -157,13 +157,13 @@ export const NetworkPage = () => {
               <tbody className="divide-y divide-border">
                 {bwLoading && bandwidth.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-muted-fg px-4 py-8 text-center">
+                    <td colSpan={5} className="px-4 py-8 text-center text-fg-muted">
                       Sampling nettop process network data...
                     </td>
                   </tr>
                 ) : bandwidth.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-muted-fg px-4 py-8 text-center">
+                    <td colSpan={5} className="px-4 py-8 text-center text-fg-muted">
                       No active network processes found.
                     </td>
                   </tr>
@@ -174,11 +174,11 @@ export const NetworkPage = () => {
                       className="transition-colors hover:bg-muted/20"
                     >
                       <td className="px-4 py-3 font-semibold text-fg">{p.process}</td>
-                      <td className="text-muted-fg px-4 py-3 font-mono">{p.pid}</td>
-                      <td className="px-4 py-3 text-right font-mono text-emerald-400">
+                      <td className="px-4 py-3 font-mono text-fg-muted">{p.pid}</td>
+                      <td className="px-4 py-3 text-right font-mono text-success">
                         ↓ {formatBytes(p.bytes_in)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sky-400">
+                      <td className="px-4 py-3 text-right font-mono text-info">
                         ↑ {formatBytes(p.bytes_out)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-fg">
@@ -195,10 +195,10 @@ export const NetworkPage = () => {
 
       {activeTab === 'hosts' && (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+          <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
             <div>
               <span className="font-bold">Coming back after safety review (T-05):</span>
-              <p className="mt-0.5 text-amber-300/80">
+              <p className="mt-0.5 text-warning">
                 The /etc/hosts editor is temporarily frozen while being rewritten with atomic file
                 writes, line preservation, input validation, and mutation gates.
               </p>
@@ -269,7 +269,7 @@ const ChaosProxySection = () => {
               max={65535}
               value={targetPort}
               onChange={(e) => setTargetPort(parseInt(e.target.value) || 0)}
-              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              className="w-full rounded border border-border bg-canvas px-3 py-1.5 text-xs focus:ring-1 focus:ring-info focus:outline-none"
               required
             />
           </div>
@@ -285,7 +285,7 @@ const ChaosProxySection = () => {
               max={65535}
               value={chaosPort}
               onChange={(e) => setChaosPort(parseInt(e.target.value) || 0)}
-              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              className="w-full rounded border border-border bg-canvas px-3 py-1.5 text-xs focus:ring-1 focus:ring-info focus:outline-none"
               required
             />
           </div>
@@ -301,7 +301,7 @@ const ChaosProxySection = () => {
               max={60000}
               value={latencyMs}
               onChange={(e) => setLatencyMs(parseInt(e.target.value) || 0)}
-              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              className="w-full rounded border border-border bg-canvas px-3 py-1.5 text-xs focus:ring-1 focus:ring-info focus:outline-none"
             />
           </div>
 
@@ -316,7 +316,7 @@ const ChaosProxySection = () => {
               max={100}
               value={dropRatePct}
               onChange={(e) => setDropRatePct(parseInt(e.target.value) || 0)}
-              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              className="w-full rounded border border-border bg-canvas px-3 py-1.5 text-xs focus:ring-1 focus:ring-info focus:outline-none"
             />
           </div>
 
@@ -326,21 +326,21 @@ const ChaosProxySection = () => {
                 type="checkbox"
                 checked={reject}
                 onChange={(e) => setReject(e.target.checked)}
-                className="rounded border-border text-cyan-500 focus:ring-0"
+                className="rounded border-border text-info focus:ring-0"
               />
               Reject
             </label>
             <Button
               type="submit"
               disabled={startProxy.isPending}
-              className="ml-auto h-auto bg-cyan-600 px-3 py-1.5 text-xs text-white hover:bg-cyan-500"
+              className="ml-auto h-auto bg-info px-3 py-1.5 text-xs text-white hover:bg-info/90"
             >
               {startProxy.isPending ? 'Starting...' : 'Start Proxy'}
             </Button>
           </div>
         </form>
 
-        {errorMsg && <div className="mt-3 text-xs text-red-400">{errorMsg}</div>}
+        {errorMsg && <div className="mt-3 text-xs text-destructive">{errorMsg}</div>}
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
@@ -356,12 +356,12 @@ const ChaosProxySection = () => {
             {proxies.map((p) => (
               <div key={p.id} className="flex items-center justify-between py-3 text-xs">
                 <div>
-                  <div className="font-mono font-medium text-cyan-400">
+                  <div className="font-mono font-medium text-info">
                     127.0.0.1:{p.chaosPort} &rarr; 127.0.0.1:{p.targetPort}
                   </div>
                   <div className="mt-0.5 text-muted">
                     {p.profile.reject ? (
-                      <span className="font-medium text-red-400">Rejecting all traffic</span>
+                      <span className="font-medium text-destructive">Rejecting all traffic</span>
                     ) : (
                       <span>
                         Latency: {p.profile.latency_ms}ms &bull; Drops: {p.profile.drop_rate_pct}%
@@ -373,7 +373,7 @@ const ChaosProxySection = () => {
                 <Button
                   onClick={() => stopProxy.mutate(p.id)}
                   disabled={stopProxy.isPending}
-                  className="h-auto bg-red-500/20 px-2.5 py-1 text-xs text-red-300 hover:bg-red-500/30"
+                  className="h-auto bg-danger-soft px-2.5 py-1 text-xs text-destructive hover:bg-destructive/20"
                 >
                   Stop
                 </Button>

@@ -38,7 +38,7 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
         <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-dialog)] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-paper p-6 shadow-xl">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-accent" />
+              <RotateCcw className="h-5 w-5 text-ember-text" />
               <Dialog.Title className="text-base font-semibold text-fg">
                 Roll Back {pkgName}
               </Dialog.Title>
@@ -47,7 +47,7 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
               <button
                 type="button"
                 aria-label="Close dialog"
-                className="hover:bg-hover rounded-lg p-1 text-fg-muted hover:text-fg"
+                className="rounded-lg p-1 text-fg-muted hover:bg-accent hover:text-fg"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -60,8 +60,8 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
                 Inspecting Homebrew Cellar for installed versions…
               </p>
             ) : !canRollback ? (
-              <div className="bg-subtle rounded-lg border border-border p-4 text-xs">
-                <div className="mb-1 flex items-center gap-2 font-medium text-amber-500">
+              <div className="rounded-lg border border-border bg-muted p-4 text-xs">
+                <div className="mb-1 flex items-center gap-2 font-medium text-warning">
                   <AlertTriangle className="h-4 w-4" />
                   <span>Not possible: Homebrew kept no older version</span>
                 </div>
@@ -85,7 +85,7 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
                     <label
                       key={v}
                       htmlFor={`version-${v}`}
-                      className="hover:bg-hover flex cursor-pointer items-center justify-between rounded-lg border border-border p-3"
+                      className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3 hover:bg-accent"
                     >
                       <div className="flex items-center gap-2.5">
                         <input
@@ -95,7 +95,7 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
                           value={v}
                           checked={selectedVersion === v || (selectedVersion === '' && idx === 1)}
                           onChange={() => setSelectedVersion(v)}
-                          className="h-4 w-4 border-border text-accent"
+                          className="h-4 w-4 border-border text-ember-text"
                         />
                         <span className="font-mono text-xs font-semibold text-fg">{v}</span>
                       </div>

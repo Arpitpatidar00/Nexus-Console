@@ -48,7 +48,7 @@ export const DuplicateFilesCard = () => {
     <div className="rounded-xl border border-border bg-paper p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-lg text-accent">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ember-soft text-ember-text">
             <Files className="h-5 w-5" />
           </div>
           <div>
@@ -109,7 +109,7 @@ export const DuplicateFilesCard = () => {
         </div>
       ) : groups.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-500" />
+          <CheckCircle2 className="mb-2 h-8 w-8 text-success" />
           <p className="text-sm font-medium text-fg">No Duplicate Files Found</p>
           <p className="mt-1 text-xs text-fg-muted">
             Scanned {report?.scannedFilesCount ?? 0} files. No redundant copies ≥ 1 MB detected.
@@ -131,7 +131,7 @@ export const DuplicateFilesCard = () => {
             {groups.map((group) => (
               <div
                 key={group.hash}
-                className="bg-subtle flex flex-col gap-2 rounded-lg border border-border p-3"
+                className="flex flex-col gap-2 rounded-lg border border-border bg-muted p-3"
               >
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
                   <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ export const DuplicateFilesCard = () => {
                   {group.files.map((file, idx) => (
                     <div
                       key={file.path}
-                      className="hover:bg-hover flex items-center justify-between rounded px-1 py-2 text-xs transition-colors"
+                      className="flex items-center justify-between rounded px-1 py-2 text-xs transition-colors hover:bg-accent"
                     >
                       <div className="flex items-center gap-2.5">
                         <input
@@ -159,7 +159,7 @@ export const DuplicateFilesCard = () => {
                           id={`dup-${file.path}`}
                           checked={selectedPaths.has(file.path)}
                           onChange={() => toggleSelectPath(file.path)}
-                          className="h-3.5 w-3.5 rounded border-border text-accent focus:ring-accent"
+                          className="h-3.5 w-3.5 rounded border-border text-ember-text focus:ring-ember"
                         />
                         <div>
                           <label

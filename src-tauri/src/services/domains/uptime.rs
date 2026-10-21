@@ -1,7 +1,7 @@
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tauri::{Emitter, Manager};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,7 +35,7 @@ pub struct UptimeMonitor {
     pub last_cert_warn_timestamp: Option<u64>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UptimeStore {
     pub monitors: Vec<UptimeMonitor>,
@@ -51,19 +51,11 @@ pub fn new_monitor_id() -> String {
 
 impl UptimeStore {
     pub fn load(dir: &Path) -> UptimeStore {
-        let path = dir.join("uptime-monitors.json");
-        std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        crate::core::store::load_store(dir.join("uptime-monitors.json"))
     }
 
     pub fn save(&self, dir: &Path) -> AppResult<()> {
-        let path = dir.join("uptime-monitors.json");
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| AppError::Io(format!("serialize uptime: {e}")))?;
-        std::fs::write(&path, json)
-            .map_err(|e| AppError::Io(format!("save uptime monitors to {}: {e}", path.display())))
+        crate::core::store::save_store(dir.join("uptime-monitors.json"), self, false)
     }
 
     pub fn add_or_update(&mut self, mut monitor: UptimeMonitor) {
@@ -193,121 +185,115 @@ pub fn extract_domain_from_url(url: &str) -> Option<String> {
     }
 }
 
-pub fn start_background_monitoring(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(Duration::from_secs(30));
+pub fn tick(app: &tauri::AppHandle) {
+    // Respect opt-in module setting (PLAN.md B.6)
+    if !crate::settings::module_opted_in(crate::settings::read(app).as_ref(), "domains") {
+        return;
+    }
 
-            // Respect opt-in module setting (PLAN.md B.6)
-            if !crate::settings::module_opted_in(crate::settings::read(&app).as_ref(), "domains") {
-                continue;
-            }
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
 
-            let Ok(dir) = app.path().app_data_dir() else {
-                continue;
-            };
+    let mut store = UptimeStore::load(&dir);
+    if store.monitors.is_empty() {
+        return;
+    }
 
-            let mut store = UptimeStore::load(&dir);
-            if store.monitors.is_empty() {
-                continue;
-            }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
 
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+    let mut changed = false;
 
-            let mut changed = false;
+    for monitor in &mut store.monitors {
+        if !monitor.enabled {
+            continue;
+        }
 
-            for monitor in &mut store.monitors {
-                if !monitor.enabled {
-                    continue;
-                }
+        let interval_secs = (monitor.interval_mins.max(1) as u64) * 60;
+        let should_ping = match monitor.last_ping_timestamp {
+            Some(last) => now.saturating_sub(last) >= interval_secs,
+            None => true,
+        };
 
-                let interval_secs = (monitor.interval_mins.max(1) as u64) * 60;
-                let should_ping = match monitor.last_ping_timestamp {
-                    Some(last) => now.saturating_sub(last) >= interval_secs,
-                    None => true,
-                };
+        if !should_ping {
+            continue;
+        }
 
-                if !should_ping {
-                    continue;
-                }
+        let was_up = monitor.is_up;
+        let had_history = !monitor.history.is_empty();
+        let ping = ping_target(&monitor.url);
 
-                let was_up = monitor.is_up;
-                let had_history = !monitor.history.is_empty();
-                let ping = ping_target(&monitor.url);
+        // Notify on down/up transition (B.6)
+        if had_history && was_up && !ping.is_up {
+            notify_uptime(
+                app,
+                &format!(
+                    "⚠️ Monitor DOWN: {} ({}) is unreachable ({})",
+                    monitor.name,
+                    monitor.url,
+                    ping.error.as_deref().unwrap_or("error")
+                ),
+            );
+        } else if had_history && !was_up && ping.is_up {
+            notify_uptime(
+                app,
+                &format!(
+                    "✅ Monitor UP: {} ({}) is back online (HTTP {})",
+                    monitor.name, monitor.url, ping.status_code
+                ),
+            );
+        }
 
-                // Notify on down/up transition (B.6)
-                if had_history && was_up && !ping.is_up {
-                    notify_uptime(
-                        &app,
-                        &format!(
-                            "⚠️ Monitor DOWN: {} ({}) is unreachable ({})",
-                            monitor.name,
-                            monitor.url,
-                            ping.error.as_deref().unwrap_or("error")
-                        ),
-                    );
-                } else if had_history && !was_up && ping.is_up {
-                    notify_uptime(
-                        &app,
-                        &format!(
-                            "✅ Monitor UP: {} ({}) is back online (HTTP {})",
-                            monitor.name, monitor.url, ping.status_code
-                        ),
-                    );
-                }
+        // Check SSL certificate expiration if HTTPS
+        if monitor.url.starts_with("https://") {
+            if let Some(domain) = extract_domain_from_url(&monitor.url) {
+                if let Ok(cert) = super::check_ssl(&domain, 443) {
+                    monitor.ssl_days_remaining = Some(cert.days_remaining);
 
-                // Check SSL certificate expiration if HTTPS
-                if monitor.url.starts_with("https://") {
-                    if let Some(domain) = extract_domain_from_url(&monitor.url) {
-                        if let Ok(cert) = super::check_ssl(&domain, 443) {
-                            monitor.ssl_days_remaining = Some(cert.days_remaining);
-
-                            // Notify if certificate expires within 14 days (at most once every 24h)
-                            if (0..=14).contains(&cert.days_remaining) {
-                                let can_warn = match monitor.last_cert_warn_timestamp {
-                                    Some(warn_t) => now.saturating_sub(warn_t) >= 86400,
-                                    None => true,
-                                };
-                                if can_warn {
-                                    notify_uptime(
-                                        &app,
-                                        &format!(
-                                            "🔒 SSL Cert Expiring: {} ({domain}) expires in {} days!",
-                                            monitor.name, cert.days_remaining
-                                        ),
-                                    );
-                                    monitor.last_cert_warn_timestamp = Some(now);
-                                }
-                            }
+                    // Notify if certificate expires within 14 days (at most once every 24h)
+                    if (0..=14).contains(&cert.days_remaining) {
+                        let can_warn = match monitor.last_cert_warn_timestamp {
+                            Some(warn_t) => now.saturating_sub(warn_t) >= 86400,
+                            None => true,
+                        };
+                        if can_warn {
+                            notify_uptime(
+                                app,
+                                &format!(
+                                    "🔒 SSL Cert Expiring: {} ({domain}) expires in {} days!",
+                                    monitor.name, cert.days_remaining
+                                ),
+                            );
+                            monitor.last_cert_warn_timestamp = Some(now);
                         }
                     }
                 }
-
-                monitor.is_up = ping.is_up;
-                monitor.last_status = Some(ping.status_code);
-                monitor.last_latency_ms = Some(ping.latency_ms);
-                monitor.last_ping_timestamp = Some(now);
-                monitor.history.insert(0, ping);
-                monitor.history.truncate(50);
-
-                if !monitor.history.is_empty() {
-                    let up_count = monitor.history.iter().filter(|p| p.is_up).count();
-                    monitor.uptime_percent_24h =
-                        ((up_count as f64) / (monitor.history.len() as f64)) * 100.0;
-                }
-
-                changed = true;
-            }
-
-            if changed {
-                let _ = store.save(&dir);
-                let _ = app.emit(UPTIME_UPDATE_EVENT, &store.monitors);
             }
         }
-    });
+
+        monitor.is_up = ping.is_up;
+        monitor.last_status = Some(ping.status_code);
+        monitor.last_latency_ms = Some(ping.latency_ms);
+        monitor.last_ping_timestamp = Some(now);
+        monitor.history.insert(0, ping);
+        monitor.history.truncate(50);
+
+        if !monitor.history.is_empty() {
+            let up_count = monitor.history.iter().filter(|p| p.is_up).count();
+            monitor.uptime_percent_24h =
+                ((up_count as f64) / (monitor.history.len() as f64)) * 100.0;
+        }
+
+        changed = true;
+    }
+
+    if changed {
+        let _ = store.save(&dir);
+        let _ = app.emit(UPTIME_UPDATE_EVENT, &store.monitors);
+    }
 }
 
 #[cfg(test)]

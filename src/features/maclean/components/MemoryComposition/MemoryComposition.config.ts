@@ -24,17 +24,17 @@ export const PRESSURE: Record<
 
 // Shades of the one accent (plus neutral for cache): composition, not status.
 export const SEGMENTS = [
-  { key: 'appBytes', label: 'App memory', cls: 'bg-accent', hint: 'What your apps are using.' },
+  { key: 'appBytes', label: 'App memory', cls: 'bg-ember', hint: 'What your apps are using.' },
   {
     key: 'wiredBytes',
     label: 'Wired',
-    cls: 'bg-accent/70',
+    cls: 'bg-ember/70',
     hint: 'Held by macOS itself; can’t be moved.',
   },
   {
     key: 'compressedBytes',
     label: 'Compressed',
-    cls: 'bg-accent/40',
+    cls: 'bg-ember/40',
     hint: 'Squeezed in RAM to avoid swapping.',
   },
   {

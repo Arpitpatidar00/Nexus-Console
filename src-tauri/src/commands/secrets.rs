@@ -20,6 +20,7 @@ pub async fn secrets_scan_projects(
     app: AppHandle,
     paths: Option<Vec<String>>,
 ) -> AppResult<SecretsScanResult> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::ProjectEnv)?;
     let target_paths: Vec<PathBuf> = if let Some(p) = paths {
         p.into_iter().map(PathBuf::from).collect()
     } else {
@@ -57,11 +58,9 @@ pub async fn secrets_scan_projects(
 }
 
 #[tauri::command]
-pub async fn secrets_scan_history(app: AppHandle) -> AppResult<Vec<SecretFinding>> {
-    // T-18: Rust-side consent check before reading shell history
-    if let Some(state) = app.try_state::<crate::services::remote::RemoteState>() {
-        state.read()?.require_consent()?;
-    }
+pub async fn secrets_scan_history(_app: AppHandle) -> AppResult<Vec<SecretFinding>> {
+    // A-06: Unified consent check before reading shell history
+    crate::core::consent::require_consent(crate::core::consent::DataSource::ShellHistory)?;
     blocking(secrets::scan_shell_history)
         .await
         .map_err(|e| AppError::Shell(format!("scan shell history secrets task: {e}")))?

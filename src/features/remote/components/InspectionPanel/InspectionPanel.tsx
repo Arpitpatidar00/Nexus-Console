@@ -38,10 +38,10 @@ export const InspectionPanel = ({ host, connected }: Props) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
       {/* Nginx Status Banner */}
-      <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Globe className="size-6 text-emerald-500" />
+            <Globe className="size-6 text-success" />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-fg">Nginx Web Server</h3>
@@ -88,7 +88,7 @@ export const InspectionPanel = ({ host, connected }: Props) => {
                       {site.enabled ? 'Enabled' : 'Available'}
                     </Badge>
                     {site.ssl && (
-                      <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-500">
+                      <span className="flex items-center gap-1 rounded bg-success-soft px-1.5 py-0.5 text-xs font-medium text-success">
                         <Lock className="size-3" />
                         SSL
                       </span>
@@ -132,7 +132,7 @@ export const InspectionPanel = ({ host, connected }: Props) => {
       </div>
 
       {/* Cron Jobs */}
-      <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <Clock className="size-6 text-primary" />
           <div>

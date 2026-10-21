@@ -29,7 +29,7 @@ export const DoctorDeepScanProgress = ({ progress, onCancel }: DoctorDeepScanPro
         />
         <div aria-hidden className="h-full overflow-hidden rounded-full bg-list">
           <motion.div
-            className="relative h-full overflow-hidden rounded-full bg-accent"
+            className="relative h-full overflow-hidden rounded-full bg-ember"
             initial={false}
             animate={{
               width: progress ? `${(progress.index / progress.total) * 100}%` : '0%',

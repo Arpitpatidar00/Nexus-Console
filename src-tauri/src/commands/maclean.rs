@@ -30,6 +30,7 @@ struct CleanProgress<'a> {
 /// (a second request while one runs gets `Busy`).
 #[tauri::command]
 pub async fn maclean_scan(app: AppHandle) -> AppResult<StorageReport> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::LibraryScan)?;
     blocking(move || {
         let state = app.state::<MacleanState>();
         let _one = state
@@ -281,6 +282,7 @@ pub async fn maclean_memory(app: AppHandle) -> AppResult<crate::maclean::memory:
 /// script as root, explained against the latest storage report.
 #[tauri::command]
 pub async fn maclean_deep_scan(app: AppHandle) -> AppResult<crate::maclean::deep::DeepReport> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::LibraryScan)?;
     blocking(move || {
         let state = app.state::<MacleanState>();
         let last = state
@@ -363,6 +365,7 @@ fn chrono_free_date(days_since_epoch: u64) -> String {
 pub async fn maclean_ghost_scan(
     _app: AppHandle,
 ) -> AppResult<crate::services::maclean::ghost::GhostScanReport> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::LibraryScan)?;
     blocking(move || {
         let home = crate::doctor::paths::home()
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;

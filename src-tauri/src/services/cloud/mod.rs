@@ -25,7 +25,7 @@ pub struct S3Bucket {
     pub region: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AwsCostItem {
     pub service: String,
@@ -33,7 +33,7 @@ pub struct AwsCostItem {
     pub unit: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AwsCostReport {
     pub month_to_date_total: f64,
@@ -413,10 +413,9 @@ pub fn get_cached_or_fresh_costs(
         .unwrap_or(0);
 
     if !force_refresh && cache_file.exists() {
-        if let Ok(s) = std::fs::read_to_string(&cache_file) {
-            if let Ok(report) = serde_json::from_str::<AwsCostReport>(&s) {
-                return Ok(report);
-            }
+        let cached: AwsCostReport = crate::core::store::load_store(&cache_file);
+        if cached.cached_at > 0 {
+            return Ok(cached);
         }
     }
 
@@ -464,10 +463,7 @@ pub fn get_cached_or_fresh_costs(
     let json_str = String::from_utf8_lossy(&out.stdout);
     let report = parse_cost_explorer_json(&json_str, now)?;
 
-    let _ = std::fs::write(
-        &cache_file,
-        serde_json::to_string_pretty(&report).unwrap_or_default(),
-    );
+    let _ = crate::core::store::save_store(&cache_file, &report, false);
     Ok(report)
 }
 

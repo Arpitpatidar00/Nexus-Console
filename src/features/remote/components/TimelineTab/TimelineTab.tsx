@@ -59,7 +59,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
       {/* What changed since last check */}
-      <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center gap-3 pb-3">
           <History className="size-5 text-primary" />
           <div>
@@ -72,7 +72,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
 
         {!hasDiffChanges ? (
           <div className="flex items-center gap-2 rounded-xl border border-hairline bg-canvas/60 p-4 text-xs text-fg-muted">
-            <CheckCircle2 className="size-4 text-emerald-500" />
+            <CheckCircle2 className="size-4 text-success" />
             <span>
               No state drift detected. All containers, units, and images match the previous
               snapshot.
@@ -82,24 +82,24 @@ export const TimelineTab = ({ host, connected }: Props) => {
           <div className="divide-y divide-hairline rounded-xl border border-hairline bg-canvas/60">
             {diff?.newContainers.map((name) => (
               <div key={name} className="flex items-center gap-2.5 p-3 text-xs">
-                <PlusCircle className="size-4 text-emerald-500" />
-                <span className="font-medium text-emerald-500">New Container Added:</span>
+                <PlusCircle className="size-4 text-success" />
+                <span className="font-medium text-success">New Container Added:</span>
                 <span className="font-mono text-fg">{name}</span>
               </div>
             ))}
 
             {diff?.removedContainers.map((name) => (
               <div key={name} className="flex items-center gap-2.5 p-3 text-xs">
-                <MinusCircle className="size-4 text-rose-500" />
-                <span className="font-medium text-rose-500">Container Removed:</span>
+                <MinusCircle className="size-4 text-destructive" />
+                <span className="font-medium text-destructive">Container Removed:</span>
                 <span className="font-mono text-fg">{name}</span>
               </div>
             ))}
 
             {diff?.restartedContainers.map((msg) => (
               <div key={msg} className="flex items-center gap-2.5 p-3 text-xs">
-                <RotateCw className="size-4 text-amber-500" />
-                <span className="font-medium text-amber-500">Container Restarted:</span>
+                <RotateCw className="size-4 text-warning" />
+                <span className="font-medium text-warning">Container Restarted:</span>
                 <span className="font-mono text-fg">{msg}</span>
               </div>
             ))}
@@ -114,16 +114,16 @@ export const TimelineTab = ({ host, connected }: Props) => {
 
             {diff?.diskGrowth.map((msg) => (
               <div key={msg} className="flex items-center gap-2.5 p-3 text-xs">
-                <HardDrive className="size-4 text-amber-500" />
-                <span className="font-medium text-amber-500">Disk Growth:</span>
+                <HardDrive className="size-4 text-warning" />
+                <span className="font-medium text-warning">Disk Growth:</span>
                 <span className="font-mono text-fg">{msg}</span>
               </div>
             ))}
 
             {diff?.newFailedUnits.map((msg) => (
               <div key={msg} className="flex items-center gap-2.5 p-3 text-xs">
-                <AlertTriangle className="size-4 text-rose-500" />
-                <span className="font-medium text-rose-500">Unit Failed:</span>
+                <AlertTriangle className="size-4 text-destructive" />
+                <span className="font-medium text-destructive">Unit Failed:</span>
                 <span className="font-mono text-fg">{msg}</span>
               </div>
             ))}
@@ -132,9 +132,9 @@ export const TimelineTab = ({ host, connected }: Props) => {
       </div>
 
       {/* Incident Lifecycle Tracking */}
-      <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center gap-3 pb-3">
-          <AlertTriangle className="size-5 text-amber-500" />
+          <AlertTriangle className="size-5 text-warning" />
           <div>
             <h3 className="font-semibold text-fg">Critical Incident Log</h3>
             <p className="text-xs text-fg-subtle">
@@ -145,7 +145,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
 
         {history.incidents.length === 0 ? (
           <div className="flex items-center gap-2 rounded-xl border border-hairline bg-canvas/60 p-4 text-xs text-fg-muted">
-            <ShieldCheck className="size-4 text-emerald-500" />
+            <ShieldCheck className="size-4 text-success" />
             <span>Zero recorded incidents or outages for this host.</span>
           </div>
         ) : (
@@ -185,7 +185,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
 
       {/* Rolling Snapshot History */}
       {history.summaries.length > 0 && (
-        <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
           <div className="flex items-center gap-3 pb-3">
             <Clock className="size-5 text-muted-foreground" />
             <div>

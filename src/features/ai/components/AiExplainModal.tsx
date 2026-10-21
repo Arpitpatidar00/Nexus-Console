@@ -87,7 +87,7 @@ export const AiExplainModal = ({
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-card p-6 text-fg shadow-2xl">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <Dialog.Title className="flex items-center gap-2 text-base font-bold text-fg">
-              <Bot className="h-5 w-5 text-indigo-400" />
+              <Bot className="h-5 w-5 text-info" />
               Local AI Assistant (Ollama)
             </Dialog.Title>
             <div className="flex items-center gap-2">
@@ -97,15 +97,15 @@ export const AiExplainModal = ({
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="text-muted-fg hover:text-fg"
+                className="text-fg-muted hover:text-fg"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          <div className="mt-3 flex items-start gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-200">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+          <div className="mt-3 flex items-start gap-2 rounded border border-success-soft bg-success-soft p-2.5 text-xs text-success">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
             <div>
               <span className="font-bold">Privacy Guaranteed (T-11):</span> Calls local Ollama via
               direct native HTTP to <code className="font-mono">127.0.0.1:11434</code> without shell
@@ -115,7 +115,7 @@ export const AiExplainModal = ({
           </div>
 
           {status && !status.online && (
-            <div className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
+            <div className="mt-3 rounded border border-warning-soft bg-warning-soft p-3 text-xs text-warning">
               Ollama server was not detected on <code className="font-mono">127.0.0.1:11434</code>.
               Start Ollama in your terminal using:
               <pre className="mt-1 rounded bg-black/20 p-1.5 font-mono text-[11px]">
@@ -155,7 +155,7 @@ export const AiExplainModal = ({
                 placeholder="Paste command error, shell output, regex pattern, or cron expression..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                className="placeholder:text-muted-fg mt-1 w-full rounded border border-border bg-muted/20 p-2.5 font-mono text-xs text-fg focus:outline-none"
+                className="mt-1 w-full rounded border border-border bg-muted/20 p-2.5 font-mono text-xs text-fg placeholder:text-fg-muted focus:outline-none"
               />
             </div>
 
@@ -169,21 +169,21 @@ export const AiExplainModal = ({
                 placeholder="Paste optional context or error logs..."
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
-                className="placeholder:text-muted-fg mt-1 w-full rounded border border-border bg-muted/20 p-2.5 font-mono text-xs text-fg focus:outline-none"
+                className="mt-1 w-full rounded border border-border bg-muted/20 p-2.5 font-mono text-xs text-fg placeholder:text-fg-muted focus:outline-none"
               />
             </div>
 
             {/* Prompt preview with explicit notice */}
             {previewText && (
               <div className="rounded border border-border bg-muted/10 p-3">
-                <div className="text-muted-fg mb-1.5 flex items-center gap-1.5 text-xs font-semibold">
-                  <Eye className="h-3.5 w-3.5 text-indigo-400" />
+                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-fg-muted">
+                  <Eye className="h-3.5 w-3.5 text-info" />
                   <span>Prompt Preview</span>
                   <Badge variant="neutral" className="ml-auto font-mono text-[10px]">
                     {previewNotice}
                   </Badge>
                 </div>
-                <pre className="text-muted-fg/90 max-h-28 overflow-y-auto rounded bg-black/20 p-2 font-mono text-[11px] whitespace-pre-wrap">
+                <pre className="max-h-28 overflow-y-auto rounded bg-black/20 p-2 font-mono text-[11px] whitespace-pre-wrap text-fg-muted/90">
                   {previewText}
                 </pre>
               </div>
@@ -192,10 +192,10 @@ export const AiExplainModal = ({
             {(streamedText || explainMutation.isPending) && (
               <div>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-fg">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                  <Sparkles className="h-3.5 w-3.5 text-info" />
                   Explanation & Diagnosis
                   {explainMutation.isPending && (
-                    <Loader2 className="text-muted-fg ml-1 h-3 w-3 animate-spin" />
+                    <Loader2 className="ml-1 h-3 w-3 animate-spin text-fg-muted" />
                   )}
                 </span>
                 <div className="mt-1 max-h-48 overflow-y-auto rounded border border-border bg-black/20 p-3 font-sans text-xs leading-relaxed whitespace-pre-wrap text-fg">

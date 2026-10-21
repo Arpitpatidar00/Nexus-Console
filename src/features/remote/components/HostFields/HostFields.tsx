@@ -3,7 +3,7 @@ import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { ENVS, type HostEnv } from '@/features/remote/api/remote.schema';
 
 export const inputCls =
-  'h-9 w-full rounded-md border border-border bg-paper px-3 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'h-9 w-full rounded-md border border-border bg-paper px-3 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ember';
 
 interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;

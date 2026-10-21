@@ -208,7 +208,7 @@ export const FilesBrowser = ({ host, connected }: Props) => {
               <button
                 key={b}
                 type="button"
-                className="bg-surface cursor-pointer rounded border border-hairline px-2 py-0.5 font-mono text-xs text-fg-muted hover:text-fg"
+                className="cursor-pointer rounded border border-hairline bg-card px-2 py-0.5 font-mono text-xs text-fg-muted hover:text-fg"
                 onClick={() => handleNavigate(b)}
               >
                 {b}
@@ -273,7 +273,7 @@ export const FilesBrowser = ({ host, connected }: Props) => {
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     {file.isDir ? (
-                      <Folder className="size-4 shrink-0 text-amber-500" />
+                      <Folder className="size-4 shrink-0 text-warning" />
                     ) : (
                       <FileText className="size-4 shrink-0 text-fg-subtle" />
                     )}
@@ -295,7 +295,7 @@ export const FilesBrowser = ({ host, connected }: Props) => {
 
         {/* File Preview Pane */}
         {selectedFile && (
-          <div className="bg-surface/40 flex min-h-0 w-1/2 flex-col border-l border-hairline backdrop-blur-md">
+          <div className="flex min-h-0 w-1/2 flex-col border-l border-hairline bg-card/40 backdrop-blur-md">
             <div className="flex shrink-0 items-center justify-between border-b border-hairline px-4 py-2.5">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -334,14 +334,14 @@ export const FilesBrowser = ({ host, connected }: Props) => {
                   title="Download file via scp to /tmp"
                 >
                   {downloadSuccess ? (
-                    <Check className="size-3.5 text-emerald-500" />
+                    <Check className="size-3.5 text-success" />
                   ) : (
                     <Download className="size-3.5" />
                   )}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={handleCopy} title="Copy file content">
                   {copied ? (
-                    <Check className="size-3.5 text-emerald-500" />
+                    <Check className="size-3.5 text-success" />
                   ) : (
                     <Copy className="size-3.5" />
                   )}
@@ -385,10 +385,10 @@ export const FilesBrowser = ({ host, connected }: Props) => {
       >
         <div className="flex flex-col gap-4 py-2">
           {isProd && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
-              <AlertTriangle className="size-4 shrink-0 text-red-400" />
+            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/40 bg-danger-soft p-3 text-xs text-destructive">
+              <AlertTriangle className="size-4 shrink-0 text-destructive" />
               <div>
-                <span className="font-semibold text-red-300">Production Server Warning:</span>
+                <span className="font-semibold text-destructive">Production Server Warning:</span>
                 <p className="mt-0.5">
                   Uploading files to production servers modifies live systems. You must type{' '}
                   <strong className="font-mono text-white">UPLOAD</strong> to authorize.
@@ -441,7 +441,7 @@ export const FilesBrowser = ({ host, connected }: Props) => {
 
           {isProd && (
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="prod-confirm-input" className="text-xs font-medium text-red-300">
+              <label htmlFor="prod-confirm-input" className="text-xs font-medium text-destructive">
                 Type <span className="font-mono font-bold text-white">UPLOAD</span> to confirm
               </label>
               <input
@@ -450,7 +450,7 @@ export const FilesBrowser = ({ host, connected }: Props) => {
                 placeholder="UPLOAD"
                 value={prodConfirm}
                 onChange={(e) => setProdConfirm(e.target.value)}
-                className="h-8 rounded-lg border border-red-500/50 bg-canvas px-3 font-mono text-xs text-fg focus:ring-1 focus:ring-red-500 focus:outline-none"
+                className="h-8 rounded-lg border border-destructive/50 bg-canvas px-3 font-mono text-xs text-fg focus:ring-1 focus:ring-destructive focus:outline-none"
               />
             </div>
           )}

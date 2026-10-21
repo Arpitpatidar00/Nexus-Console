@@ -12,6 +12,7 @@ pub mod network;
 pub mod projects;
 pub mod pty;
 pub mod remote;
+pub mod scheduler;
 pub mod secrets;
 pub mod session;
 pub mod tray;

@@ -1,4 +1,4 @@
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -42,7 +42,7 @@ pub struct WorkspaceStepResult {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectsStore {
     pub workspaces: Vec<WorkspaceConfig>,
@@ -68,18 +68,10 @@ pub fn new_command_id() -> String {
 
 impl ProjectsStore {
     pub fn load(dir: &Path) -> Self {
-        let path = dir.join("projects.json");
-        std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        crate::core::store::load_store(dir.join("projects.json"))
     }
 
     pub fn save(&self, dir: &Path) -> AppResult<()> {
-        let path = dir.join("projects.json");
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| AppError::Io(format!("serialize projects: {e}")))?;
-        std::fs::write(&path, json)
-            .map_err(|e| AppError::Io(format!("save projects to {}: {e}", path.display())))
+        crate::core::store::save_store(dir.join("projects.json"), self, false)
     }
 }

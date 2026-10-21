@@ -3,8 +3,9 @@ import { Cloud, Server, Database, DollarSign, RefreshCw, Search } from 'lucide-r
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { useAwsProfiles, useEc2Instances, useS3Buckets, useAwsCosts } from '../api/useCloud';
+import { ConsentGate } from '@/shared/privacy';
 
-export const CloudPage = () => {
+const CloudView = () => {
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'instances' | 'buckets'>('instances');
@@ -46,10 +47,10 @@ export const CloudPage = () => {
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <Cloud className="h-6 w-6 text-sky-400" />
+            <Cloud className="h-6 w-6 text-info" />
             Cloud & AWS Manager
           </h1>
-          <p className="text-muted-fg mt-1 text-xs">
+          <p className="mt-1 text-xs text-fg-muted">
             AWS profile configuration, EC2 instance states, S3 storage buckets, and cached Cost
             Explorer insights.
           </p>
@@ -58,7 +59,7 @@ export const CloudPage = () => {
         {/* Profile & Region selectors */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <label htmlFor="aws-profile-select" className="text-muted-fg text-xs font-semibold">
+            <label htmlFor="aws-profile-select" className="text-xs font-semibold text-fg-muted">
               Profile:
             </label>
             <select
@@ -76,7 +77,7 @@ export const CloudPage = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <label htmlFor="aws-region-select" className="text-muted-fg text-xs font-semibold">
+            <label htmlFor="aws-region-select" className="text-xs font-semibold text-fg-muted">
               Region:
             </label>
             <select
@@ -100,19 +101,19 @@ export const CloudPage = () => {
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div className="flex items-start gap-3">
-            <DollarSign className="h-5 w-5 shrink-0 text-emerald-400" />
+            <DollarSign className="h-5 w-5 shrink-0 text-success" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-fg">
                   AWS Cost Explorer (Profile: {selectedProfile})
                 </span>
                 {costReport && costReport.cached_at > 0 && (
-                  <Badge variant="neutral" className="text-muted-fg px-1.5 py-0 text-[10px]">
+                  <Badge variant="neutral" className="px-1.5 py-0 text-[10px] text-fg-muted">
                     Cached {new Date(costReport.cached_at * 1000).toLocaleTimeString()}
                   </Badge>
                 )}
               </div>
-              <p className="text-muted-fg mt-0.5 text-xs">
+              <p className="mt-0.5 text-xs text-fg-muted">
                 Cost Explorer charges per request ($0.01 via AWS API). Queries are executed
                 on-demand only and cached locally.
               </p>
@@ -139,7 +140,7 @@ export const CloudPage = () => {
         </div>
 
         {costError && (
-          <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-2.5 text-xs text-red-300">
+          <div className="mt-3 rounded border border-destructive/30 bg-danger-soft p-2.5 text-xs text-destructive">
             {costError instanceof Error ? costError.message : String(costError)}
           </div>
         )}
@@ -147,8 +148,8 @@ export const CloudPage = () => {
         {costReport && costReport.cached_at > 0 && (
           <div className="mt-4 border-t border-border/50 pt-3">
             <div className="flex items-baseline gap-2">
-              <span className="text-muted-fg text-xs">Month-to-date Total:</span>
-              <span className="text-base font-bold text-emerald-400">
+              <span className="text-xs text-fg-muted">Month-to-date Total:</span>
+              <span className="text-base font-bold text-success">
                 {costReport.month_to_date_total.toFixed(2)} {costReport.currency}
               </span>
             </div>
@@ -158,12 +159,12 @@ export const CloudPage = () => {
                 {costReport.top_services.slice(0, 6).map((svc) => (
                   <div
                     key={svc.service}
-                    className="bg-bg/50 rounded border border-border/40 px-2.5 py-1.5 text-xs"
+                    className="rounded border border-border/40 bg-canvas/50 px-2.5 py-1.5 text-xs"
                   >
                     <div className="truncate font-medium text-fg" title={svc.service}>
                       {svc.service}
                     </div>
-                    <div className="text-muted-fg text-[11px]">
+                    <div className="text-[11px] text-fg-muted">
                       {svc.amount.toFixed(2)} {svc.currency || svc.unit || 'USD'}
                     </div>
                   </div>
@@ -182,8 +183,8 @@ export const CloudPage = () => {
             onClick={() => setActiveTab('instances')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'instances'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Server className="h-3.5 w-3.5" />
@@ -194,8 +195,8 @@ export const CloudPage = () => {
             onClick={() => setActiveTab('buckets')}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'buckets'
-                ? 'text-accent-fg bg-accent shadow-sm'
-                : 'text-muted-fg hover:text-fg'
+                ? 'bg-ember text-ember-foreground shadow-sm'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Database className="h-3.5 w-3.5" />
@@ -205,13 +206,13 @@ export const CloudPage = () => {
 
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="text-muted-fg absolute top-2.5 left-2.5 h-3.5 w-3.5" />
+            <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
             <input
               type="text"
               placeholder={`Filter ${activeTab}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="placeholder:text-muted-fg rounded-md border border-border bg-card/60 py-1.5 pr-3 pl-8 text-xs text-fg focus:outline-none"
+              className="rounded-md border border-border bg-card/60 py-1.5 pr-3 pl-8 text-xs text-fg placeholder:text-fg-muted focus:outline-none"
             />
           </div>
           <Button
@@ -229,7 +230,7 @@ export const CloudPage = () => {
         <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="text-muted-fg border-b border-border bg-muted/40 font-semibold">
+              <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
                 <th className="px-4 py-3">Name / Instance ID</th>
                 <th className="px-4 py-3">State</th>
                 <th className="px-4 py-3">Type</th>
@@ -242,13 +243,13 @@ export const CloudPage = () => {
             <tbody className="divide-y divide-border">
               {instancesLoading ? (
                 <tr>
-                  <td colSpan={7} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
                     Fetching EC2 instances from AWS CLI...
                   </td>
                 </tr>
               ) : filteredInstances.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
                     No EC2 instances found matching criteria.
                   </td>
                 </tr>
@@ -268,7 +269,7 @@ export const CloudPage = () => {
                             </Badge>
                           )}
                         </div>
-                        <div className="text-muted-fg font-mono text-[11px]">{inst.id}</div>
+                        <div className="font-mono text-[11px] text-fg-muted">{inst.id}</div>
                       </td>
                       <td className="px-4 py-3">
                         <Badge
@@ -278,14 +279,14 @@ export const CloudPage = () => {
                           {inst.state}
                         </Badge>
                       </td>
-                      <td className="text-muted-fg px-4 py-3 font-mono">{inst.instance_type}</td>
+                      <td className="px-4 py-3 font-mono text-fg-muted">{inst.instance_type}</td>
                       <td className="px-4 py-3 font-mono text-fg">{inst.public_ip || '—'}</td>
-                      <td className="text-muted-fg px-4 py-3 font-mono">
+                      <td className="px-4 py-3 font-mono text-fg-muted">
                         {inst.private_ip || '—'}
                       </td>
-                      <td className="text-muted-fg px-4 py-3">{inst.region}</td>
+                      <td className="px-4 py-3 text-fg-muted">{inst.region}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-muted-fg text-[11px] italic">
+                        <span className="text-[11px] text-fg-muted italic">
                           Actions frozen (T-06)
                         </span>
                       </td>
@@ -300,7 +301,7 @@ export const CloudPage = () => {
         <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="text-muted-fg border-b border-border bg-muted/40 font-semibold">
+              <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
                 <th className="px-4 py-3">Bucket Name</th>
                 <th className="px-4 py-3">Creation Date</th>
                 <th className="px-4 py-3">Region</th>
@@ -309,13 +310,13 @@ export const CloudPage = () => {
             <tbody className="divide-y divide-border">
               {bucketsLoading ? (
                 <tr>
-                  <td colSpan={3} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                     Fetching S3 buckets...
                   </td>
                 </tr>
               ) : filteredBuckets.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="text-muted-fg px-4 py-8 text-center">
+                  <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">
                     No S3 buckets found.
                   </td>
                 </tr>
@@ -323,13 +324,13 @@ export const CloudPage = () => {
                 filteredBuckets.map((bucket) => (
                   <tr key={bucket.name} className="transition-colors hover:bg-muted/20">
                     <td className="flex items-center gap-2 px-4 py-3 font-mono font-medium text-fg">
-                      <Database className="h-3.5 w-3.5 text-amber-400" />
+                      <Database className="h-3.5 w-3.5 text-warning" />
                       {bucket.name}
                     </td>
-                    <td className="text-muted-fg px-4 py-3">
+                    <td className="px-4 py-3 text-fg-muted">
                       {new Date(bucket.creation_date).toLocaleDateString()}
                     </td>
-                    <td className="text-muted-fg px-4 py-3">{bucket.region || 'global'}</td>
+                    <td className="px-4 py-3 text-fg-muted">{bucket.region || 'global'}</td>
                   </tr>
                 ))
               )}
@@ -340,3 +341,12 @@ export const CloudPage = () => {
     </div>
   );
 };
+
+export const CloudPage = () => (
+  <ConsentGate
+    source="aws_config"
+    reason="Cloud reads your AWS profiles from ~/.aws and uses the aws CLI with them to list EC2 instances, S3 buckets and, only when you ask, costs."
+  >
+    <CloudView />
+  </ConsentGate>
+);

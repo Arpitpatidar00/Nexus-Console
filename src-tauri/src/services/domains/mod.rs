@@ -404,6 +404,7 @@ pub fn parse_rdap_json(text: &str, clean_domain: &str) -> RdapResult {
 }
 
 pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
+    crate::core::net::check_outbound_allowed("rdap.org")?;
     let clean_domain = sanitize_domain(domain)?;
     let url = format!("https://rdap.org/domain/{clean_domain}");
 
@@ -451,6 +452,7 @@ pub fn check_propagation(domain: &str, record_type: &str) -> AppResult<Propagati
     let mut answers = Vec::new();
 
     for (server, name) in resolvers {
+        crate::core::net::check_outbound_allowed(server)?;
         let t0 = Instant::now();
         let out = Command::new("/usr/bin/dig")
             .args([

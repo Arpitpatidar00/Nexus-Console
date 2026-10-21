@@ -3,7 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 const MAX_HISTORY_DAYS: usize = 90;
@@ -42,20 +41,11 @@ pub struct TrendStore {
 
 impl TrendStore {
     pub fn load(path: &Path) -> Self {
-        if let Ok(data) = fs::read_to_string(path) {
-            if let Ok(store) = serde_json::from_str::<TrendStore>(&data) {
-                return store;
-            }
-        }
-        Self::default()
+        crate::core::store::load_store(path)
     }
 
-    pub fn save(&self, path: &Path) -> Result<(), String> {
-        if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        fs::write(path, json).map_err(|e| e.to_string())
+    pub fn save(&self, path: &Path) -> crate::error::AppResult<()> {
+        crate::core::store::save_store(path, self, false)
     }
 
     pub fn record(&mut self, record: TrendRecord) {

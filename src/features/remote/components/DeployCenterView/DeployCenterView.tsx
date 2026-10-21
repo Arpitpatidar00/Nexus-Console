@@ -60,10 +60,10 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
       </div>
 
       {/* Safety Freeze Notice */}
-      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+      <div className="flex items-start gap-3 rounded-2xl border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
         <div>
           <span className="font-bold">Coming back after safety review (T-03):</span>
-          <p className="mt-0.5 text-amber-300/80">
+          <p className="mt-0.5 text-warning">
             Remote deploy, rollback, and promotion are temporarily frozen while docker compose argv
             pipelines, snapshot verification, and Rust mutation gates are implemented.
           </p>
@@ -71,7 +71,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
       </div>
 
       {/* Deploy Preview & Trigger Card */}
-      <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center justify-between pb-4">
           <div className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
@@ -114,7 +114,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
 
       {/* Deploy Logs Output if present */}
       {deployLogs && (
-        <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
           <div className="flex items-center justify-between pb-3">
             <span className="text-xs font-semibold text-fg">Deploy Command Output</span>
             <button
@@ -132,7 +132,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
       )}
 
       {/* Historical Deploys & Rollback */}
-      <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
         <div className="flex items-center gap-2 pb-3">
           <History className="size-4 text-primary" />
           <h4 className="text-sm font-semibold text-fg">Deployment History & Rollback Points</h4>

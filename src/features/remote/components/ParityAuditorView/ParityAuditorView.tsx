@@ -57,7 +57,7 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
       </div>
 
       {/* Path Configuration Bar */}
-      <div className="bg-surface/50 flex flex-wrap items-center gap-4 rounded-2xl border border-hairline p-4 shadow-sm backdrop-blur-sm">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-hairline bg-card/50 p-4 shadow-sm backdrop-blur-sm">
         <div className="flex min-w-[240px] flex-1 items-center gap-2">
           <label
             htmlFor="parity-remote-app-dir"
@@ -106,7 +106,7 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
       ) : !report ? null : (
         <>
           {/* Runtime Versions Matrix */}
-          <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+          <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
             <h4 className="mb-3 text-sm font-semibold text-fg">Runtime & Server Version Parity</h4>
             <div className="divide-y divide-hairline rounded-xl border border-hairline bg-canvas/60">
               <div className="grid grid-cols-4 px-4 py-2.5 text-xs font-semibold text-fg-subtle">
@@ -150,7 +150,7 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
           </div>
 
           {/* .env Keys Matrix */}
-          <div className="bg-surface/50 rounded-2xl border border-hairline p-5 shadow-sm backdrop-blur-sm">
+          <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
             <div className="flex items-center justify-between pb-3">
               <div className="flex items-center gap-2">
                 <KeyRound className="size-4 text-primary" />
@@ -165,7 +165,7 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
 
             {/* Same Value Warning Banner */}
             {report.envKeys.some((k) => k.sameValueWarning) && (
-              <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-500">
+              <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-warning-soft bg-warning-soft p-3.5 text-xs text-warning">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" />
                 <div>
                   <strong className="font-semibold">Secret Cross-Contamination Warning:</strong> One
@@ -204,7 +204,7 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
                         </Badge>
                       ) : (
                         <Badge variant="neutral" className="gap-1">
-                          <ShieldCheck className="size-3 text-emerald-500" /> Isolated
+                          <ShieldCheck className="size-3 text-success" /> Isolated
                         </Badge>
                       )}
                     </div>

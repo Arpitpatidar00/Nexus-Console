@@ -61,7 +61,7 @@ export const GhostLeftoversCard = () => {
     <div className="rounded-xl border border-border bg-paper p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-lg text-accent">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ember-soft text-ember-text">
             <Ghost className="h-5 w-5" />
           </div>
           <div>
@@ -104,7 +104,7 @@ export const GhostLeftoversCard = () => {
         </div>
       ) : leftovers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-500" />
+          <CheckCircle2 className="mb-2 h-8 w-8 text-success" />
           <p className="text-sm font-medium text-fg">No Ghost Leftovers Found</p>
           <p className="mt-1 text-xs text-fg-muted">
             Your Caches, Preferences, and LaunchAgents are clean with no orphaned files.
@@ -123,7 +123,7 @@ export const GhostLeftoversCard = () => {
               <button
                 type="button"
                 onClick={selectAllSafe}
-                className="font-medium text-accent hover:underline"
+                className="font-medium text-ember-text hover:underline"
               >
                 {selectedIds.size === safeItems.length ? 'Deselect all' : 'Select all safe'}
               </button>
@@ -131,11 +131,11 @@ export const GhostLeftoversCard = () => {
           </div>
 
           {/* Safe leftovers list */}
-          <div className="bg-subtle divide-y divide-border rounded-lg border border-border">
+          <div className="divide-y divide-border rounded-lg border border-border bg-muted">
             {safeItems.map((item) => (
               <div
                 key={item.id}
-                className="hover:bg-hover flex items-center justify-between p-3 transition-colors"
+                className="flex items-center justify-between p-3 transition-colors hover:bg-accent"
               >
                 <div className="flex items-center gap-3">
                   <input
@@ -143,7 +143,7 @@ export const GhostLeftoversCard = () => {
                     id={`ghost-${item.id}`}
                     checked={selectedIds.has(item.id)}
                     onChange={() => toggleSelect(item.id)}
-                    className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                    className="h-4 w-4 rounded border-border text-ember-text focus:ring-ember"
                   />
                   <div>
                     <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ export const GhostLeftoversCard = () => {
                       <Badge variant="neutral" className="text-[10px] uppercase">
                         {item.kind.replace('_', ' ')}
                       </Badge>
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                      <ShieldCheck className="h-3.5 w-3.5 text-success" />
                     </div>
                     <p className="mt-0.5 max-w-xl truncate font-mono text-[11px] text-fg-muted">
                       {item.path}
@@ -179,21 +179,21 @@ export const GhostLeftoversCard = () => {
           {possibleItems.length > 0 && (
             <div className="mt-3">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-fg-muted">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                 <span>
                   Possible Application Support Remnants (Safety policy: Reveal in Finder only)
                 </span>
               </div>
-              <div className="bg-subtle/50 divide-y divide-border rounded-lg border border-border">
+              <div className="divide-y divide-border rounded-lg border border-border bg-muted/50">
                 {possibleItems.map((item) => (
                   <div
                     key={item.id}
-                    className="hover:bg-hover flex items-center justify-between p-3 transition-colors"
+                    className="flex items-center justify-between p-3 transition-colors hover:bg-accent"
                   >
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-fg">{item.name}</span>
-                        <Badge variant="neutral" className="text-[10px] text-amber-500 uppercase">
+                        <Badge variant="neutral" className="text-[10px] text-warning uppercase">
                           Possible Remnant
                         </Badge>
                       </div>

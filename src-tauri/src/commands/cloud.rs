@@ -14,6 +14,7 @@ where
 
 #[tauri::command]
 pub async fn aws_list_profiles() -> AppResult<Vec<String>> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
     blocking(cloud::list_profiles)
         .await
         .map_err(|e| AppError::Shell(format!("list aws profiles task: {e}")))?
@@ -24,6 +25,8 @@ pub async fn aws_list_ec2_instances(
     profile: String,
     region: String,
 ) -> AppResult<Vec<Ec2Instance>> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
+    crate::core::net::check_outbound_allowed(&format!("ec2.{region}.amazonaws.com"))?;
     blocking(move || cloud::list_ec2_instances(&profile, &region))
         .await
         .map_err(|e| AppError::Shell(format!("list ec2 instances task: {e}")))?
@@ -39,6 +42,7 @@ pub async fn aws_instance_action(
     instance_id: String,
     action: String,
 ) -> AppResult<String> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
     let p_clone = profile.clone();
     let r_clone = region.clone();
     let id_clone = instance_id.clone();
@@ -74,6 +78,7 @@ pub async fn aws_get_costs(
     profile: String,
     force_refresh: Option<bool>,
 ) -> AppResult<AwsCostReport> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
     let dir = app
         .path()
         .app_data_dir()
@@ -86,6 +91,7 @@ pub async fn aws_get_costs(
 
 #[tauri::command]
 pub async fn aws_list_s3_buckets(profile: String) -> AppResult<Vec<S3Bucket>> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
     blocking(move || cloud::list_s3_buckets(&profile))
         .await
         .map_err(|e| AppError::Shell(format!("list s3 buckets task: {e}")))?

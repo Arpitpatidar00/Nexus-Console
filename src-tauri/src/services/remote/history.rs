@@ -1,8 +1,7 @@
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::services::remote::probe::HostSnapshot;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 
 const FILE_NAME: &str = "remote-history.json";
@@ -173,21 +172,11 @@ pub fn diff_summaries(prev: &SnapshotSummary, curr: &SnapshotSummary) -> Snapsho
 
 impl HostHistoryStore {
     pub fn load(dir: &Path) -> Self {
-        let path = dir.join(FILE_NAME);
-        let Ok(raw) = fs::read_to_string(&path) else {
-            return Self::default();
-        };
-        serde_json::from_str(&raw).unwrap_or_default()
+        crate::core::store::load_store(dir.join(FILE_NAME))
     }
 
     pub fn save(&self, dir: &Path) -> AppResult<()> {
-        let path = dir.join(FILE_NAME);
-        let io = |e: std::io::Error| AppError::Io(format!("saving {FILE_NAME}: {e}"));
-        let json = serde_json::to_vec_pretty(self)
-            .map_err(|e| AppError::Parse(format!("serializing {FILE_NAME}: {e}")))?;
-        let tmp = path.with_extension("json.tmp");
-        fs::write(&tmp, json).map_err(io)?;
-        fs::rename(&tmp, &path).map_err(io)
+        crate::core::store::save_store(dir.join(FILE_NAME), self, false)
     }
 
     pub fn record_snapshot(

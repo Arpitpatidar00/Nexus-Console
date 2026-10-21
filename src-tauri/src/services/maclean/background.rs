@@ -9,7 +9,6 @@ use super::{clean, disk, MacleanState};
 use std::time::{Duration, Instant, SystemTime};
 use tauri::Manager;
 
-const TICK: Duration = Duration::from_secs(5 * 60);
 const GIB: u64 = 1024 * 1024 * 1024;
 /// Free space must climb this far back above the threshold before another
 /// low-disk notification can fire.
@@ -57,47 +56,44 @@ pub fn auto_due(last_auto: Option<u64>, now: u64, every: Duration) -> bool {
     last_auto.is_none_or(|t| now.saturating_sub(t) >= every.as_secs())
 }
 
-pub fn start(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        let mut below = false;
-        let mut last_attempt: Option<Instant> = None;
-        loop {
-            let auto = parse_settings(crate::settings::read(&app).as_ref());
-            if let Some(threshold) = auto.low_disk_below {
-                if let Some(d) = disk::disk_stats() {
-                    let (now_below, notify_now) = low_disk(below, d.free_bytes, threshold);
-                    below = now_below;
-                    if notify_now {
-                        notify(
-                            &app,
-                            &format!(
-                                "Only {} free on Macintosh HD. Open Mac Clean → Storage to see what you can get back.",
-                                crate::doctor::vscode::fmt_mb(d.free_bytes)
-                            ),
-                        );
-                    }
-                }
-            } else {
-                below = false;
+pub fn tick(app: &tauri::AppHandle, below: &mut bool, last_attempt: &mut Option<Instant>) {
+    let auto = parse_settings(crate::settings::read(app).as_ref());
+    if let Some(threshold) = auto.low_disk_below {
+        if let Some(d) = disk::disk_stats() {
+            let (now_below, notify_now) = low_disk(*below, d.free_bytes, threshold);
+            *below = now_below;
+            if notify_now {
+                notify(
+                    app,
+                    &format!(
+                        "Only {} free on Macintosh HD. Open Mac Clean → Storage to see what you can get back.",
+                        crate::doctor::vscode::fmt_mb(d.free_bytes)
+                    ),
+                );
             }
-            if let Some(every) = auto.auto_clean_every {
-                // In-memory guard too: a run that found nothing to clean
-                // writes no journal entry, and must not retry every tick.
-                if last_attempt.is_none_or(|t| t.elapsed() >= every) {
-                    if let Some(msg) = auto_clean(&app, every) {
-                        notify(&app, &msg);
-                    }
-                    last_attempt = Some(Instant::now());
-                }
-            }
-            std::thread::sleep(TICK);
         }
-    });
+    } else {
+        *below = false;
+    }
+    if let Some(every) = auto.auto_clean_every {
+        // In-memory guard too: a run that found nothing to clean
+        // writes no journal entry, and must not retry every tick.
+        if last_attempt.is_none_or(|t| t.elapsed() >= every) {
+            if let Some(msg) = auto_clean(app, every) {
+                notify(app, &msg);
+            }
+            *last_attempt = Some(Instant::now());
+        }
+    }
 }
 
 /// One scheduled clean of the default-ticked items whose skip rules don't
 /// hold. `None` when not due, busy, or nothing was freed (no notification).
 fn auto_clean(app: &tauri::AppHandle, every: Duration) -> Option<String> {
+    // Unattended cleaning reads ~/Library: never without the user's grant.
+    if !crate::core::consent::is_consent_granted(crate::core::consent::DataSource::LibraryScan) {
+        return None;
+    }
     let state = app.state::<MacleanState>();
     let now = crate::doctor::claude::now_epoch();
     let last_auto = state

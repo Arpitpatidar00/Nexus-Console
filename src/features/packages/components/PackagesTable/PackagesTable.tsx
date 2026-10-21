@@ -54,7 +54,7 @@ export const PackagesTable = ({
                 {p.kind}
               </span>
               {p.pinned && (
-                <Badge variant="neutral" className="gap-1 py-0 text-[10px] text-amber-500">
+                <Badge variant="neutral" className="gap-1 py-0 text-[10px] text-warning">
                   <Pin className="h-2.5 w-2.5" />
                   pinned
                 </Badge>

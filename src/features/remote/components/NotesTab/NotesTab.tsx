@@ -75,7 +75,7 @@ export const NotesTab = ({ host }: Props) => {
 
           <Button size="sm" disabled={!dirty || saveNote.isPending} onClick={handleSave}>
             {saveNote.isSuccess && !dirty ? (
-              <CheckCircle className="mr-1.5 size-3.5 text-emerald-500" />
+              <CheckCircle className="mr-1.5 size-3.5 text-success" />
             ) : (
               <Save className="mr-1.5 size-3.5" />
             )}

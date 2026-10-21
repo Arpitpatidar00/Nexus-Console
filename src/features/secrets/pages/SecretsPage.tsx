@@ -13,8 +13,9 @@ import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { useScanProjectsSecrets, useScanHistorySecrets } from '../api/useSecrets';
 import type { SecretFinding } from '../api/secrets.schema';
+import { ConsentGate, useConsentGranted, useSetConsent } from '@/shared/privacy';
 
-export const SecretsPage = () => {
+const SecretsView = () => {
   const scanProjects = useScanProjectsSecrets();
   const scanHistory = useScanHistorySecrets();
 
@@ -22,7 +23,9 @@ export const SecretsPage = () => {
   const [scannedStats, setScannedStats] = useState<{ projects: number; files: number } | null>(
     null,
   );
-  const [historyConsent, setHistoryConsent] = useState(false);
+  const history = useConsentGranted('shell_history');
+  const setConsent = useSetConsent();
+  const historyConsent = history.granted;
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const isScanning = scanProjects.isPending || scanHistory.isPending;
@@ -73,8 +76,8 @@ export const SecretsPage = () => {
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
         {/* Security & Privacy Contract Banner */}
-        <div className="bg-accent-soft flex items-start gap-3 rounded-xl border border-accent/30 p-4 shadow-xs">
-          <Info className="h-5 w-5 shrink-0 text-accent" />
+        <div className="flex items-start gap-3 rounded-xl border border-ember/30 bg-ember-soft p-4 shadow-xs">
+          <Info className="h-5 w-5 shrink-0 text-ember-text" />
           <div className="text-xs">
             <h4 className="font-semibold text-fg">Privacy &amp; Safety Guarantees</h4>
             <p className="mt-0.5 text-fg-muted">
@@ -103,10 +106,13 @@ export const SecretsPage = () => {
               <input
                 type="checkbox"
                 checked={historyConsent}
-                onChange={(e) => setHistoryConsent(e.target.checked)}
+                disabled={setConsent.isPending}
+                onChange={(e) =>
+                  setConsent.mutate({ source: 'shell_history', granted: e.target.checked })
+                }
                 className="rounded border-border"
               />
-              <span>I give consent to scan shell history</span>
+              <span>Allow reading shell history</span>
             </label>
 
             <Button
@@ -133,7 +139,7 @@ export const SecretsPage = () => {
             <span>•</span>
             <span>
               Findings:{' '}
-              <strong className={findings.length > 0 ? 'text-danger' : 'text-emerald-500'}>
+              <strong className={findings.length > 0 ? 'text-danger' : 'text-success'}>
                 {findings.length}
               </strong>
             </span>
@@ -168,9 +174,9 @@ export const SecretsPage = () => {
                 <p className="font-mono text-xs text-fg">{f.maskedPreview}</p>
               </div>
 
-              <div className="bg-accent-soft/40 flex items-center justify-between rounded-lg px-3 py-2 text-xs">
+              <div className="flex items-center justify-between rounded-lg bg-ember-soft/40 px-3 py-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
                   <span className="text-fg">{f.remediation}</span>
                 </div>
 
@@ -180,7 +186,7 @@ export const SecretsPage = () => {
                   onClick={() => copyRemediation(f.id, f.remediation)}
                 >
                   {copiedId === f.id ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    <Check className="h-3.5 w-3.5 text-success" />
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
@@ -191,7 +197,7 @@ export const SecretsPage = () => {
 
           {scannedStats && findings.length === 0 && (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-              <ShieldCheck className="h-10 w-10 text-emerald-500" />
+              <ShieldCheck className="h-10 w-10 text-success" />
               <h3 className="mt-3 text-sm font-semibold text-fg">All Repositories Clean</h3>
               <p className="mt-1 text-xs text-fg-muted">
                 No plaintext credentials or unignored .env files detected across your tracked
@@ -215,3 +221,12 @@ export const SecretsPage = () => {
     </div>
   );
 };
+
+export const SecretsPage = () => (
+  <ConsentGate
+    source="project_env"
+    reason="Secrets scans the .env files in your discovered projects for leaked keys. Values stay masked and never leave this Mac."
+  >
+    <SecretsView />
+  </ConsentGate>
+);

@@ -21,10 +21,10 @@ export const BackupsPage = () => {
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <HardDriveDownload className="h-6 w-6 text-emerald-400" />
+            <HardDriveDownload className="h-6 w-6 text-success" />
             Automated Backups & Secret Archives
           </h1>
-          <p className="text-muted-fg mt-1 text-xs">
+          <p className="mt-1 text-xs text-fg-muted">
             Local & remote database snapshots streamed over SSH pipe with strict 0600 file
             permissions.
           </p>
@@ -33,7 +33,7 @@ export const BackupsPage = () => {
         <div className="flex items-center gap-2">
           <Badge
             variant="warning"
-            className="border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300"
+            className="border-warning-soft bg-warning-soft px-2.5 py-1 text-xs text-warning"
           >
             Coming back after safety review
           </Badge>
@@ -41,11 +41,11 @@ export const BackupsPage = () => {
       </div>
 
       {/* Safety Freeze Callout */}
-      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-        <Lock className="h-5 w-5 shrink-0 text-amber-400" />
+      <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
+        <Lock className="h-5 w-5 shrink-0 text-warning" />
         <div>
           <span className="font-bold">Coming back after safety review (T-01, T-19):</span>
-          <p className="mt-0.5 text-amber-300/80">
+          <p className="mt-0.5 text-warning">
             Database dump and environment archiving features are temporarily frozen while shell-free
             argv streaming pipelines, destination validation, and strict 0600 atomic file creation
             are put in place.
@@ -54,11 +54,11 @@ export const BackupsPage = () => {
       </div>
 
       {/* Security Callout Banner */}
-      <div className="flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-200">
-        <Lock className="h-5 w-5 shrink-0 text-emerald-400" />
+      <div className="flex items-start gap-3 rounded-lg border border-success-soft bg-success-soft p-4 text-xs text-success">
+        <Lock className="h-5 w-5 shrink-0 text-success" />
         <div>
           <span className="font-bold">Zero-Remote-Persistence Security:</span>
-          <p className="mt-0.5 text-emerald-300/80">
+          <p className="mt-0.5 text-success">
             When backing up remote servers, database dumps are streamed directly through the
             encrypted SSH pipeline into local storage. Dump files are never written to the remote
             filesystem, preventing leakage on shared servers. Locally created archives are locked to
@@ -72,7 +72,7 @@ export const BackupsPage = () => {
       <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">
         <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-fg">
-            <FolderArchive className="h-4 w-4 text-emerald-400" />
+            <FolderArchive className="h-4 w-4 text-success" />
             Backup Archives ({backups.length})
           </div>
           <Button variant="ghost" size="sm" onClick={() => refetch()}>
@@ -82,7 +82,7 @@ export const BackupsPage = () => {
 
         <table className="w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="text-muted-fg border-b border-border bg-muted/40 font-semibold">
+            <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
               <th className="px-4 py-3">Source & Name</th>
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Target Path</th>
@@ -95,13 +95,13 @@ export const BackupsPage = () => {
           <tbody className="divide-y divide-border">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="text-muted-fg px-4 py-8 text-center">
+                <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
                   Loading backup history...
                 </td>
               </tr>
             ) : backups.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-muted-fg px-4 py-8 text-center">
+                <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
                   No backup archives created yet. Use the buttons above to create your first backup.
                 </td>
               </tr>
@@ -110,7 +110,7 @@ export const BackupsPage = () => {
                 <tr key={bk.id} className="transition-colors hover:bg-muted/20">
                   <td className="px-4 py-3">
                     <div className="font-semibold text-fg">{bk.source_name}</div>
-                    <div className="text-muted-fg font-mono text-[10px]">{bk.id}</div>
+                    <div className="font-mono text-[10px] text-fg-muted">{bk.id}</div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant="neutral" className="text-[10px] uppercase">
@@ -118,13 +118,13 @@ export const BackupsPage = () => {
                     </Badge>
                   </td>
                   <td
-                    className="text-muted-fg max-w-xs truncate px-4 py-3 font-mono text-[11px]"
+                    className="max-w-xs truncate px-4 py-3 font-mono text-[11px] text-fg-muted"
                     title={bk.target_file}
                   >
                     {bk.target_file}
                   </td>
                   <td className="px-4 py-3 font-mono text-fg">{formatBytes(bk.size_bytes)}</td>
-                  <td className="text-muted-fg px-4 py-3">
+                  <td className="px-4 py-3 text-fg-muted">
                     {new Date(bk.created_at * 1000).toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
@@ -140,7 +140,7 @@ export const BackupsPage = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteBackupMutation.mutate(bk.id)}
-                      className="text-muted-fg hover:text-destructive"
+                      className="text-fg-muted hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

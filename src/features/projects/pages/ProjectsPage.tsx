@@ -39,22 +39,22 @@ export function ProjectsPage() {
   };
 
   return (
-    <div className="bg-surface-base text-text-primary flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-canvas text-fg">
       {/* Top Banner */}
-      <div className="border-border-subtle bg-surface-elevated space-y-4 border-b p-6">
+      <div className="space-y-4 border-b border-border bg-card p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info">
               <FolderGit2 className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold tracking-tight">Projects & Workspaces</h1>
-                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
+                <span className="rounded-full border border-info-soft bg-info-soft px-2 py-0.5 text-xs font-medium text-info">
                   {projects.length} detected
                 </span>
               </div>
-              <p className="text-text-muted mt-0.5 text-xs">
+              <p className="mt-0.5 text-xs text-fg-muted">
                 Local git status, fullstack workspaces, dependencies, and saved terminal workflows.
               </p>
             </div>
@@ -62,20 +62,20 @@ export function ProjectsPage() {
 
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="text-text-muted absolute top-2.5 left-2.5 h-3.5 w-3.5" />
+              <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
               <input
                 type="text"
                 placeholder="Search projects by name, path, branch..."
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="bg-surface-subtle border-border-subtle text-text-primary w-72 rounded-lg border py-1.5 pr-3 pl-8 text-xs focus:outline-none"
+                className="w-72 rounded-lg border border-border bg-muted py-1.5 pr-3 pl-8 text-xs text-fg focus:outline-none"
               />
             </div>
             <button
               type="button"
               onClick={() => refetch()}
               disabled={isLoading}
-              className="bg-surface-subtle hover:bg-surface-base border-border-subtle text-text-primary flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-fg transition-colors hover:bg-canvas"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               Rescan
@@ -85,23 +85,23 @@ export function ProjectsPage() {
 
         {/* Quick Workspaces Bar */}
         {workspaces.length > 0 && (
-          <div className="bg-surface-subtle/50 border-border-subtle flex items-center justify-between rounded-xl border p-3">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/50 p-3">
             <div className="flex items-center gap-2 text-xs">
-              <Layers className="h-4 w-4 text-purple-400" />
-              <span className="text-text-primary font-semibold">Configured Workspaces:</span>
+              <Layers className="h-4 w-4 text-info" />
+              <span className="font-semibold text-fg">Configured Workspaces:</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {workspaces.map((ws) => (
                 <div
                   key={ws.id}
-                  className="bg-surface-elevated border-border-subtle flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs"
+                  className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs"
                 >
                   <span className="font-medium">{ws.name}</span>
                   <button
                     type="button"
                     title="Start workspace"
                     onClick={() => startWorkspace.mutate(ws.id)}
-                    className="p-1 text-zinc-400 transition-colors hover:text-emerald-400"
+                    className="p-1 text-muted-foreground transition-colors hover:text-success"
                   >
                     <Play className="h-3 w-3 fill-current" />
                   </button>
@@ -109,7 +109,7 @@ export function ProjectsPage() {
                     type="button"
                     title="Stop workspace"
                     onClick={() => stopWorkspace.mutate(ws.id)}
-                    className="p-1 text-zinc-400 transition-colors hover:text-amber-400"
+                    className="p-1 text-muted-foreground transition-colors hover:text-warning"
                   >
                     <Square className="h-3 w-3 fill-current" />
                   </button>
@@ -123,15 +123,15 @@ export function ProjectsPage() {
       {/* Projects Grid */}
       <div className="flex-1 overflow-y-auto p-6">
         {isLoading ? (
-          <div className="text-text-muted flex items-center justify-center py-24 text-xs">
+          <div className="flex items-center justify-center py-24 text-xs text-fg-muted">
             Discovering git projects under configured roots...
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center space-y-3 py-24 text-center">
-            <FolderGit2 className="h-12 w-12 text-zinc-600" />
+            <FolderGit2 className="h-12 w-12 text-muted-foreground" />
             <div className="space-y-1">
-              <h3 className="text-text-primary text-sm font-medium">No Projects Found</h3>
-              <p className="text-text-muted max-w-sm text-xs">
+              <h3 className="text-sm font-medium text-fg">No Projects Found</h3>
+              <p className="max-w-sm text-xs text-fg-muted">
                 No git projects with manifest files found under your project roots. Configure
                 project roots in Settings → Mac Clean.
               </p>

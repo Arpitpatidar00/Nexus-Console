@@ -21,7 +21,7 @@ export const Sidebar = () => {
           work normally, only this element's own background + non-interactive
           children become drag handles. */}
       <div data-tauri-drag-region="deep" className="flex items-center gap-3 px-2 pt-8">
-        <div className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-xl text-accent">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ember-soft text-ember-text">
           <Boxes className="h-5 w-5" />
         </div>
         <div>
@@ -41,7 +41,7 @@ export const Sidebar = () => {
               aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive ? 'text-accent' : 'text-fg-muted hover:bg-list hover:text-fg',
+                isActive ? 'text-ember-text' : 'text-fg-muted hover:bg-list hover:text-fg',
               )}
             >
               {/* Shared-layout pill glides between items on selection. */}
@@ -49,7 +49,7 @@ export const Sidebar = () => {
                 <motion.span
                   aria-hidden
                   layoutId="sidebar-active"
-                  className="bg-accent-soft absolute inset-0 rounded-lg"
+                  className="absolute inset-0 rounded-lg bg-ember-soft"
                   transition={
                     reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }
                   }

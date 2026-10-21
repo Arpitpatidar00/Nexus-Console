@@ -58,7 +58,7 @@ export const DomainsPage = () => {
             onClick={() => setActiveTab('inspector')}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'inspector'
-                ? 'bg-accent-soft font-semibold text-accent shadow-xs'
+                ? 'bg-ember-soft font-semibold text-ember-text shadow-xs'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
@@ -70,7 +70,7 @@ export const DomainsPage = () => {
             onClick={() => setActiveTab('uptime')}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === 'uptime'
-                ? 'bg-accent-soft font-semibold text-accent shadow-xs'
+                ? 'bg-ember-soft font-semibold text-ember-text shadow-xs'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
@@ -94,7 +94,7 @@ export const DomainsPage = () => {
                 placeholder="Domain name (e.g. example.com or api.stripe.com)"
                 value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
-                className="w-full rounded-lg border border-border bg-black/10 py-1.5 pr-3 pl-9 text-xs text-fg focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-border bg-black/10 py-1.5 pr-3 pl-9 text-xs text-fg focus:border-ember focus:outline-none"
               />
             </div>
 
@@ -126,7 +126,7 @@ export const DomainsPage = () => {
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
                   {ssl?.valid ? (
-                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                    <ShieldCheck className="h-4 w-4 text-success" />
                   ) : (
                     <ShieldAlert className="h-4 w-4 text-danger" />
                   )}
@@ -183,7 +183,7 @@ export const DomainsPage = () => {
             <div className="flex flex-col rounded-xl border border-border bg-paper p-4 shadow-xs">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-accent" />
+                  <Clock className="h-4 w-4 text-ember-text" />
                   <span className="text-xs font-semibold text-fg">Domain Registration (RDAP)</span>
                 </div>
               </div>
@@ -264,7 +264,7 @@ export const DomainsPage = () => {
             <div className="col-span-2 flex flex-col rounded-xl border border-border bg-paper p-4 shadow-xs">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-accent" />
+                  <Radio className="h-4 w-4 text-ember-text" />
                   <span className="text-xs font-semibold text-fg">
                     Multi-Resolver Propagation Check
                   </span>
@@ -302,10 +302,10 @@ export const DomainsPage = () => {
       ) : (
         /* Uptime Monitors View - Frozen */
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
+          <div className="flex items-start gap-3 rounded-xl border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
             <div>
               <span className="font-bold">Coming back after safety review (T-14):</span>
-              <p className="mt-0.5 text-amber-300/80">
+              <p className="mt-0.5 text-warning">
                 Uptime monitoring is temporarily frozen while real background periodic scheduling
                 and native system notifications are implemented in Phase B.
               </p>

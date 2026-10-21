@@ -1,0 +1,18 @@
+notBefore=Sep 26 22:49:11 2026 GMT
+notAfter=Dec 25 22:56:35 2026 GMT
+issuer=C=US, O=SSL Corporation, CN=Cloudflare TLS Issuing ECC CA 3
+subject=CN=example.com
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            01:ee:e6:aa:bb:52:1d:5e:14:fc:31:5f:d9:98:56:90
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: C=US, O=SSL Corporation, CN=Cloudflare TLS Issuing ECC CA 3
+        Validity
+            Not Before: Sep 26 22:49:11 2026 GMT
+            Not After : Dec 25 22:56:35 2026 GMT
+        Subject: CN=example.com
+        X509v3 extensions:
+            X509v3 Subject Alternative Name: 
+                DNS:example.com, DNS:*.example.com

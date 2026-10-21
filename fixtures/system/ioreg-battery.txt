@@ -1,0 +1,7 @@
+  |   "MaxCapacity" = 100
+  |   "CurrentCapacity" = 58
+  |   "CycleCount" = 822
+  |   "ExternalConnected" = No
+  |   "IsCharging" = No
+  |   "Voltage" = 11601
+  |   "TimeRemaining" = 266

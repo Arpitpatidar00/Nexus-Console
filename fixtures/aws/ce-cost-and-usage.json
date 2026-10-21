@@ -1,0 +1,41 @@
+{
+  "ResultsByTime": [
+    {
+      "TimePeriod": {
+        "Start": "2026-10-01",
+        "End": "2026-10-21"
+      },
+      "Total": {},
+      "Groups": [
+        {
+          "Keys": ["Amazon Elastic Compute Cloud - Compute"],
+          "Metrics": {
+            "UnblendedCost": {
+              "Amount": "42.85",
+              "Unit": "USD"
+            }
+          }
+        },
+        {
+          "Keys": ["Amazon Simple Storage Service"],
+          "Metrics": {
+            "UnblendedCost": {
+              "Amount": "5.40",
+              "Unit": "USD"
+            }
+          }
+        },
+        {
+          "Keys": ["Amazon Relational Database Service"],
+          "Metrics": {
+            "UnblendedCost": {
+              "Amount": "28.15",
+              "Unit": "USD"
+            }
+          }
+        }
+      ],
+      "Estimated": false
+    }
+  ]
+}

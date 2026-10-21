@@ -17,20 +17,10 @@ pub struct AndroidAvd {
     pub running: bool,
 }
 
-pub fn list_ios_simulators() -> AppResult<Vec<IosSimulator>> {
-    let out = Command::new("xcrun")
-        .args(["simctl", "list", "devices", "--json"])
-        .output();
-
-    let output = match out {
-        Ok(o) if o.status.success() => o,
-        _ => return Ok(vec![]),
-    };
-
-    let text = String::from_utf8_lossy(&output.stdout);
-    let val: serde_json::Value = match serde_json::from_str(&text) {
+pub fn parse_simctl_json(text: &str) -> Vec<IosSimulator> {
+    let val: serde_json::Value = match serde_json::from_str(text) {
         Ok(v) => v,
-        Err(_) => return Ok(vec![]),
+        Err(_) => return vec![],
     };
 
     let mut result = Vec::new();
@@ -77,7 +67,21 @@ pub fn list_ios_simulators() -> AppResult<Vec<IosSimulator>> {
         }
     }
 
-    Ok(result)
+    result
+}
+
+pub fn list_ios_simulators() -> AppResult<Vec<IosSimulator>> {
+    let out = Command::new("xcrun")
+        .args(["simctl", "list", "devices", "--json"])
+        .output();
+
+    let output = match out {
+        Ok(o) if o.status.success() => o,
+        _ => return Ok(vec![]),
+    };
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    Ok(parse_simctl_json(&text))
 }
 
 pub fn control_ios_simulator(udid: &str, action: &str) -> AppResult<String> {
@@ -129,24 +133,30 @@ pub fn control_ios_simulator(udid: &str, action: &str) -> AppResult<String> {
     }
 }
 
+pub fn parse_emulator_avds(text: &str) -> Vec<AndroidAvd> {
+    let mut avds = Vec::new();
+    for line in text.lines() {
+        let name = line.trim();
+        if !name.is_empty() {
+            avds.push(AndroidAvd {
+                name: name.to_string(),
+                running: false,
+            });
+        }
+    }
+    avds
+}
+
 pub fn list_android_avds() -> AppResult<Vec<AndroidAvd>> {
     let out = Command::new("emulator").arg("-list-avds").output();
 
-    let mut avds = Vec::new();
-    if let Ok(o) = out {
-        if o.status.success() {
+    let mut avds = match out {
+        Ok(o) if o.status.success() => {
             let text = String::from_utf8_lossy(&o.stdout);
-            for line in text.lines() {
-                let name = line.trim();
-                if !name.is_empty() {
-                    avds.push(AndroidAvd {
-                        name: name.to_string(),
-                        running: false,
-                    });
-                }
-            }
+            parse_emulator_avds(&text)
         }
-    }
+        _ => Vec::new(),
+    };
 
     if let Ok(adb_out) = Command::new("adb").arg("devices").output() {
         if adb_out.status.success() {
@@ -174,12 +184,14 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "machine-dependent"]
     fn test_list_ios_simulators_returns_vec() {
         let res = list_ios_simulators();
         assert!(res.is_ok());
     }
 
     #[test]
+    #[ignore = "machine-dependent"]
     fn test_list_android_avds_returns_vec() {
         let res = list_android_avds();
         assert!(res.is_ok());

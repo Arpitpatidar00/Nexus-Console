@@ -87,14 +87,7 @@ pub struct EnergyReport {
     pub unplugged_suggestion: Option<UnpluggedSuggestion>,
 }
 
-/// Reads current power source via `pmset -g batt`.
-pub fn read_power_source() -> (String, bool, Option<u8>) {
-    let out = Command::new("pmset").args(["-g", "batt"]).output();
-    let Ok(out) = out else {
-        return ("ac".to_string(), false, None);
-    };
-    let text = String::from_utf8_lossy(&out.stdout);
-
+pub fn parse_pmset_batt(text: &str) -> (String, bool, Option<u8>) {
     let power_source = if text.contains("'Battery Power'") {
         "battery".to_string()
     } else {
@@ -114,6 +107,16 @@ pub fn read_power_source() -> (String, bool, Option<u8>) {
     }
 
     (power_source, is_charging, percent)
+}
+
+/// Reads current power source via `pmset -g batt`.
+pub fn read_power_source() -> (String, bool, Option<u8>) {
+    let out = Command::new("pmset").args(["-g", "batt"]).output();
+    let Ok(out) = out else {
+        return ("ac".to_string(), false, None);
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    parse_pmset_batt(&text)
 }
 
 fn classify_process_category(comm: &str) -> &'static str {

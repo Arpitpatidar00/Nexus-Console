@@ -1,0 +1,12 @@
+[
+  {
+    "Name": "stackroost-dev",
+    "Status": "running(3)",
+    "ConfigFiles": "/Users/me/Desktop/Stackroost/docker-compose.yml"
+  },
+  {
+    "Name": "analytics-stack",
+    "Status": "exited(1)",
+    "ConfigFiles": "/Users/me/Projects/analytics/docker-compose.yml"
+  }
+]

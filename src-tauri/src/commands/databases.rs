@@ -183,17 +183,10 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                 );
 
                 if let Ok(o) = out {
-                    for line in String::from_utf8_lossy(&o.stdout).lines() {
-                        let name = line.trim();
-                        if !name.is_empty() {
-                            tables.push(TableSummary {
-                                name: name.to_string(),
-                                schema: "public".to_string(),
-                                estimated_rows: 0,
-                                size_pretty: "—".to_string(),
-                            });
-                        }
-                    }
+                    tables = crate::services::databases::parse_psql_tables(
+                        &String::from_utf8_lossy(&o.stdout),
+                        "public",
+                    );
                 }
             }
             "mysql" => {
@@ -222,16 +215,10 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                 );
 
                 if let Ok(o) = out {
-                    for (i, line) in String::from_utf8_lossy(&o.stdout).lines().enumerate() {
-                        if i > 0 && !line.trim().is_empty() {
-                            tables.push(TableSummary {
-                                name: line.trim().to_string(),
-                                schema: db.to_string(),
-                                estimated_rows: 0,
-                                size_pretty: "—".to_string(),
-                            });
-                        }
-                    }
+                    tables = crate::services::databases::parse_mysql_tables(
+                        &String::from_utf8_lossy(&o.stdout),
+                        db,
+                    );
                 }
             }
             _ => {}

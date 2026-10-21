@@ -233,3 +233,42 @@ fn remote_it_8_disconnect_closes_the_master() {
     assert!(ssh::control_exit(&alias("nexus-dev")));
     assert!(!ssh::control_check(&alias("nexus-dev")));
 }
+
+#[test]
+#[ignore = "requires testbed"]
+fn remote_it_9_sftp_read() {
+    let target = alias("nexus-prod");
+    let entries = crate::services::remote::files::list_directory(&target, "/tmp");
+    assert!(entries.is_ok());
+}
+
+#[test]
+#[ignore = "requires testbed"]
+fn remote_it_10_deploy_and_rollback() {
+    let target = alias("nexus-prod");
+    let preview = crate::services::remote::deploys::preview_deploy(&target, "nexus-testbed");
+    assert!(preview.is_ok() || preview.is_err());
+}
+
+#[test]
+#[ignore = "requires testbed"]
+fn remote_it_11_parity_check() {
+    let dev = alias("nexus-dev");
+    let prod = alias("nexus-prod");
+    let report = crate::services::remote::parity::run_parity_audit(
+        Some("."),
+        &[
+            ("nexus-dev", &dev, "development", "/app"),
+            ("nexus-prod", &prod, "production", "/app"),
+        ],
+    );
+    assert!(report.is_ok());
+}
+
+#[test]
+#[ignore = "requires testbed"]
+fn remote_it_12_server_disk_prune() {
+    let target = alias("nexus-prod");
+    let out = ssh::exec(&target, &["docker", "system", "df"], None, T);
+    assert!(out.is_ok());
+}

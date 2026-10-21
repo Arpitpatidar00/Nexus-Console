@@ -1,0 +1,40 @@
+[
+  {
+    "ID": "abc123def456",
+    "Name": "stackroost-dev-web-1",
+    "Command": "npm start",
+    "Project": "stackroost-dev",
+    "Service": "web",
+    "State": "running",
+    "Status": "Up 4 hours (healthy)",
+    "Health": "healthy",
+    "ExitCode": 0,
+    "Publishers": [
+      {
+        "URL": "0.0.0.0",
+        "TargetPort": 3000,
+        "PublishedPort": 3000,
+        "Protocol": "tcp"
+      }
+    ]
+  },
+  {
+    "ID": "789012abcdef",
+    "Name": "stackroost-dev-db-1",
+    "Command": "docker-entrypoint.sh postgres",
+    "Project": "stackroost-dev",
+    "Service": "db",
+    "State": "running",
+    "Status": "Up 4 hours",
+    "Health": "",
+    "ExitCode": 0,
+    "Publishers": [
+      {
+        "URL": "127.0.0.1",
+        "TargetPort": 5432,
+        "PublishedPort": 5432,
+        "Protocol": "tcp"
+      }
+    ]
+  }
+]

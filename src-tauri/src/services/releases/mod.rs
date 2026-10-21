@@ -13,6 +13,56 @@ pub struct ProjectReleaseConfig {
     pub build_number: Option<String>,
 }
 
+pub fn parse_pubspec_version(content: &str) -> (Option<String>, Option<String>) {
+    for line in content.lines() {
+        if line.starts_with("version:") {
+            let raw = line.trim_start_matches("version:").trim();
+            let clean = raw.split('#').next().unwrap_or("").trim();
+            let parts: Vec<&str> = clean.split('+').collect();
+            let ver = if !parts.is_empty() && !parts[0].trim().is_empty() {
+                Some(parts[0].trim().to_string())
+            } else {
+                None
+            };
+            let build = if parts.len() > 1 && !parts[1].trim().is_empty() {
+                Some(parts[1].trim().to_string())
+            } else {
+                None
+            };
+            return (ver, build);
+        }
+    }
+    (None, None)
+}
+
+pub fn parse_package_json_version(content: &str) -> Option<String> {
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(content) {
+        val.get("version")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string())
+    } else {
+        None
+    }
+}
+
+pub fn parse_fastfile_lanes(content: &str) -> Vec<String> {
+    let mut lanes = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("lane :") {
+            let lane_name = rest
+                .split_whitespace()
+                .next()
+                .unwrap_or_default()
+                .trim_matches(':');
+            if !lane_name.is_empty() && !lanes.contains(&lane_name.to_string()) {
+                lanes.push(lane_name.to_string());
+            }
+        }
+    }
+    lanes
+}
+
 pub fn detect_release_configs(project_path: &str) -> AppResult<ProjectReleaseConfig> {
     let p = Path::new(project_path);
     let mut platform = "generic".to_string();
@@ -24,22 +74,9 @@ pub fn detect_release_configs(project_path: &str) -> AppResult<ProjectReleaseCon
     if p.join("pubspec.yaml").exists() {
         platform = "flutter".to_string();
         if let Ok(content) = fs::read_to_string(p.join("pubspec.yaml")) {
-            for line in content.lines() {
-                if line.starts_with("version:") {
-                    let parts: Vec<&str> = line
-                        .trim_start_matches("version:")
-                        .trim()
-                        .split('+')
-                        .collect();
-                    if !parts.is_empty() {
-                        version_name = Some(parts[0].to_string());
-                    }
-                    if parts.len() > 1 {
-                        build_number = Some(parts[1].to_string());
-                    }
-                    break;
-                }
-            }
+            let (v, b) = parse_pubspec_version(&content);
+            version_name = v;
+            build_number = b;
         }
     } else if p.join("package.json").exists() {
         platform = if p.join("android").exists() || p.join("ios").exists() {
@@ -48,11 +85,7 @@ pub fn detect_release_configs(project_path: &str) -> AppResult<ProjectReleaseCon
             "node".to_string()
         };
         if let Ok(content) = fs::read_to_string(p.join("package.json")) {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(v) = val.get("version").and_then(|s| s.as_str()) {
-                    version_name = Some(v.to_string());
-                }
-            }
+            version_name = parse_package_json_version(&content);
         }
     } else if p.join("ios").exists() || p.join("Podfile").exists() {
         platform = "ios".to_string();
@@ -70,19 +103,7 @@ pub fn detect_release_configs(project_path: &str) -> AppResult<ProjectReleaseCon
         if candidate.exists() {
             has_fastlane = true;
             if let Ok(content) = fs::read_to_string(candidate) {
-                for line in content.lines() {
-                    let trimmed = line.trim();
-                    if let Some(rest) = trimmed.strip_prefix("lane :") {
-                        let lane_name = rest
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or_default()
-                            .trim_matches(':');
-                        if !lane_name.is_empty() {
-                            lanes.push(lane_name.to_string());
-                        }
-                    }
-                }
+                lanes = parse_fastfile_lanes(&content);
             }
             break;
         }

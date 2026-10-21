@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:remote": "sh scripts/remote-testbed/testbed.sh test",
+    "test:machine": "cargo test --manifest-path src-tauri/Cargo.toml -- --ignored",
     "tauri": "tauri"
   },
   "dependencies": {

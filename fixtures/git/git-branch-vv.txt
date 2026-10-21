@@ -1,0 +1,6 @@
+  feat/mac-clean                  8c3d181 fix(build): align @tauri-apps/api
+  feat/remote-servers             051abc8 feat(remote): P7 background health
+  fix/audit-A-safety              e7108ab feat(audit): complete Phase A safety
+  fix/audit-B-truth               82745f1 feat(audit): complete Phase B truth
+* fix/audit-C-tests               82745f1 [ahead 1] feat(audit): complete Phase B
+  main                            3b67fca [origin/main: behind 22] ci: add GitHub Actions

@@ -144,7 +144,7 @@ fn sh_any(cmd: &str, args: &[&str]) -> Option<String> {
 
 // --- low_power_mode ----------------------------------------------------------
 
-fn parse_low_power(pmset_g: &str) -> Option<bool> {
+pub fn parse_low_power(pmset_g: &str) -> Option<bool> {
     let line = pmset_g.lines().find(|l| l.contains("lowpowermode"))?;
     line.split_whitespace().last().map(|v| v == "1")
 }

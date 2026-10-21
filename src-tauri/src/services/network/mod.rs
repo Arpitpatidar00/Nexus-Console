@@ -81,6 +81,10 @@ pub fn get_per_app_bandwidth() -> AppResult<Vec<ProcessBandwidth>> {
         .map_err(|e| AppError::Io(format!("nettop failed: {e}")))?;
 
     let stdout = String::from_utf8_lossy(&out.stdout);
+    Ok(parse_nettop_output(&stdout))
+}
+
+pub fn parse_nettop_output(stdout: &str) -> Vec<ProcessBandwidth> {
     let mut list = Vec::new();
 
     for line in stdout.lines().skip(1) {
@@ -112,7 +116,7 @@ pub fn get_per_app_bandwidth() -> AppResult<Vec<ProcessBandwidth>> {
 
     list.sort_by_key(|a| std::cmp::Reverse(a.bytes_in + a.bytes_out));
     list.truncate(50);
-    Ok(list)
+    list
 }
 
 pub mod hosts;

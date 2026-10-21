@@ -95,8 +95,16 @@ pub fn lookup_dns(domain: &str, record_type: &str) -> AppResult<DnsLookupResult>
         .map_err(|e| AppError::Io(format!("failed to run dig: {e}")))?;
 
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let mut records = Vec::new();
+    let records = parse_dig_records(&stdout);
 
+    Ok(DnsLookupResult {
+        domain: clean_domain,
+        records,
+    })
+}
+
+pub fn parse_dig_records(stdout: &str) -> Vec<DnsRecord> {
+    let mut records = Vec::new();
     for line in stdout.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with(';') {
@@ -116,11 +124,7 @@ pub fn lookup_dns(domain: &str, record_type: &str) -> AppResult<DnsLookupResult>
             });
         }
     }
-
-    Ok(DnsLookupResult {
-        domain: clean_domain,
-        records,
-    })
+    records
 }
 
 pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
@@ -168,9 +172,13 @@ pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
     let _ = s_client.wait();
 
     let text = String::from_utf8_lossy(&x509_out.stdout);
+    Ok(parse_ssl_cert_text(&text, &clean_domain))
+}
+
+pub fn parse_ssl_cert_text(text: &str, clean_domain: &str) -> SslCertResult {
     if text.trim().is_empty() {
-        return Ok(SslCertResult {
-            domain: clean_domain,
+        return SslCertResult {
+            domain: clean_domain.to_string(),
             valid: false,
             issuer: String::new(),
             subject: String::new(),
@@ -179,7 +187,7 @@ pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
             days_remaining: 0,
             sans: Vec::new(),
             error: Some("Could not establish TLS connection or retrieve certificate".into()),
-        });
+        };
     }
 
     let mut not_before = String::new();
@@ -223,8 +231,8 @@ pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
     let days_remaining = calculate_days_remaining(&not_after);
     let valid = days_remaining > 0;
 
-    Ok(SslCertResult {
-        domain: clean_domain,
+    SslCertResult {
+        domain: clean_domain.to_string(),
         valid,
         issuer,
         subject,
@@ -233,7 +241,7 @@ pub fn check_ssl(domain: &str, port: u16) -> AppResult<SslCertResult> {
         days_remaining,
         sans,
         error: None,
-    })
+    }
 }
 
 /// Convert Howard Hinnant algorithm from civil calendar to unix epoch days.
@@ -297,29 +305,20 @@ fn calculate_days_remaining(not_after: &str) -> i64 {
     }
 }
 
-pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
-    let clean_domain = sanitize_domain(domain)?;
-    let url = format!("https://rdap.org/domain/{clean_domain}");
-
-    let out = Command::new("/usr/bin/curl")
-        .args(["-sL", "-A", "Stackroost/0.1.0", "-m", "6", &url])
-        .output()
-        .map_err(|e| AppError::Io(format!("curl failed: {e}")))?;
-
-    let text = String::from_utf8_lossy(&out.stdout);
+pub fn parse_rdap_json(text: &str, clean_domain: &str) -> RdapResult {
     if text.trim().is_empty() || text.starts_with("<!DOCTYPE") || text.contains("404 Not Found") {
-        return Ok(RdapResult {
-            domain: clean_domain,
+        return RdapResult {
+            domain: clean_domain.to_string(),
             registrar: None,
             expiration_date: None,
             created_date: None,
             updated_date: None,
             status: Vec::new(),
             error: Some("Domain RDAP record not found or lookup timed out".into()),
-        });
+        };
     }
 
-    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
         let mut registrar = None;
         let mut expiration_date = None;
         let mut created_date = None;
@@ -382,26 +381,55 @@ pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
             }
         }
 
-        return Ok(RdapResult {
-            domain: clean_domain,
+        return RdapResult {
+            domain: clean_domain.to_string(),
             registrar,
             expiration_date,
             created_date,
             updated_date,
             status,
             error: None,
-        });
+        };
     }
 
-    Ok(RdapResult {
-        domain: clean_domain,
+    RdapResult {
+        domain: clean_domain.to_string(),
         registrar: None,
         expiration_date: None,
         created_date: None,
         updated_date: None,
         status: Vec::new(),
         error: Some("Could not parse RDAP JSON response".into()),
-    })
+    }
+}
+
+pub fn check_rdap(domain: &str) -> AppResult<RdapResult> {
+    let clean_domain = sanitize_domain(domain)?;
+    let url = format!("https://rdap.org/domain/{clean_domain}");
+
+    let out = crate::core::exec::run(
+        "curl",
+        &["-sL", "-A", "Stackroost/0.1.0", "-m", "6", &url],
+        crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(7)),
+    )
+    .map_err(|e| AppError::Io(format!("curl failed: {e}")))?;
+
+    let text = String::from_utf8_lossy(&out.stdout);
+    Ok(parse_rdap_json(&text, &clean_domain))
+}
+
+pub fn parse_dig_propagation_output(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .filter_map(|l| {
+            let parts: Vec<&str> = l.split_whitespace().collect();
+            if parts.len() >= 5 {
+                Some(parts[4..].join(" "))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 pub fn check_propagation(domain: &str, record_type: &str) -> AppResult<PropagationResult> {
@@ -441,17 +469,7 @@ pub fn check_propagation(domain: &str, record_type: &str) -> AppResult<Propagati
         let records = match out {
             Ok(o) => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
-                stdout
-                    .lines()
-                    .filter_map(|l| {
-                        let parts: Vec<&str> = l.split_whitespace().collect();
-                        if parts.len() >= 5 {
-                            Some(parts[4..].join(" "))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
+                parse_dig_propagation_output(&stdout)
             }
             Err(_) => Vec::new(),
         };

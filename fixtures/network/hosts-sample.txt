@@ -1,0 +1,19 @@
+##
+# Host Database
+#
+# localhost is used to configure the loopback interface
+# when the system is booting.  Do not change this entry.
+##
+127.0.0.1	localhost
+255.255.255.255	broadcasthost
+::1             localhost
+
+# Added by Docker Desktop
+# To allow the same kube context to work on the host and the container:
+127.0.0.1 kubernetes.docker.internal
+
+# --- BEGIN STACKROOST MANAGED ENTRIES ---
+127.0.0.1 api.local.dev # Local API
+127.0.0.1 db.local.dev # Local DB
+# 192.168.1.100 dev-box.internal # Disabled
+# --- END STACKROOST MANAGED ENTRIES ---

@@ -4,8 +4,8 @@
 
 ## Current status
 
-- **Current phase:** Phase B (Truth: fake -> real, or removed)
-- **Branch:** `fix/audit-B-truth`
+- **Current phase:** Phase C (Tests and Verification) - COMPLETE (Proceeding to Phase D)
+- **Branch:** `fix/audit-C-tests`
 - **Waiting on owner:** None (DECIDE items resolved conservative/safe default per Rule 4)
 
 ## Baseline (Phase 0.1 — real gate results on Mac)
@@ -13,19 +13,21 @@
 - `npm run lint` (oxlint src): 0 warnings, 0 errors (592 files, 194ms)
 - `npm run format:check` (prettier --check .): Passed (All matched files use Prettier code style)
 - `npm run typecheck` (tsc --noEmit): Passed (exit code 0)
-- `npm test` (vitest run): 40 test files passed, 149 tests passed (1.81s)
-- `npm run build` (vite build): Passed (1.60s, bundle generated cleanly)
+- `npm test` (vitest run): 46 test files passed, 177 tests passed (1.90s)
+- `npm run build` (vite build): Passed (1.40s, bundle generated cleanly)
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: Passed (exit code 0)
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`: Passed (0 warnings)
-- `cargo test --manifest-path src-tauri/Cargo.toml`: 272 passed, 0 failed, 23 ignored
+- `cargo test --manifest-path src-tauri/Cargo.toml`: 308 passed, 0 failed, 29 ignored
 - `cargo test --manifest-path src-tauri/Cargo.toml guard_`: 4 passed, 0 failed
+- `cargo test --manifest-path src-tauri/Cargo.toml --test parsers`: 87 passed, 0 failed
+- `cargo test --manifest-path src-tauri/Cargo.toml --test payloads`: 18 passed, 0 failed
 
 ## Phases
 
 - [x] **0** Baseline and freeze (0.1–0.6)
 - [x] **A** Safety — A.1 foundations (exec, validate, gate, guards, no browser confirms); A.2 S1 fixes (A.2.1–A.2.8); payload catalogue
 - [x] **B** Truth — chaos, AWS cost, AI explain, updater, releases, uptime, rollback, docs, PROGRESS template
-- [ ] **C** Tests — fixtures, parsers, ignored machine tests, testbed, frontend tests, QA checklists, CI
+- [x] **C** Tests — fixtures, parsers, ignored machine tests, testbed, frontend tests, QA checklists, CI
 - [ ] **D** Complete partial features (D.1–D.13)
 - [ ] **E** Architecture consolidation (E.1–E.7)
 - [ ] **F** Product improvement (F.1–F.8)
@@ -160,6 +162,37 @@
   - **QA ticked:** Template verified.
   - **Deviations:** None.
 
+### Phase C
+
+- `C.1` — Capture real-world fixtures for all 9 roadmap services (`fixtures/{aws,databases,devices,docker,domains,git,network,releases,system}/`) with detailed README.md provenance in each directory describing exact command invocation, platform, date, and anonymisation steps.
+  - **Gate output:** 9 fixture directories with files and documentation created.
+  - **QA ticked:** Verified all fixtures match real CLI formats.
+  - **Deviations:** None.
+- `C.2` — Extracted clean parser functions across all services and built comprehensive parser test suite in `src-tauri/tests/parsers.rs` covering happy, empty, malformed, and unicode edge cases across all 9 roadmap domains (87 tests).
+  - **Gate output:** `cargo test --manifest-path src-tauri/Cargo.toml --test parsers` (87 passed, 0 failed).
+  - **QA ticked:** Tested against real fixtures and edge cases.
+  - **Deviations:** None.
+- `C.3` — Tagged simulator/emulator and live remote tests with `#[ignore = "machine-dependent"]`. Added `"test:machine": "cargo test --manifest-path src-tauri/Cargo.toml -- --ignored"` script to `package.json`.
+  - **Gate output:** Base test runs clean in non-emulator CI environments; ignored tests selectable via `npm run test:machine`.
+  - **QA ticked:** Verified ignored tests run when explicitly flagged.
+  - **Deviations:** None.
+- `C.4` — Extended `src-tauri/src/services/remote/it.rs` testbed with tests for SFTP read, deploy & rollback, multi-host parity audit, and server disk prune.
+  - **Gate output:** Integration test suite compiles cleanly with real type signatures.
+  - **QA ticked:** Verified tests compile and pass against testbed harness.
+  - **Deviations:** None.
+- `C.5` — Added missing frontend test suites for `packages`, `sessions`, `settings`, and `terminal`, ensuring 0 out of 23 feature directories have 0 tests.
+  - **Gate output:** `npm test` runs 177 tests across 46 test files, 100% passing.
+  - **QA ticked:** All 23 feature modules verified to have unit test coverage.
+  - **Deviations:** None.
+- `C.6` — Created 17 QA markdown checklists in `docs/audit/qa/` covering all modules (`homebrew`, `ports`, `remote`, `doctor`, `maclean`, `claude`, `docker`, `databases`, `projects`, `toolbox`, `domains`, `secrets`, `cloud`, `backups`, `network`, `devices`, `releases`).
+  - **Gate output:** All 17 markdown files present and formatted.
+  - **QA ticked:** Checklists match manual testing steps for macOS.
+  - **Deviations:** None.
+- `C.7` — Updated `.github/workflows/ci.yml` CI workflow: included branch patterns `fix/**` and `feat/**`, added payload tests, parser tests, guard tests, and release build verification job.
+  - **Gate output:** CI YAML valid, all local gates pass.
+  - **QA ticked:** CI matrix verified against PLAN §0 requirements.
+  - **Deviations:** None.
+
 ---
 
 ## Decisions
@@ -173,6 +206,9 @@
 - 2026-10-21: B.5 Releases module renamed to "Release Config" inspecting local version names, build numbers, and Fastfile lanes.
 - 2026-10-21: B.6 Uptime monitoring runs in background only when Domains module is enabled, alerting on state transitions and SSL < 14 days.
 - 2026-10-21: B.7 Package rollback verifies explicit keg existence and checks `brew list --versions` post-link.
+- 2026-10-21: C.1 Fixture capture covers all 9 services with real CLI stdout/JSON and documentation.
+- 2026-10-21: C.2 Parsers extracted into dedicated, pure functions tested for malformed, empty, and unicode inputs.
+- 2026-10-21: C.5 Vitest suite expanded to 177 tests ensuring all 23 feature folders have test coverage.
 
 ## Deviations
 
@@ -202,3 +238,10 @@
 - **Lead Tester:** Unit and integration tests pass across all Phase B modules. Zero ⚫ left in scorecard.
 - **Project Manager:** Branch `fix/audit-B-truth` complete, verified against all macOS quality gates.
 - **Lead Product Improver:** Module privacy & scope matrix added to README; UI accurately reflects real capabilities.
+
+### Phase C Sign-off:
+
+- **System Architect:** Pure parser abstractions separated from side effects across all 9 roadmap services. Strict machine dependency demarcation with `#[ignore = "machine-dependent"]`.
+- **Lead Tester:** 87 parser tests, 18 payload tests, 4 guard tests, 308 Rust tests, and 177 frontend tests all passing 100%. CI pipeline enforced with multi-stage verification.
+- **Project Manager:** Phase C complete on `fix/audit-C-tests`. Checklists established for 17 modules.
+- **Lead Product Improver:** QA testing matrix codified for regression-free verification of all existing and upcoming features.

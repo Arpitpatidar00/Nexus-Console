@@ -144,7 +144,8 @@ pub fn parse_ec2_instances_json(stdout: &[u8], region: &str) -> AppResult<Vec<Ec
                             }
                             if (k.eq_ignore_ascii_case("env")
                                 || k.eq_ignore_ascii_case("environment"))
-                                && v.eq_ignore_ascii_case("prod")
+                                && (v.eq_ignore_ascii_case("prod")
+                                    || v.eq_ignore_ascii_case("production"))
                             {
                                 is_prod = true;
                             }

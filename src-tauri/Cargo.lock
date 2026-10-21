@@ -3425,6 +3425,7 @@ dependencies = [
  "blake3",
  "libc",
  "portable-pty",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3437,6 +3438,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-window-state",
  "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]

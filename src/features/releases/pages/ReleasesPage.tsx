@@ -23,11 +23,10 @@ export const ReleasesPage = () => {
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <Rocket className="h-6 w-6 text-pink-400" />
-            App Releases & Build Tracks
+            Release Config
           </h1>
           <p className="text-muted-fg mt-1 text-xs">
-            Fastlane release lanes, version numbers, and multi-track distribution (TestFlight, Play
-            Console).
+            Local Fastlane deployment lanes, version names, and build numbers.
           </p>
         </div>
 
@@ -143,16 +142,10 @@ export const ReleasesPage = () => {
         </table>
       </div>
 
-      {/* Release Checklist Matrix - Frozen (T-13) */}
-      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-        <div>
-          <span className="font-bold">Coming back after safety review (T-13):</span>
-          <p className="mt-0.5 text-amber-300/80">
-            Store release track inspection is temporarily hidden. In Phase B this module is renamed
-            to Release Config showing local versioning and Fastlane lanes only, without fake
-            TestFlight/Play tracks.
-          </p>
-        </div>
+      {/* Privacy & Scope Line */}
+      <div className="text-muted-fg flex items-center gap-2 rounded-lg border border-border bg-card/30 p-3 text-xs">
+        <span className="font-semibold text-fg">Privacy & Scope:</span> Reads local pubspec.yaml,
+        package.json, and Fastfiles only. No external store accounts or telemetry used.
       </div>
     </div>
   );

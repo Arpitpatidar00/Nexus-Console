@@ -12,3 +12,9 @@ export const explainResponseSchema = z.object({
   model: z.string(),
 });
 export type ExplainResponse = z.infer<typeof explainResponseSchema>;
+
+export const preparedPromptSchema = z.object({
+  prompt: z.string(),
+  notice: z.string(),
+});
+export type PreparedPrompt = z.infer<typeof preparedPromptSchema>;

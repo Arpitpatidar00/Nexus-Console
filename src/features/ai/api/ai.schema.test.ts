@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ollamaStatusSchema, explainResponseSchema } from './ai.schema';
+import { ollamaStatusSchema, explainResponseSchema, preparedPromptSchema } from './ai.schema';
 
 describe('ai schemas', () => {
   it('validates ollama status with local models', () => {
@@ -20,5 +20,14 @@ describe('ai schemas', () => {
     };
     const parsed = explainResponseSchema.parse(raw);
     expect(parsed.model).toBe('llama3.2:latest');
+  });
+
+  it('validates prepared prompt', () => {
+    const raw = {
+      prompt: 'Task: explain exit 137',
+      notice: 'This exact text will be sent to Ollama on this Mac',
+    };
+    const parsed = preparedPromptSchema.parse(raw);
+    expect(parsed.notice).toBe('This exact text will be sent to Ollama on this Mac');
   });
 });

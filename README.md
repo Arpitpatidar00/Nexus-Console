@@ -23,151 +23,64 @@ Built with Tauri 2 (Rust) + React 19 + Tailwind CSS. Runs on macOS 11 or newer.
 ## Why you'll like it
 
 - **Free, ad-free, and private.** No telemetry, no third-party tracking, no accounts.
-- **Light on resources.** Native Rust core, compact floating glass UI, sits in the menu bar.
+- **Native Rust core.** Every mutation is governed by an in-process native confirmation gate and journaled.
+- **Zero raw shell execution.** All child processes use strict argv execution with timeouts.
+- **Truthful metrics only.** No simulated or placeholder data; features either read real system state or are omitted.
 - **Pick what you need.** Turn modules on or off in Settings. The app hides what you don't use.
 
-## What's inside
+## Module Privacy & Scope Matrix
 
-The app is split into modular features. Each one is optional and configurable.
+Every module in Stackroost strictly declares what it reads, what it changes, and what network endpoints it sends data to:
 
-### Homebrew
+| Module               | Reads                                                                                           | Changes                                                                                              | Sends                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Homebrew**         | `brew list`, `brew services list`, formula versions in Cellar                                   | Starts/stops services, installs/uninstalls formulae (mutation gated)                                 | None (brew CLI manages mirror connections)                               |
+| **Ports**            | `lsof -iTCP -sTCP:LISTEN`, process metadata via `ps`, 127.0.0.1 HEAD probe                      | Terminate process (SIGTERM/SIGKILL) with native confirm                                              | None (loopback probe on 127.0.0.1 only)                                  |
+| **Servers**          | `~/.ssh/config`, Linux server state over OpenSSH (`/proc`, `docker`, `systemctl`)               | Remote container restart/deploy/rollback (mutation gated, journaled)                                 | OpenSSH connections to user-configured servers only                      |
+| **Doctor**           | Read-only machine inspection (disk, VSCode `state.vscdb`, browser caches)                       | User-confirmed maintenance (e.g. SQLite VACUUM, cache clearance)                                     | None                                                                     |
+| **Mac Clean**        | Directory sizes, `vm_stat`, `sysctl vm.swapusage`, `pmset`, `ioreg`                             | Clears selected developer caches (npm, pnpm, Xcode) with mutation gate                               | None                                                                     |
+| **Claude Chats**     | `~/.claude/projects/` chat session files                                                        | Archive, restore, or delete local chat logs (mutation gated)                                         | None                                                                     |
+| **Cloud AWS**        | `~/.aws/config`, `~/.aws/credentials`, EC2 instance state, Cost Explorer (on-demand click only) | EC2 instance start/stop/reboot (mutation gate + typed confirm for prod)                              | AWS API via official `aws` CLI                                           |
+| **Backups**          | Database schemas and tables via local/remote client; project `.env` files                       | Creates 0600 backup archives in app data directory                                                   | None (or over user SSH connection)                                       |
+| **Network & Chaos**  | `nettop` per-process bandwidth, `/etc/hosts`                                                    | Flush DNS (`dscacheutil`), edit managed `/etc/hosts` block (atomic temp file), Tokio TCP chaos proxy | None (chaos proxy binds to 127.0.0.1 only)                               |
+| **Domains & Uptime** | `dig` DNS records, `openssl s_client` SSL certs, RDAP registry                                  | Saves monitor configs; background pings                                                              | Outbound DNS, public RDAP, HTTP HEAD to user-monitored URLs              |
+| **Mobile Devices**   | `xcrun simctl list -j`, `emulator -list-avds`                                                   | Boots, shuts down, or launches local simulators and emulators                                        | None                                                                     |
+| **Release Config**   | `pubspec.yaml`, `package.json`, `fastlane/Fastfile`                                             | None (read-only configuration scanner)                                                               | None                                                                     |
+| **AI Explain**       | User-entered prompt and logs with secret pattern masking (AWS, Stripe, PATs, tokens)            | None                                                                                                 | HTTP strictly to local Ollama on `127.0.0.1:11434` (never external)      |
+| **Dev Toolbox**      | User input in client UI                                                                         | None (in-memory converters, regex tester, hash generator)                                            | None                                                                     |
+| **Secrets Scanner**  | Local git repositories and git commit history                                                   | None (read-only credential pattern scanner)                                                          | None                                                                     |
+| **App Updater**      | Compares `CARGO_PKG_VERSION` against GitHub Releases API (opt-in check)                         | None (opens browser to release download page)                                                        | `https://api.github.com/repos/Arpitpatidar00/Stackroost/releases/latest` |
 
-- **Services** shows every Homebrew service with its real state, so a service that says "started"
-  but is not actually healthy is marked as starting, not green. Start, stop and restart with one
-  click. Install, uninstall, search for new formulae and switch versions.
-- **Packages** lists everything you have installed and marks what is outdated. Upgrade one package
-  or all of them, run `brew update`, read package info, and see what depends on a package before
-  you remove it.
-- **Sessions** keeps a history of running service durations and startup states.
+## Getting Started
 
-### Ports
+### Prerequisites
 
-See which process is listening on which port, and kill stuck processes by PID. Force kill and admin
-escalation are available when a process will not terminate cleanly.
+- macOS 11 (Big Sur) or newer
+- Node.js ≥ 22.12 and npm
+- Rust toolchain (stable)
+- Xcode Command Line Tools (`xcode-select --install`)
 
-### Servers
-
-Manage your Linux servers over OpenSSH using your existing `~/.ssh/config` and local SSH keys:
-
-- **Health probes:** Real-time CPU, RAM, swap, load averages, uptime, and disk capacity.
-- **Docker & Compose:** Inspect running containers, health states, restart counts, and live logs.
-- **Systemd & PM2:** Monitor active system services, failed units, and Node.js process managers.
-- **Safety first:** Read-only by default. Destructive mutations require explicit confirmation.
-
-### Doctor
-
-Read-only health diagnosis for your Mac. It inspects disk state, VSCode caches, browsers, Claude
-Code, and Ollama, reporting actionable items under honest tags (`Speed`, `Storage`, `Info`). Probes
-only read; fixes only run when you confirm the action.
-
-### Mac Clean
-
-Understand where your disk space went and reclaim storage safely:
-
-- **Storage breakdown:** Visual drilldown into large directories, orphaned `node_modules`, and caches.
-- **Safe cache clean:** Clear dev caches (npm, pnpm, Gradle, HuggingFace, Xcode DerivedData).
-- **Memory & Swap:** Real-time RAM composition (wired, active, compressed) and swap pressure monitoring.
-
-### Claude Chats
-
-Browse your Claude Code chat history per project and export archives to clean JSON. This module
-only appears if Claude Code is installed on your Mac.
-
-### Cloud & AWS
-
-Inspect AWS profiles, monitor EC2 instance states with read-only inspection, and browse S3 buckets. _(EC2 lifecycle actions & Cost Explorer are temporarily frozen while being rebuilt for safety)._
-
-### Automated Backups
-
-_(Temporarily frozen while being rebuilt for safety)._ Automated database dumps and `.env` archiving are being rewritten with shell-free pipelines and atomic file permissions.
-
-### Network & Chaos Engineering
-
-Monitor live per-process bandwidth using macOS `nettop` and flush DNS caches (`dscacheutil`). _(/etc/hosts editor and TCP chaos proxy are temporarily frozen while being rebuilt for safety)._
-
-### Mobile Simulators & AVDs
-
-Discover, boot, shutdown, erase, and launch iOS Simulators (`xcrun simctl`) and Android Virtual Devices (`emulator -list-avds` & `adb`).
-
-### App Releases & Fastlane
-
-_(Temporarily frozen while being rebuilt for safety)._ Scan project release configurations and Fastlane lanes.
-
-### Local AI Assistant (Ollama)
-
-_(Temporarily frozen while being rebuilt for safety)._ Local Ollama integration is being overhauled with direct HTTP transport and selective pattern masking.
-
-### Dev Toolbox
-
-Offline utility converters: JSON formatter/validator, JWT decoder with expiry claim, Base64 & URL encoder/decoder, Timestamp & Date converter, UUID v4/v7 generator, Regex tester, Cron schedule explainer, Cryptographic Hashes (MD5, SHA-1, SHA-256), and Color format converter.
-
-### Domains & Uptime
-
-RDAP domain registration expiry checker, DNS records inspector (`dig`), SSL/TLS certificate validator with SANs inspection, and multi-resolver propagation checker. _(Uptime background monitoring is temporarily frozen while being rebuilt)._
-
-### Secrets Scanner
-
-Scan git-tracked source repositories for leaked credentials (AWS, Stripe, GitHub PATs, Slack, private keys) and unignored `.env` files with masked previews and zero telemetry.
-
-### Docker & Databases
-
-Manage local Docker runtime, containers, and compose stacks. Introspect Postgres, MySQL, SQLite, and MongoDB databases. _(Query editor and snapshot restore are temporarily frozen while being rebuilt for safety)._
-
-### Projects & Workspaces
-
-Git branch status inspector, 1-click merged branch cleanup, multi-project workspaces, and saved terminal command orchestration.
-
-### Mac Health & Doctor
-
-Ghost app leftover uninstaller, per-process Energy accounting (`proc_pid_rusage`), battery cycle health & thermal throttling monitor, 90-day storage trends, and BLAKE3-accelerated duplicate file finder.
-
-### Nexus Blueprint & Homebrew Pinning
-
-Export and import your entire Mac dev setup (Homebrew packages, taps, hosts entries, workspace configurations) into portable JSON blueprints. Pin packages (`brew pin`) and rollback Cellar keg versions.
-
-### Terminal
-
-An integrated multi-session PTY terminal drawer (supporting up to 8 concurrent sessions) with
-shortcuts to drop into local shell or remote SSH sessions directly.
-
-## Install and run
-
-On a fresh Mac, setup takes three commands:
+### Running locally
 
 ```bash
-git clone <this-repo> && cd Stackroost
-npm run setup           # checks Xcode CLT, brew, node 22+, rustup
-npm start               # runs the app in development
+# Setup verification
+npm run setup:check
+
+# Run dev mode (frontend + native Tauri app)
+npm start
+
+# Run test suites
+npm test
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-## Everyday commands
+## Security & Architecture Principles
 
-```bash
-npm start               # develop (Tauri + Vite)
-npm run release         # production build (.app and .dmg)
-npm test                # vitest unit tests
-npm run typecheck       # tsc --noEmit
-npm run lint            # oxlint
-npm run format          # prettier
-cargo test   --manifest-path src-tauri/Cargo.toml
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-```
-
-## Privacy
-
-Stackroost does not phone home, does not track you, and requires no external account.
-
-- **No telemetry or tracking:** No analytics, no crash reporting, no tracking beacons.
-- **Local-first data:** Settings, journals, and cache data are stored locally in your standard macOS Application Support folder.
-- **Exhaustive network destination directory:**
-  1. **Homebrew:** Package and bottle downloads via `brew` when you request an install or upgrade.
-  2. **Remote Linux servers:** Connected via `/usr/bin/ssh` strictly to hosts that **you explicitly configure** using your local SSH keys. Non-interactive background checks use OpenSSH `BatchMode`.
-  3. **Domain RDAP queries:** HTTPS requests to `https://rdap.org` when inspecting domain expiration in the Domains module.
-  4. **Public DNS resolvers:** Cloudflare (`1.1.1.1`), Google (`8.8.8.8`), and Quad9 (`9.9.9.9`) for DNS propagation checks.
-  5. **Update checks:** HTTPS requests to `https://api.github.com` for release checks.
-  6. **AWS APIs:** AWS CLI queries using your local AWS profiles when the Cloud module is actively used.
-  7. **Local Ollama:** Loopback HTTP (`127.0.0.1:11434`) only; zero external transmission.
+- **No Shell Interpolation (`core::exec`):** All commands run strictly as program + argv slice. Raw shell invocation (`sh -c`, `bash -c`) is forbidden and enforced by architecture guard tests (`guard_no_shell_commands`).
+- **Mutation Gate (`core::mutation`):** Every operation that writes, modifies, or deletes system resources acquires an RAII `MutationGuard`. Destructive operations prompt with a native macOS `NSAlert` modal. All mutations are journaled.
+- **Strict Validations (`core::validate`):** Hostnames, domain names, database names, AWS profiles/regions, remote paths, and identifiers use validated newtypes that reject command injection payloads, control characters, and path traversal sequences.
+- **Guarded Architecture:** Automated architecture tests (`src-tauri/tests/guards.rs`) fail CI if un-gated mutations, ignored command outputs, raw shell strings, or unhandled browser alerts enter the codebase.
 
 ## License
 
-[MIT](LICENSE). Use it, change it, ship it. Just keep the copyright notice.
+MIT License. Copyright (c) 2026 Arpit.

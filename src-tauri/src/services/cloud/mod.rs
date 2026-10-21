@@ -321,6 +321,84 @@ pub fn list_s3_buckets(profile: &str) -> AppResult<Vec<S3Bucket>> {
     Ok(list)
 }
 
+fn date_from_days(days_since_epoch: u64) -> (i64, u32, u32) {
+    let z = days_since_epoch as i64 + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m as u32, d as u32)
+}
+
+pub fn parse_cost_explorer_json(json_str: &str, now: u64) -> AppResult<AwsCostReport> {
+    let root: serde_json::Value = serde_json::from_str(json_str)
+        .map_err(|e| AppError::Io(format!("failed to parse AWS Cost Explorer JSON: {e}")))?;
+
+    let mut total = 0.0;
+    let mut currency = "USD".to_string();
+    let mut services = Vec::new();
+
+    if let Some(results) = root.get("ResultsByTime").and_then(|r| r.as_array()) {
+        for period in results {
+            if let Some(groups) = period.get("Groups").and_then(|g| g.as_array()) {
+                for group in groups {
+                    let svc_name = group
+                        .get("Keys")
+                        .and_then(|k| k.get(0))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown")
+                        .to_string();
+
+                    let amount = group
+                        .get("Metrics")
+                        .and_then(|m| m.get("UnblendedCost"))
+                        .and_then(|u| u.get("Amount"))
+                        .and_then(|a| a.as_str())
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.0);
+
+                    if let Some(u) = group
+                        .get("Metrics")
+                        .and_then(|m| m.get("UnblendedCost"))
+                        .and_then(|u| u.get("Unit"))
+                        .and_then(|u| u.as_str())
+                    {
+                        currency = u.to_string();
+                    }
+
+                    if amount > 0.001 {
+                        total += amount;
+                        services.push(AwsCostItem {
+                            service: svc_name,
+                            amount: (amount * 100.0).round() / 100.0,
+                            unit: currency.clone(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    services.sort_by(|a, b| {
+        b.amount
+            .partial_cmp(&a.amount)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    services.truncate(10);
+
+    Ok(AwsCostReport {
+        month_to_date_total: (total * 100.0).round() / 100.0,
+        currency,
+        top_services: services,
+        cached_at: now,
+    })
+}
+
 pub fn get_cached_or_fresh_costs(
     dir: &Path,
     profile: &str,
@@ -336,21 +414,54 @@ pub fn get_cached_or_fresh_costs(
     if !force_refresh && cache_file.exists() {
         if let Ok(s) = std::fs::read_to_string(&cache_file) {
             if let Ok(report) = serde_json::from_str::<AwsCostReport>(&s) {
-                // If cache is less than 24h old, return cached
-                if now.saturating_sub(report.cached_at) < 86400 {
-                    return Ok(report);
-                }
+                return Ok(report);
             }
         }
     }
 
-    // Default stub / fallback report to avoid unexpected charges unless user explicitly queries
-    let report = AwsCostReport {
-        month_to_date_total: 0.0,
-        currency: "USD".into(),
-        top_services: vec![],
-        cached_at: now,
-    };
+    if !force_refresh {
+        // Automatic queries are disabled: only query Cost Explorer when user explicitly requests refresh
+        return Ok(AwsCostReport {
+            month_to_date_total: 0.0,
+            currency: "USD".into(),
+            top_services: vec![],
+            cached_at: 0,
+        });
+    }
+
+    // Real AWS Cost Explorer invocation with explicit time period
+    let days = now / 86400;
+    let (y, m, _) = date_from_days(days);
+    let start_date = format!("{y:04}-{m:02}-01");
+    let (end_y, end_m, end_d) = date_from_days(days + 1);
+    let end_date = format!("{end_y:04}-{end_m:02}-{end_d:02}");
+    let time_period = format!("Start={start_date},End={end_date}");
+
+    let opts =
+        crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(30));
+    let out = crate::core::exec::run(
+        "aws",
+        &[
+            "--profile",
+            p.as_str(),
+            "ce",
+            "get-cost-and-usage",
+            "--time-period",
+            &time_period,
+            "--granularity",
+            "MONTHLY",
+            "--metrics",
+            "UnblendedCost",
+            "--group-by",
+            "Type=DIMENSION,Key=SERVICE",
+            "--output",
+            "json",
+        ],
+        opts,
+    )?;
+
+    let json_str = String::from_utf8_lossy(&out.stdout);
+    let report = parse_cost_explorer_json(&json_str, now)?;
 
     let _ = std::fs::write(
         &cache_file,
@@ -431,5 +542,54 @@ mod tests {
         // Invalid region rejected
         let res = ec2_action("default", "us-east-1; id", "i-12345678", "start");
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_cost_explorer_fixture() {
+        let fixture = r#"{
+            "ResultsByTime": [
+                {
+                    "TimePeriod": {
+                        "Start": "2026-10-01",
+                        "End": "2026-10-22"
+                    },
+                    "Groups": [
+                        {
+                            "Keys": ["Amazon Elastic Compute Cloud - Compute"],
+                            "Metrics": {
+                                "UnblendedCost": {
+                                    "Amount": "14.25",
+                                    "Unit": "USD"
+                                }
+                            }
+                        },
+                        {
+                            "Keys": ["Amazon Simple Storage Service"],
+                            "Metrics": {
+                                "UnblendedCost": {
+                                    "Amount": "2.10",
+                                    "Unit": "USD"
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let report = parse_cost_explorer_json(fixture, 1729500000).unwrap();
+        assert_eq!(report.month_to_date_total, 16.35);
+        assert_eq!(report.currency, "USD");
+        assert_eq!(report.top_services.len(), 2);
+        assert_eq!(
+            report.top_services[0].service,
+            "Amazon Elastic Compute Cloud - Compute"
+        );
+        assert_eq!(report.top_services[0].amount, 14.25);
+        assert_eq!(
+            report.top_services[1].service,
+            "Amazon Simple Storage Service"
+        );
+        assert_eq!(report.top_services[1].amount, 2.10);
     }
 }

@@ -95,21 +95,16 @@ is registered with `StateFlags::all() & !VISIBLE` — restoring VISIBLE would re
 and reintroduce the white flash. Closing the window hides to tray (services keep running); real quit
 (`ExitRequested`) kills PTYs and stops explicitly-unlinked services.
 
-### Rust conventions
+### Rust conventions & Safety Foundations
 
-- Never build a shell string: `run_brew(bin, &["services", "start", name])`, with formula names
-  through `util::validate::validate_formula`. `HOMEBREW_NO_AUTO_UPDATE=1` on every call.
-- `BrewLock` serializes brew mutations; `ServicesCache` caches `brew services list --json` (~1.6s)
-  keyed on TTL + the launchctl pid map — **every write command must `invalidate()` it**.
-- Commands that shell out are `async` + `spawn_blocking` (`commands::blocking`) — a sync command
-  freezes the UI on the 4s poll.
-- Destructive mutations gate on `commands::confirm_action` (native NSAlert, parented to the main
-  window) _in Rust_, so the frontend cannot bypass the confirm. `confirm_bulk` is the FE-callable
-  variant returning a bool.
-- Doctor probes are **strictly read-only and must never wake a daemon** (querying watchman starts
-  it — see `docs/doctor/SESSION-CONTEXT.md` §2). Mutations only via explicit `doctor_fix`/`vscode_*`
-  commands. Every `Finding` carries an honest `Tag` (`speed`/`storage`/`info`) — never claim disk
-  cleanup makes a machine faster.
+- **Strict argv execution (`core::exec`):** Never build a shell string or invoke `/bin/sh -c` / `bash -c`. All commands execute as explicit argv slices (`core::exec::run`) with enforced timeouts. Architecture guard test `guard_no_shell_commands` strictly prevents unauthorized shell usage.
+- **Strict type validation (`core::validate`):** All user-supplied identifiers, domains, hostnames, DB names, remote paths, and AWS profiles/regions must be validated newtypes (`HostName`, `DomainName`, `DbName`, `RemotePath`, etc.) that reject command injection payloads, control characters, and path traversals.
+- **Mutation gate (`core::mutation`):** Every mutating command must acquire an RAII `MutationGuard` (`core::mutation::mutation` or `mutation_unattended`). Destructive operations require native macOS confirmation (`NSAlert`). Guard `guard_mutations_gated` scans all mutation commands. Every mutation is journaled on drop.
+- **No ignored command outputs:** Guard `guard_no_ignored_outputs` enforces that command exits are checked and errors surfaced.
+- **Zero browser dialogs:** Guard `guard_no_browser_confirms` ensures `window.confirm` and `window.alert` are never used.
+- `BrewLock` serializes brew mutations; `ServicesCache` caches `brew services list --json` (~1.6s) keyed on TTL + the launchctl pid map — **every write command must `invalidate()` it**.
+- Commands that shell out are `async` + `spawn_blocking` (`commands::blocking`) — a sync command freezes the UI on the poll loop.
+- Doctor probes are **strictly read-only and must never wake a daemon** (querying watchman starts it — see `docs/doctor/SESSION-CONTEXT.md` §2). Mutations only via explicit `doctor_fix`/`vscode_*` commands. Every `Finding` carries an honest `Tag` (`speed`/`storage`/`info`) — never claim disk cleanup makes a machine faster.
 
 ### Frontend structure & styling
 

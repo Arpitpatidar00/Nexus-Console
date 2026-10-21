@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Cloud, Server, Database, DollarSign, RefreshCw, Search } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import { useAwsProfiles, useEc2Instances, useS3Buckets } from '../api/useCloud';
+import { useAwsProfiles, useEc2Instances, useS3Buckets, useAwsCosts } from '../api/useCloud';
 
 export const CloudPage = () => {
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'instances' | 'buckets'>('instances');
   const [searchTerm, setSearchTerm] = useState('');
+  const [shouldFetchCost, setShouldFetchCost] = useState(false);
 
   const { data: profiles = ['default'] } = useAwsProfiles();
   const {
@@ -21,6 +22,12 @@ export const CloudPage = () => {
     isLoading: bucketsLoading,
     refetch: refetchBuckets,
   } = useS3Buckets(selectedProfile);
+  const {
+    data: costReport,
+    isLoading: costLoading,
+    error: costError,
+    refetch: refetchCosts,
+  } = useAwsCosts(selectedProfile, shouldFetchCost);
 
   const filteredInstances = instances.filter(
     (i) =>
@@ -89,22 +96,82 @@ export const CloudPage = () => {
         </div>
       </div>
 
-      {/* Daily Cost Card - Safety Freeze */}
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 shadow-sm backdrop-blur">
-        <div className="flex items-start gap-3">
-          <DollarSign className="h-5 w-5 shrink-0 text-amber-400" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-amber-200">
-                AWS Cost Explorer — Coming back after safety review (T-10)
+      {/* Cost Explorer Card - On-demand with explicit notice */}
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div className="flex items-start gap-3">
+            <DollarSign className="h-5 w-5 shrink-0 text-emerald-400" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-fg">
+                  AWS Cost Explorer (Profile: {selectedProfile})
+                </span>
+                {costReport && costReport.cached_at > 0 && (
+                  <Badge variant="neutral" className="text-muted-fg px-1.5 py-0 text-[10px]">
+                    Cached {new Date(costReport.cached_at * 1000).toLocaleTimeString()}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-fg mt-0.5 text-xs">
+                Cost Explorer charges per request ($0.01 via AWS API). Queries are executed
+                on-demand only and cached locally.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={costLoading}
+            onClick={() => {
+              setShouldFetchCost(true);
+              refetchCosts();
+            }}
+            className="shrink-0 self-start text-xs md:self-auto"
+          >
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${costLoading ? 'animate-spin' : ''}`} />
+            {costLoading
+              ? 'Querying CE...'
+              : costReport && costReport.cached_at > 0
+                ? 'Refresh Costs'
+                : 'Query AWS Costs'}
+          </Button>
+        </div>
+
+        {costError && (
+          <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-2.5 text-xs text-red-300">
+            {costError instanceof Error ? costError.message : String(costError)}
+          </div>
+        )}
+
+        {costReport && costReport.cached_at > 0 && (
+          <div className="mt-4 border-t border-border/50 pt-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-fg text-xs">Month-to-date Total:</span>
+              <span className="text-base font-bold text-emerald-400">
+                {costReport.month_to_date_total.toFixed(2)} {costReport.currency}
               </span>
             </div>
-            <p className="mt-1 text-xs text-amber-300/80">
-              Automatic cost queries are frozen to prevent unexpected AWS API charges. Real Cost
-              Explorer queries will be loaded on demand with explicit confirmation in Phase B.
-            </p>
+
+            {costReport.top_services.length > 0 && (
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+                {costReport.top_services.slice(0, 6).map((svc) => (
+                  <div
+                    key={svc.service}
+                    className="bg-bg/50 rounded border border-border/40 px-2.5 py-1.5 text-xs"
+                  >
+                    <div className="truncate font-medium text-fg" title={svc.service}>
+                      {svc.service}
+                    </div>
+                    <div className="text-muted-fg text-[11px]">
+                      {svc.amount.toFixed(2)} {svc.currency || svc.unit || 'USD'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Tabs & Search */}

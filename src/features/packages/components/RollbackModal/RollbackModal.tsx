@@ -63,16 +63,15 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
               <div className="bg-subtle rounded-lg border border-border p-4 text-xs">
                 <div className="mb-1 flex items-center gap-2 font-medium text-amber-500">
                   <AlertTriangle className="h-4 w-4" />
-                  <span>No Historical Kegs Retained</span>
+                  <span>Not possible: Homebrew kept no older version</span>
                 </div>
                 <p className="leading-relaxed text-fg-muted">
                   Only version{' '}
                   <span className="font-mono font-semibold text-fg">
                     {availableVersions[0] ?? 'current'}
                   </span>{' '}
-                  is present in the Cellar. Older versions were removed during Homebrew cleanup.
-                  Rollback is only possible when a previous keg still exists on disk or as a
-                  versioned formula (e.g. <code className="font-mono">{pkgName}@x</code>).
+                  is present in the local Cellar. Older kegs were removed during Homebrew cleanup.
+                  Rollback is only possible when a different keg version still exists on disk.
                 </p>
               </div>
             ) : (

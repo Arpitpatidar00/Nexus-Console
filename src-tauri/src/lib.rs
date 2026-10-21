@@ -74,6 +74,7 @@ pub fn run() {
             app.manage(projects::ProjectsState::load(
                 app.path().app_data_dir()?.join("projects.json"),
             ));
+            app.manage(crate::services::chaos::ChaosManager::default());
             tray::build_tray(app.handle())?;
             // Doctor tray automation (opt-in via Archiver settings): daily
             // auto-archive + VACUUM-when-VSCode-closes. Daemon thread, 5-min tick.
@@ -83,6 +84,8 @@ pub fn run() {
             remote::deadman::start(app.handle().clone());
             // Mac Clean scheduled cleanup + low-disk warning (opt-in).
             maclean::background::start(app.handle().clone());
+            // Uptime monitors background checks + SSL expiration warnings (opt-in).
+            crate::services::domains::uptime::start_background_monitoring(app.handle().clone());
             // brew --version costs 100-500ms — resolve it off the startup path so
             // it never blocks first paint. Consumers render "v—" until it lands.
             if let Some(bin) = brew_bin {
@@ -192,6 +195,7 @@ pub fn run() {
             commands::devices::devices_launch_android,
             commands::releases::releases_detect_config,
             commands::ai::ai_check_ollama,
+            commands::ai::ai_prepare_prompt,
             commands::ai::ai_explain,
             commands::maclean::maclean_scan,
             commands::maclean::maclean_cancel_scan,
@@ -281,6 +285,10 @@ pub fn run() {
             commands::tray::set_tray_title,
             commands::tray::set_tray_services,
             commands::tray::set_tray_servers,
+            commands::chaos::chaos_start_proxy,
+            commands::chaos::chaos_stop_proxy,
+            commands::chaos::chaos_list_proxies,
+            commands::chaos::chaos_simulate,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Stackroost")
@@ -288,6 +296,8 @@ pub fn run() {
             // On real quit: kill PTYs, close ssh masters, stop explicitly-unlinked
             // running services.
             if let tauri::RunEvent::ExitRequested { .. } = event {
+                app.state::<crate::services::chaos::ChaosManager>()
+                    .stop_all_sync();
                 app.state::<pty::PtyManager>().kill_all();
                 app.state::<remote::RemoteState>().disconnect_all();
                 quit::stop_session_services(app);

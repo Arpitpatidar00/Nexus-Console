@@ -5,6 +5,7 @@ import {
   networkInfoSchema,
   processBandwidthSchema,
   hostEntrySchema,
+  chaosProxyInfoSchema,
   type NetworkInfo,
   type ProcessBandwidth,
   type HostEntry,
@@ -61,10 +62,32 @@ export function useSaveHosts() {
   });
 }
 
+export function useChaosProxies() {
+  return useQuery({
+    queryKey: ['network', 'chaos', 'proxies'],
+    queryFn: () => ipc(CMD.CHAOS_LIST_PROXIES, {}, z.array(chaosProxyInfoSchema)),
+    refetchInterval: 3000,
+  });
+}
+
 export function useStartChaosProxy() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (args: { targetPort: number; chaosPort: number; profile: ChaosProfile }) =>
-      ipc(CMD.CHAOS_START_PROXY, args, z.string()),
+      ipc(CMD.CHAOS_START_PROXY, args, chaosProxyInfoSchema),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['network', 'chaos', 'proxies'] });
+    },
+  });
+}
+
+export function useStopChaosProxy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => ipc(CMD.CHAOS_STOP_PROXY, { id }, z.void()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['network', 'chaos', 'proxies'] });
+    },
   });
 }
 

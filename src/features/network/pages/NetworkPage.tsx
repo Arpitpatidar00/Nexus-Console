@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { Wifi, Activity, ShieldCheck, RotateCw, Sliders } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import { useNetworkInfo, useProcessBandwidth, useFlushDns } from '../api/useNetwork';
+import {
+  useNetworkInfo,
+  useProcessBandwidth,
+  useFlushDns,
+  useChaosProxies,
+  useStartChaosProxy,
+  useStopChaosProxy,
+} from '../api/useNetwork';
 
 export const NetworkPage = () => {
   const [activeTab, setActiveTab] = useState<'bandwidth' | 'hosts' | 'chaos'>('bandwidth');
@@ -200,19 +207,181 @@ export const NetworkPage = () => {
         </div>
       )}
 
-      {activeTab === 'chaos' && (
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-            <div>
-              <span className="font-bold">Coming back after safety review (T-09):</span>
-              <p className="mt-0.5 text-amber-300/80">
-                The TCP chaos proxy is temporarily frozen while the real Tokio TCP proxy engine with
-                latency, packet drops, and bandwidth throttling is implemented in Phase B.
-              </p>
-            </div>
+      {activeTab === 'chaos' && <ChaosProxySection />}
+    </div>
+  );
+};
+
+const ChaosProxySection = () => {
+  const { data: proxies = [], isLoading } = useChaosProxies();
+  const startProxy = useStartChaosProxy();
+  const stopProxy = useStopChaosProxy();
+
+  const [targetPort, setTargetPort] = useState(8080);
+  const [chaosPort, setChaosPort] = useState(9090);
+  const [latencyMs, setLatencyMs] = useState(150);
+  const [dropRatePct, setDropRatePct] = useState(0);
+  const [reject, setReject] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleStart = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    try {
+      await startProxy.mutateAsync({
+        targetPort,
+        chaosPort,
+        profile: {
+          latency_ms: latencyMs,
+          drop_rate_pct: dropRatePct,
+          reject,
+        },
+      });
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold">Start TCP Chaos Proxy (Tokio Engine)</h3>
+        <p className="mt-1 text-xs text-muted">
+          Routes connections from <code>127.0.0.1:&lt;chaosPort&gt;</code> to your target service
+          with configurable latency, packet drops, or immediate rejection.
+        </p>
+
+        <form
+          onSubmit={handleStart}
+          className="mt-4 grid grid-cols-1 items-end gap-4 sm:grid-cols-2 md:grid-cols-5"
+        >
+          <div>
+            <label
+              htmlFor="chaos-target-port"
+              className="mb-1 block text-xs font-medium text-muted"
+            >
+              Target Port
+            </label>
+            <input
+              id="chaos-target-port"
+              type="number"
+              min={1}
+              max={65535}
+              value={targetPort}
+              onChange={(e) => setTargetPort(parseInt(e.target.value) || 0)}
+              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              required
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label htmlFor="chaos-proxy-port" className="mb-1 block text-xs font-medium text-muted">
+              Chaos Port
+            </label>
+            <input
+              id="chaos-proxy-port"
+              type="number"
+              min={1}
+              max={65535}
+              value={chaosPort}
+              onChange={(e) => setChaosPort(parseInt(e.target.value) || 0)}
+              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="chaos-latency" className="mb-1 block text-xs font-medium text-muted">
+              Latency (ms)
+            </label>
+            <input
+              id="chaos-latency"
+              type="number"
+              min={0}
+              max={60000}
+              value={latencyMs}
+              onChange={(e) => setLatencyMs(parseInt(e.target.value) || 0)}
+              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="chaos-drop-rate" className="mb-1 block text-xs font-medium text-muted">
+              Drop Rate (%)
+            </label>
+            <input
+              id="chaos-drop-rate"
+              type="number"
+              min={0}
+              max={100}
+              value={dropRatePct}
+              onChange={(e) => setDropRatePct(parseInt(e.target.value) || 0)}
+              className="bg-bg w-full rounded border border-border px-3 py-1.5 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={reject}
+                onChange={(e) => setReject(e.target.checked)}
+                className="rounded border-border text-cyan-500 focus:ring-0"
+              />
+              Reject
+            </label>
+            <Button
+              type="submit"
+              disabled={startProxy.isPending}
+              className="ml-auto h-auto bg-cyan-600 px-3 py-1.5 text-xs text-white hover:bg-cyan-500"
+            >
+              {startProxy.isPending ? 'Starting...' : 'Start Proxy'}
+            </Button>
+          </div>
+        </form>
+
+        {errorMsg && <div className="mt-3 text-xs text-red-400">{errorMsg}</div>}
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold">Active Chaos Proxies</h3>
+        {isLoading ? (
+          <div className="py-6 text-center text-xs text-muted">Loading active proxies...</div>
+        ) : proxies.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted">
+            No active chaos proxies running.
+          </div>
+        ) : (
+          <div className="mt-3 divide-y divide-border/50">
+            {proxies.map((p) => (
+              <div key={p.id} className="flex items-center justify-between py-3 text-xs">
+                <div>
+                  <div className="font-mono font-medium text-cyan-400">
+                    127.0.0.1:{p.chaosPort} &rarr; 127.0.0.1:{p.targetPort}
+                  </div>
+                  <div className="mt-0.5 text-muted">
+                    {p.profile.reject ? (
+                      <span className="font-medium text-red-400">Rejecting all traffic</span>
+                    ) : (
+                      <span>
+                        Latency: {p.profile.latency_ms}ms &bull; Drops: {p.profile.drop_rate_pct}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => stopProxy.mutate(p.id)}
+                  disabled={stopProxy.isPending}
+                  className="h-auto bg-red-500/20 px-2.5 py-1 text-xs text-red-300 hover:bg-red-500/30"
+                >
+                  Stop
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

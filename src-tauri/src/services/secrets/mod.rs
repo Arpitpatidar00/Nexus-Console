@@ -35,6 +35,64 @@ pub fn mask_secret(secret: &str) -> String {
     format!("{prefix}****{suffix}")
 }
 
+/// Redact only secret pattern matches in arbitrary text while preserving surrounding context.
+pub fn redact_secrets_in_text(text: &str) -> String {
+    let mut out = text.to_string();
+
+    // 1. Private keys
+    if let Ok(re) = regex::Regex::new(
+        r"-----BEGIN [A-Z0-9 ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]+PRIVATE KEY-----",
+    ) {
+        out = re.replace_all(&out, "[REDACTED PRIVATE KEY]").to_string();
+    }
+
+    // 2. AWS Access Key
+    if let Ok(re) = regex::Regex::new(r"\bAKIA[0-9A-Z]{16}\b") {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| mask_secret(&caps[0]))
+            .to_string();
+    }
+
+    // 3. Stripe Secret Keys
+    if let Ok(re) = regex::Regex::new(r"\b(?:sk|rk)_live_[0-9a-zA-Z_]{16,}\b") {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| mask_secret(&caps[0]))
+            .to_string();
+    }
+
+    // 4. GitHub PAT
+    if let Ok(re) = regex::Regex::new(r"\b(?:ghp_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z_]{22,})\b") {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| mask_secret(&caps[0]))
+            .to_string();
+    }
+
+    // 5. Slack Token
+    if let Ok(re) = regex::Regex::new(
+        r"\bxox[baprs]-[0-9a-zA-Z]{10,48}-[0-9a-zA-Z]{10,48}(?:-[0-9a-zA-Z]{10,48})?\b",
+    ) {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| mask_secret(&caps[0]))
+            .to_string();
+    }
+
+    // 6. Generic password / secret assignments
+    if let Ok(re) = regex::Regex::new(
+        r#"(?i)\b(password|passwd|secret|api_key|apikey|auth_token)\s*([:=])\s*['"]?([^\s'"]{6,})['"]?"#,
+    ) {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| {
+                let key = &caps[1];
+                let sep = &caps[2];
+                let secret_val = &caps[3];
+                format!("{key}{sep}{}", mask_secret(secret_val))
+            })
+            .to_string();
+    }
+
+    out
+}
+
 pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
     let mut findings = Vec::new();
     let mut scanned_files = 0;
@@ -314,5 +372,15 @@ mod tests {
         let masked = mask_secret("AKIA1234567890ABCDEF");
         assert_eq!(masked, "AKIA****CDEF");
         assert_eq!(mask_secret("short"), "****");
+    }
+
+    #[test]
+    fn test_redact_secrets_in_text() {
+        let text = "Deploy failed with AWS key AKIA1234567890ABCDEF and stripe sk_live_1234567890abcdef123456";
+        let redacted = redact_secrets_in_text(text);
+        assert!(!redacted.contains("AKIA1234567890ABCDEF"));
+        assert!(!redacted.contains("sk_live_1234567890abcdef123456"));
+        assert!(redacted.contains("Deploy failed with AWS key AKIA****CDEF"));
+        assert!(redacted.contains("stripe sk_l****3456"));
     }
 }

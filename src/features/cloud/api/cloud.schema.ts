@@ -23,7 +23,8 @@ export type S3Bucket = z.infer<typeof s3BucketSchema>;
 export const awsCostItemSchema = z.object({
   service: z.string(),
   amount: z.number(),
-  unit: z.string(),
+  currency: z.string().optional(),
+  unit: z.string().optional(),
 });
 export type AwsCostItem = z.infer<typeof awsCostItemSchema>;
 

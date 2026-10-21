@@ -437,15 +437,42 @@ pub async fn package_rollback(
         .destructive(true),
     );
     let bin = brew_bin(&ctx)?.to_string();
-    let prefix = ctx.brew_prefix.as_deref().unwrap_or("/opt/homebrew");
-    let keg_path = std::path::PathBuf::from(prefix)
-        .join("Cellar")
-        .join(&name)
-        .join(&version);
+    let prefix = ctx
+        .brew_prefix
+        .as_deref()
+        .unwrap_or("/opt/homebrew")
+        .to_string();
+    let cellar = std::path::PathBuf::from(&prefix).join("Cellar").join(&name);
+    let keg_path = cellar.join(&version);
+
+    if !cellar.exists() {
+        return Err(AppError::NotFound(
+            "Not possible: Homebrew kept no older version".into(),
+        ));
+    }
+
+    // Check how many kegs exist
+    let mut keg_count = 0;
+    if let Ok(entries) = std::fs::read_dir(&cellar) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                let fname = entry.file_name().to_string_lossy().to_string();
+                if !fname.starts_with('.') {
+                    keg_count += 1;
+                }
+            }
+        }
+    }
+
+    if keg_count <= 1 {
+        return Err(AppError::NotFound(
+            "Not possible: Homebrew kept no older version".into(),
+        ));
+    }
 
     if !keg_path.exists() {
         return Err(AppError::NotFound(format!(
-            "Keg version {version} not found in Cellar for {name}. Historical versions were cleaned up."
+            "Not possible: Homebrew kept no older version ({version} not found in Cellar)"
         )));
     }
 
@@ -455,18 +482,32 @@ pub async fn package_rollback(
             .0
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        // Unlink current version and switch/link the chosen keg
+
+        // 1. Unlink current version
         let _ = run_brew(&bin, &["unlink", &name]);
-        run_brew(
-            &bin,
-            &[
-                "link",
-                "--overwrite",
-                "--force",
-                &format!("{name}@{version}"),
-            ],
-        )
-        .or_else(|_| run_brew(&bin, &["link", "--overwrite", &name]))?;
+
+        // 2. Explicitly update the opt symlink to this specific keg
+        let opt_dir = std::path::PathBuf::from(prefix).join("opt");
+        let opt_link = opt_dir.join(&name);
+        if opt_link.is_symlink() || opt_link.exists() {
+            let _ = std::fs::remove_file(&opt_link);
+        }
+        #[cfg(unix)]
+        {
+            let rel_target = std::path::PathBuf::from("..").join("Cellar").join(&name).join(&version);
+            let _ = std::os::unix::fs::symlink(rel_target, &opt_link);
+        }
+
+        // 3. Relink explicit keg
+        run_brew(&bin, &["link", "--overwrite", &name])?;
+
+        // 4. Verify with `brew list --versions <name>`
+        let verify = run_brew(&bin, &["list", "--versions", &name])?;
+        if !verify.contains(&version) {
+            return Err(AppError::Shell(format!(
+                "Verification failed: brew list --versions did not reflect {version} after rollback. Got: {verify}"
+            )));
+        }
         Ok(())
     })
     .await

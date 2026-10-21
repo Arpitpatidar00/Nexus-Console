@@ -31,3 +31,12 @@ export const chaosProfileSchema = z.object({
   reject: z.boolean(),
 });
 export type ChaosProfile = z.infer<typeof chaosProfileSchema>;
+
+export const chaosProxyInfoSchema = z.object({
+  id: z.string(),
+  targetPort: z.number(),
+  chaosPort: z.number(),
+  profile: chaosProfileSchema,
+  active: z.boolean(),
+});
+export type ChaosProxyInfo = z.infer<typeof chaosProxyInfoSchema>;

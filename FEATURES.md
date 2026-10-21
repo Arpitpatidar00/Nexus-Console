@@ -25,23 +25,24 @@ disk cleanup and memory, Claude Code chats, and a built-in terminal.
 
 | Module       | Tabs                         | What it's for                                                                      | Runs in the background                                          | On by default |
 | ------------ | ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------- |
-| Homebrew     | Services, Packages, Sessions | Start/stop services, manage packages and versions                                  | A light check every few seconds (keeps the menu-bar count live) | Yes           |
-| Ports        | Ports                        | See what's listening, kill what's stuck                                            | Nothing                                                         | Yes           |
-| Servers      | Servers                      | Health, containers and logs of your own Linux servers over SSH                     | Optional re-check of connected servers                          | No (opt-in)   |
-| Doctor       | Doctor                       | Read-only machine health checks and cleanup                                        | Optional daily VSCode cleanup                                   | Yes           |
-| Mac Clean    | Storage, Memory              | Where your disk went, safe cleanup, memory and swap                                | Optional scheduled cleanup and low-disk warning                 | Yes           |
+| Homebrew     | Services, Packages, Sessions | Start/stop services, manage packages, keg rollback & cellar versions               | A light check every few seconds (keeps the menu-bar count live) | Yes           |
+| Ports        | Ports                        | See what's listening, kill stuck processes, detached process detection             | Nothing                                                         | Yes           |
+| Servers      | Servers                      | Health, containers, logs, deploy/rollback & parity audits over OpenSSH             | Optional re-check of connected servers                          | No (opt-in)   |
+| Doctor       | Doctor                       | Read-only machine health checks, VSCode vacuum & cache cleanup                     | Optional daily VSCode cleanup                                   | Yes           |
+| Mac Clean    | Storage, Memory, Energy      | Where your disk went, safe cleanup, memory and swap pressure                       | Optional scheduled cleanup and low-disk warning                 | Yes           |
 | Claude Chats | Claude Chats                 | Browse and archive Claude Code history                                             | Optional daily archiving                                        | Yes           |
-| Docker       | Containers                   | Local container runtime, compose stacks, and logs                                  | Nothing                                                         | No (opt-in)   |
-| Databases    | Databases                    | Local & remote database client, schema inspector _(Query editor & restore frozen)_ | Nothing                                                         | No (opt-in)   |
+| Docker       | Containers                   | Local container runtime, compose stacks, and live container logs                   | Nothing                                                         | No (opt-in)   |
+| Databases    | Databases                    | Local & remote database client, read-only session inspection                       | Nothing                                                         | No (opt-in)   |
 | Projects     | Projects                     | Git status, workspaces, saved commands, and GitHub PRs                             | Nothing                                                         | Yes           |
 | Toolbox      | Dev Toolbox                  | Offline converters, regex tester, cron, hashes & tokens                            | Nothing                                                         | Yes           |
-| Domains      | Domains & Uptime             | RDAP expiry, DNS lookup, SSL check _(Uptime monitoring frozen)_                    | Optional uptime monitoring (frozen)                             | No (opt-in)   |
+| Domains      | Domains & Uptime             | RDAP expiry, DNS lookup, SSL check, background uptime pings & SSL alerts (<14d)    | Optional background uptime pings & SSL certificate warnings     | No (opt-in)   |
 | Secrets      | Secrets Scanner              | Detect committed secrets, unignored .env files & leaked keys                       | Nothing                                                         | No (opt-in)   |
-| Cloud        | Cloud AWS                    | AWS profiles, EC2 read-only, S3 buckets _(Actions & Cost frozen)_                  | Nothing                                                         | No (opt-in)   |
-| Backups      | Backups                      | _(Temporarily frozen while being rebuilt for safety)_                              | Nothing                                                         | No (opt-in)   |
-| Network      | Network & Chaos              | Live per-app bandwidth, DNS flush _(/etc/hosts & Chaos frozen)_                    | Nothing                                                         | No (opt-in)   |
-| Devices      | Simulators & AVDs            | iOS Simulators, Android AVDs, lifecycle controls                                   | Nothing                                                         | No (opt-in)   |
-| Releases     | App Releases                 | _(Temporarily frozen while being rebuilt for safety)_                              | Nothing                                                         | No (opt-in)   |
+| Cloud        | Cloud AWS                    | AWS profiles, EC2 instances (prod-tagged protection), on-demand Cost Explorer      | Nothing (Cost queries run on explicit click only)               | No (opt-in)   |
+| Backups      | Backups                      | Automated database dumps with 0600 perms & project .env archives (shell-free)      | Nothing                                                         | No (opt-in)   |
+| Network      | Network & Chaos              | Live per-app bandwidth, DNS flush, atomic /etc/hosts editor, Tokio TCP chaos proxy | Nothing (active proxies cleanly terminated on app quit)         | No (opt-in)   |
+| Devices      | Simulators & AVDs            | iOS Simulators, Android AVDs, lifecycle controls & build cache cleaner             | Nothing                                                         | No (opt-in)   |
+| Releases     | Release Config               | Local project version names, build numbers, and Fastlane deployment lanes          | Nothing                                                         | No (opt-in)   |
+| AI Explain   | Local AI Assistant (Ollama)  | Diagnose errors and command output via local Ollama HTTP with secret pattern masks | Nothing (local loopback HTTP on 127.0.0.1:11434 only)           | No (opt-in)   |
 
 *Note: "On by default" applies to fresh installs only; existing installs keep their enabled modules.
 

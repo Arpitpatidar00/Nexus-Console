@@ -3,8 +3,10 @@ import { ipc, CMD } from '@/shared/tauri';
 import {
   ollamaStatusSchema,
   explainResponseSchema,
+  preparedPromptSchema,
   type OllamaStatus,
   type ExplainResponse,
+  type PreparedPrompt,
 } from './ai.schema';
 
 export const aiKeys = {
@@ -16,6 +18,20 @@ export function useOllamaStatus() {
     queryKey: aiKeys.status(),
     queryFn: () => ipc(CMD.AI_CHECK_OLLAMA, {}, ollamaStatusSchema),
     staleTime: 15_000,
+  });
+}
+
+export function usePreparePrompt() {
+  return useMutation<PreparedPrompt, Error, { prompt: string; context?: string }>({
+    mutationFn: (args) =>
+      ipc(
+        CMD.AI_PREPARE_PROMPT,
+        {
+          prompt: args.prompt,
+          context: args.context || null,
+        },
+        preparedPromptSchema,
+      ),
   });
 }
 

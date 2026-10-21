@@ -18,10 +18,14 @@ import { DeepScanCard } from '@/features/maclean/components/DeepScanCard';
 import { LargeFiles } from '@/features/maclean/components/LargeFiles';
 import { CleanSummaryBanner } from '@/features/maclean/components/CleanSummaryBanner';
 import { StorageSkeleton } from '@/features/maclean/components/StorageSkeleton';
+import { WeeklyTrendsCard } from '@/features/maclean/components/WeeklyTrendsCard';
+import { GhostLeftoversCard } from '@/features/maclean/components/GhostLeftoversCard';
+import { DuplicateFilesCard } from '@/features/maclean/components/DuplicateFilesCard';
+import { ConsentGate } from '@/shared/privacy';
 
 /** `~/mac-clean.sh` as a page: the report fills in from one read-only scan;
  * the only mutation is the cleanup plan's button (native confirm in Rust). */
-export const StoragePage = () => {
+const StorageView = () => {
   const report = useStorageReport();
   const clean = useClean();
   const journal = useCleanJournal(true);
@@ -92,6 +96,7 @@ export const StoragePage = () => {
           ) : (
             <>
               <DiskSummary disk={r.disk} lastClean={journal.data?.[0]} />
+              <WeeklyTrendsCard />
               {r.causes.length > 0 && <CausesList causes={r.causes} />}
               <CleanupPlan
                 key={r.scannedAt}
@@ -103,6 +108,8 @@ export const StoragePage = () => {
                 <StorageMap report={r} />
                 <VolumesList report={r} />
               </div>
+              <GhostLeftoversCard />
+              <DuplicateFilesCard />
               <DeepScanCard
                 unexplainedBytes={r.map.find((m) => m.id === 'other')?.bytes ?? 0}
                 dataUsedBytes={r.disk.dataUsedBytes}
@@ -117,3 +124,12 @@ export const StoragePage = () => {
     </div>
   );
 };
+
+export const StoragePage = () => (
+  <ConsentGate
+    source="library_scan"
+    reason="Storage measures folder sizes under ~/Library (caches, logs, app leftovers) to show what can be cleaned. It reads sizes and names only, never file contents."
+  >
+    <StorageView />
+  </ConsentGate>
+);

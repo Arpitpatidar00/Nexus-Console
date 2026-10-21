@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'fix/**', 'feat/**']
 
 jobs:
   frontend:
@@ -14,6 +14,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+        env:
+          CI: 'true'
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
@@ -37,3 +39,19 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+      - run: cargo test guard_
+      - run: cargo test --test payloads
+      - run: cargo test --test parsers
+
+  release-check:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo check --release

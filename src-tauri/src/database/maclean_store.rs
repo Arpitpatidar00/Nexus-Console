@@ -1,9 +1,8 @@
 // `maclean.json` (app data dir): the user's cleanup rules and the clean-run
 // journal. Rust owns it because Rust enforces the rules (docs/maclean/PLAN.md §2).
 
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const FILE_NAME: &str = "maclean.json";
@@ -85,33 +84,20 @@ impl Store {
         self.journal.truncate(JOURNAL_CAP);
     }
 
-    /// Missing or corrupt → defaults (a corrupt file is kept aside as `.corrupt`).
+    /// Missing or corrupt → defaults (a corrupt file is kept aside as `.corrupt.<epoch>`).
     pub fn load(path: &Path) -> Store {
-        let Ok(raw) = fs::read_to_string(path) else {
-            return Store::default();
-        };
-        serde_json::from_str(&raw).unwrap_or_else(|_| {
-            let _ = fs::rename(path, path.with_extension("json.corrupt"));
-            Store::default()
-        })
+        crate::core::store::load_store(path)
     }
 
     pub fn save(&self, path: &Path) -> AppResult<()> {
-        let io = |e: std::io::Error| AppError::Io(format!("saving {FILE_NAME}: {e}"));
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir).map_err(io)?;
-        }
-        let json = serde_json::to_vec_pretty(self)
-            .map_err(|e| AppError::Parse(format!("serializing {FILE_NAME}: {e}")))?;
-        let tmp = path.with_extension("json.tmp");
-        fs::write(&tmp, json).map_err(io)?;
-        fs::rename(&tmp, path).map_err(io)
+        crate::core::store::save_store(path, self, false)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn defaults_match_the_script() {
@@ -177,6 +163,9 @@ mod tests {
         );
         fs::write(&path, "{nope").unwrap();
         assert_eq!(Store::load(&path).rules, Rules::default());
-        assert!(path.with_extension("json.corrupt").exists());
+        assert!(fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|e| e.file_name().to_string_lossy().contains("corrupt")));
     }
 }

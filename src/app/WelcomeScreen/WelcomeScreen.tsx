@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Boxes } from 'lucide-react';
+import { Boxes, Check } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   DEFAULT_MODULES,
@@ -13,16 +13,17 @@ import { useAppDispatch } from '@/shared/state/hooks';
 import { setEnabledModules } from '@/shared/state/settingsSlice';
 import { setActiveTab } from '@/shared/state/uiSlice';
 import { Button } from '@/shared/ui/Button';
+import { useDetectedTools } from '@/shared/tools';
 // Deep import, not the feature barrel: the barrel pulls SettingsPage (and with it
 // the whole settings graph) into this screen's chunk.
 import { FeaturePicker } from '@/features/settings/components/FeaturePicker';
-import { PRESETS } from './WelcomeScreen.config';
+import { PRESETS, suggestModules } from './WelcomeScreen.config';
 
 /** First launch only (`settings.enabledModules === null`). One screen, one
  * question, skippable in a single keystroke — deliberately not a wizard.
  *
- * Starts with everything the machine supports switched ON, so doing nothing gives
- * the full app; the screen is about opting OUT of what you won't use. */
+ * Starts with non-opt-in modules switched ON; opt-in modules are offered in
+ * their own section. */
 export const WelcomeScreen = () => {
   const dispatch = useAppDispatch();
   const claudeInstalled = useClaudeInstalled();
@@ -30,11 +31,20 @@ export const WelcomeScreen = () => {
   const [selected, setSelected] = useState<ModuleId[]>(() =>
     availableModules(DEFAULT_MODULES, { claudeInstalled }),
   );
+  // Path checks only, nothing runs (PLAN F.3); detection pre-selects once.
+  const tools = useDetectedTools();
+  const installed = (tools.data ?? []).filter((t) => t.installed);
+  const [suggested, setSuggested] = useState(false);
+  useEffect(() => {
+    if (suggested || !tools.data) return;
+    setSuggested(true);
+    setSelected(availableModules(suggestModules(installed.map((t) => t.id)), { claudeInstalled }));
+  }, [tools.data, suggested, installed, claudeInstalled]);
 
-  const confirm = () => {
+  const handleContinue = () => {
     dispatch(setEnabledModules(selected));
-    // Land on something that exists — Services may not be in the selection.
-    dispatch(setActiveTab(visibleTabs(selected)[0]));
+    // Servers chosen → straight to its consent + SSH-host import; otherwise Home.
+    dispatch(setActiveTab(selected.includes('remote') ? 'servers' : visibleTabs(selected)[0]));
   };
 
   // Plain digits toggle, Enter continues. No modifier, so this can't collide with
@@ -43,7 +53,7 @@ export const WelcomeScreen = () => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Enter') {
-        confirm();
+        handleContinue();
         return;
       }
       const nth = Number(e.key);
@@ -74,7 +84,7 @@ export const WelcomeScreen = () => {
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-6 px-8 py-10">
         <motion.header {...rise(0)} className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <span className="bg-accent-soft flex h-10 w-10 items-center justify-center rounded-xl text-accent">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ember-soft text-ember-text">
               <Boxes className="h-5 w-5" />
             </span>
             <span className="text-sm font-medium text-fg-muted">Stackroost</span>
@@ -88,6 +98,21 @@ export const WelcomeScreen = () => {
           </p>
         </motion.header>
 
+        {installed.length > 0 && (
+          <motion.div {...rise(0.03)} className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-fg-muted">Found on this Mac:</span>
+            {installed.map((t) => (
+              <span
+                key={t.id}
+                className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-success"
+              >
+                <Check className="size-3" /> {t.label}
+              </span>
+            ))}
+            <span className="text-fg-subtle">— matching modules are switched on below.</span>
+          </motion.div>
+        )}
+
         <motion.div {...rise(0.06)} className="flex flex-wrap gap-2">
           {PRESETS.filter((p) => availableModules(p.modules, { claudeInstalled }).length > 0).map(
             (p) => (
@@ -95,7 +120,7 @@ export const WelcomeScreen = () => {
                 key={p.label}
                 type="button"
                 onClick={() => setSelected(availableModules(p.modules, { claudeInstalled }))}
-                className="rounded-md border border-border bg-paper px-2.5 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-list hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+                className="rounded-md border border-border bg-paper px-2.5 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-list hover:text-fg focus-visible:ring-2 focus-visible:ring-ember focus-visible:outline-none"
               >
                 {p.label}
               </button>
@@ -107,11 +132,57 @@ export const WelcomeScreen = () => {
           <FeaturePicker value={selected} onChange={setSelected} />
         </motion.div>
 
+        {/* Opt-in modules row */}
+        {MODULES.some((m) => m.optIn) && (
+          <motion.div
+            {...rise(0.15)}
+            className="flex flex-col gap-2 rounded-xl border border-border bg-paper/60 p-3.5"
+          >
+            <span className="text-xs font-medium text-fg-muted">
+              Also available, turn on when you need them
+            </span>
+            {selected.includes('remote') && (
+              <span className="text-xs text-fg-subtle">
+                Servers next: you&rsquo;ll be asked before ~/.ssh/config is read, then pick which
+                hosts to import.
+              </span>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {MODULES.filter((m) => m.optIn).map((m) => {
+                const checked = selected.includes(m.id);
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() =>
+                      setSelected((prev) =>
+                        prev.includes(m.id) ? prev.filter((id) => id !== m.id) : [...prev, m.id],
+                      )
+                    }
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      checked
+                        ? 'border-ember bg-ember-soft text-ember-text'
+                        : 'border-border bg-paper text-fg-muted hover:bg-list hover:text-fg'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{m.label}</span>
+                    <span className="rounded bg-canvas/60 px-1 py-0.5 text-[10px] text-fg-subtle">
+                      {checked ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         <motion.footer {...rise(0.18)} className="flex items-center justify-between gap-4">
           <p className="text-xs text-fg-subtle">
             {MODULES.length > 0 && `1–${MODULES.length} to toggle · Enter to continue`}
           </p>
-          <Button onClick={confirm}>Continue</Button>
+          <Button onClick={handleContinue}>Continue</Button>
         </motion.footer>
       </div>
     </div>

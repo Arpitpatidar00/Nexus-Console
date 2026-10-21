@@ -35,7 +35,7 @@ export const CleanupPlanRow = ({
                 aria-expanded={expanded}
                 aria-label={`What's in ${item.label}`}
                 onClick={() => onToggleExpand(item.id)}
-                className="rounded p-0.5 text-fg-subtle hover:bg-list hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="rounded p-0.5 text-fg-subtle hover:bg-list hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
               >
                 <ChevronRight
                   className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-90')}

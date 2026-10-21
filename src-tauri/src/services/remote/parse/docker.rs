@@ -76,10 +76,16 @@ pub fn parse_docker(sec: Option<&Section>) -> DockerInfo {
     }
 }
 
-fn json_lines(body: Option<&str>) -> impl Iterator<Item = Value> + '_ {
-    body.unwrap_or("")
-        .lines()
+fn json_values(body: Option<&str>) -> Vec<Value> {
+    let s = body.unwrap_or("").trim();
+    if s.starts_with('[') {
+        if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(s) {
+            return arr;
+        }
+    }
+    s.lines()
         .filter_map(|l| serde_json::from_str::<Value>(l.trim()).ok())
+        .collect()
 }
 
 fn str_of(v: &Value, k: &str) -> String {
@@ -130,8 +136,9 @@ pub fn parse_containers(
     stats: Option<&str>,
 ) -> Vec<Container> {
     let inspected = parse_inspect(inspect);
-    let stats: Vec<Value> = json_lines(stats).collect();
-    json_lines(ps)
+    let stats: Vec<Value> = json_values(stats);
+    json_values(ps)
+        .into_iter()
         .filter_map(|c| {
             let id = c["ID"].as_str()?.to_string();
             let ins = inspected.get(&id);
@@ -144,11 +151,42 @@ pub fn parse_containers(
             let state = str_of(&c, "State");
             let health = c["HealthStatus"]
                 .as_str()
+                .or_else(|| c["Health"].as_str())
                 .or_else(|| ins.and_then(|i| i.state["Health"]["Status"].as_str()))
                 .filter(|h| matches!(*h, "healthy" | "unhealthy" | "starting"))
                 .map(String::from);
+
+            let name = if !c["Names"].is_null() && !c["Names"].as_str().unwrap_or("").is_empty() {
+                str_of(&c, "Names")
+            } else {
+                str_of(&c, "Name")
+            };
+
+            let compose_project = c["Labels"].as_str().and_then(compose_label).or_else(|| {
+                c["Project"]
+                    .as_str()
+                    .filter(|p| !p.is_empty())
+                    .map(String::from)
+            });
+
+            let ports = if !c["Ports"].is_null() && !c["Ports"].as_str().unwrap_or("").is_empty() {
+                str_of(&c, "Ports")
+            } else if let Some(publishers) = c["Publishers"].as_array() {
+                publishers
+                    .iter()
+                    .filter_map(|p| {
+                        let published = p.get("PublishedPort").and_then(|v| v.as_u64())?;
+                        let target = p.get("TargetPort").and_then(|v| v.as_u64())?;
+                        Some(format!("{published}->{target}"))
+                    })
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            } else {
+                String::new()
+            };
+
             Some(Container {
-                name: str_of(&c, "Names"),
+                name,
                 image: str_of(&c, "Image"),
                 status: str_of(&c, "Status"),
                 health,
@@ -162,8 +200,8 @@ pub fn parse_containers(
                 mem_bytes: st
                     .filter(|_| state == "running")
                     .and_then(|s| human_bytes(s["MemUsage"].as_str()?.split('/').next()?)),
-                ports: str_of(&c, "Ports"),
-                compose_project: c["Labels"].as_str().and_then(compose_label),
+                ports,
+                compose_project,
                 created_at: c["CreatedAt"].as_str().map(String::from),
                 state,
                 id,

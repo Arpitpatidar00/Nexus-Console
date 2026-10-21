@@ -1,16 +1,25 @@
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
-import { setRemoteBackgroundMinutes, setRemotePollInterval } from '@/shared/state/settingsSlice';
+import {
+  setRemoteBackgroundMinutes,
+  setRemotePollInterval,
+  setRemoteDeadmanMinutes,
+} from '@/shared/state/settingsSlice';
 import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { useRemoteState } from '@/features/remote/api/useRemoteState';
 import { useSetConsent } from '@/features/remote/api/remoteMutations';
 import { formatTime } from '@/shared/lib/format';
-import { REMOTE_BACKGROUND_OPTIONS, REMOTE_POLL_OPTIONS } from './ServersSettingsCard.config';
+import {
+  REMOTE_BACKGROUND_OPTIONS,
+  REMOTE_POLL_OPTIONS,
+  DEADMAN_OPTIONS,
+} from './ServersSettingsCard.config';
 
 export const ServersSettingsCard = () => {
   const dispatch = useAppDispatch();
   const pollMs = useAppSelector((s) => s.settings.remotePollIntervalMs);
   const bgMins = useAppSelector((s) => s.settings.remoteBackgroundMinutes);
+  const deadmanMins = useAppSelector((s) => s.settings.remoteDeadmanMinutes);
   const state = useRemoteState();
   const consent = useSetConsent();
   const granted = state.data?.consent.granted ?? false;
@@ -32,6 +41,21 @@ export const ServersSettingsCard = () => {
             value={String(pollMs)}
             options={REMOTE_POLL_OPTIONS}
             onChange={(v) => dispatch(setRemotePollInterval(Number(v)))}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4 py-3.5">
+          <div>
+            <p className="text-sm font-medium text-foreground">Prod dead-man's switch</p>
+            <p className="text-xs text-muted-foreground">
+              Auto-disconnect idle prod control masters when locked, asleep, or idle. Never kills
+              busy commands.
+            </p>
+          </div>
+          <SegmentedControl
+            ariaLabel="Prod dead-man's switch idle timeout"
+            value={String(deadmanMins)}
+            options={DEADMAN_OPTIONS}
+            onChange={(v) => dispatch(setRemoteDeadmanMinutes(Number(v)))}
           />
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">

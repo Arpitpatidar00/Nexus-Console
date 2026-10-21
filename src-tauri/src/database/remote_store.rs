@@ -43,6 +43,24 @@ pub struct ManualTarget {
     pub identity_file: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TunnelConfig {
+    pub id: String,
+    pub host_id: String,
+    pub name: String,
+    pub local_port: u16,
+    #[serde(default = "default_remote_host")]
+    pub remote_host: String,
+    pub remote_port: u16,
+    #[serde(default)]
+    pub auto_start: bool,
+}
+
+fn default_remote_host() -> String {
+    "127.0.0.1".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Host {
@@ -54,6 +72,8 @@ pub struct Host {
     pub project: String,
     pub env: Env,
     pub order: u32,
+    #[serde(default)]
+    pub auto_connect: bool,
 }
 
 /// One remote mutation; the journal is newest first, capped at JOURNAL_CAP.
@@ -79,6 +99,8 @@ pub struct Store {
     #[serde(default)]
     pub hosts: Vec<Host>,
     #[serde(default)]
+    pub tunnels: Vec<TunnelConfig>,
+    #[serde(default)]
     pub journal: Vec<JournalEntry>,
 }
 
@@ -88,6 +110,7 @@ impl Default for Store {
             version: VERSION,
             consent: Consent::default(),
             hosts: vec![],
+            tunnels: vec![],
             journal: vec![],
         }
     }
@@ -98,31 +121,14 @@ pub const JOURNAL_CAP: usize = 500;
 
 impl Store {
     /// Missing file → defaults. Unreadable/corrupt file → defaults, with the
-    /// bad file moved aside to `remote.json.corrupt` so nothing is silently lost.
+    /// bad file moved aside to `remote.corrupt.<epoch>` so nothing is silently lost.
     pub fn load(path: &Path) -> Store {
-        let Ok(raw) = fs::read_to_string(path) else {
-            return Store::default();
-        };
-        match serde_json::from_str::<Store>(&raw) {
-            Ok(s) => s,
-            Err(_) => {
-                let _ = fs::rename(path, path.with_extension("json.corrupt"));
-                Store::default()
-            }
-        }
+        crate::core::store::load_store(path)
     }
 
-    /// Atomic: write a sibling temp file, then rename over the real one.
+    /// Atomic: write a sibling temp file, then rename over the real one with 0600 permissions.
     pub fn save(&self, path: &Path) -> AppResult<()> {
-        let io = |e: std::io::Error| AppError::Io(format!("saving {FILE_NAME}: {e}"));
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir).map_err(io)?;
-        }
-        let json = serde_json::to_vec_pretty(self)
-            .map_err(|e| AppError::Parse(format!("serializing {FILE_NAME}: {e}")))?;
-        let tmp = path.with_extension("json.tmp");
-        fs::write(&tmp, json).map_err(io)?;
-        fs::rename(&tmp, path).map_err(io)
+        crate::core::store::save_store(path, self, true)
     }
 
     /// Reading ssh config (or anything derived from it) is gated here, in Rust.
@@ -157,6 +163,28 @@ impl Store {
         self.journal.truncate(JOURNAL_CAP);
     }
 
+    pub fn tunnel(&self, id: &str) -> AppResult<&TunnelConfig> {
+        self.tunnels
+            .iter()
+            .find(|t| t.id == id)
+            .ok_or_else(|| AppError::NotFound(format!("unknown tunnel {id}")))
+    }
+
+    pub fn tunnel_mut(&mut self, id: &str) -> AppResult<&mut TunnelConfig> {
+        self.tunnels
+            .iter_mut()
+            .find(|t| t.id == id)
+            .ok_or_else(|| AppError::NotFound(format!("unknown tunnel {id}")))
+    }
+
+    pub fn remove_tunnel(&mut self, id: &str) -> Option<TunnelConfig> {
+        if let Some(pos) = self.tunnels.iter().position(|t| t.id == id) {
+            Some(self.tunnels.remove(pos))
+        } else {
+            None
+        }
+    }
+
     pub fn next_order(&self) -> u32 {
         self.hosts.iter().map(|h| h.order + 1).max().unwrap_or(0)
     }
@@ -178,6 +206,23 @@ pub fn new_host_id() -> String {
     }
     let hex: String = buf.iter().map(|b| format!("{b:02x}")).collect();
     format!("h_{hex}")
+}
+
+/// `tun_` + 16 random hex chars.
+pub fn new_tunnel_id() -> String {
+    use std::io::Read;
+    let mut buf = [0u8; 8];
+    if fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .is_err()
+    {
+        let n = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as u64);
+        buf = n.to_le_bytes();
+    }
+    let hex: String = buf.iter().map(|b| format!("{b:02x}")).collect();
+    format!("tun_{hex}")
 }
 
 pub fn path_in(app_data_dir: PathBuf) -> PathBuf {
@@ -205,6 +250,7 @@ mod tests {
             project: DEFAULT_PROJECT.into(),
             env: Env::Prod,
             order,
+            auto_connect: false,
         }
     }
 
@@ -247,10 +293,12 @@ mod tests {
         let s = Store::load(&path);
         assert!(s.hosts.is_empty());
         assert!(!path.exists());
-        assert_eq!(
-            fs::read_to_string(path.with_extension("json.corrupt")).unwrap(),
-            "{ not json"
-        );
+        let backup = fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .find(|e| e.file_name().to_string_lossy().contains("corrupt"))
+            .expect("corrupt backup kept");
+        assert_eq!(fs::read_to_string(backup.path()).unwrap(), "{ not json");
     }
 
     #[test]

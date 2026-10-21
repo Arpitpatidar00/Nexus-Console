@@ -1,12 +1,29 @@
 import { test, expect } from 'vitest';
 import { settingsReducer, setEnabledModules } from '@/shared/state/settingsSlice';
-import { DEFAULT_MODULES, isTabVisible, sanitizeModules, visibleTabs } from './selectors';
+import { PRESETS } from '@/app/WelcomeScreen/WelcomeScreen.config';
+import { MODULES, MODULE_GROUPS } from './modules.config';
+import {
+  DEFAULT_MODULES,
+  hubOfTab,
+  isTabVisible,
+  moduleOfTab,
+  sanitizeModules,
+  visibleHubs,
+  visibleTabs,
+} from './selectors';
 
-test('visibleTabs: only the enabled modules, registry order, Settings last', () => {
-  expect(visibleTabs(['claude'])).toEqual(['archiver', 'settings']);
-  expect(visibleTabs(['homebrew'])).toEqual(['services', 'packages', 'sessions', 'settings']);
-  // Order comes from the registry, not from the order the user picked.
+test('visibleTabs: Home first, enabled modules in hub order, Settings last', () => {
+  expect(visibleTabs(['claude'])).toEqual(['home', 'archiver', 'settings']);
+  expect(visibleTabs(['homebrew'])).toEqual([
+    'home',
+    'services',
+    'packages',
+    'sessions',
+    'settings',
+  ]);
+  // Order comes from the hubs/registry, not from the order the user picked.
   expect(visibleTabs(['claude', 'homebrew'])).toEqual([
+    'home',
     'services',
     'packages',
     'sessions',
@@ -56,5 +73,54 @@ test('Servers is opt-in: never part of the everything-on defaults', () => {
   // An existing install's saved list (written before Servers existed) keeps it off.
   expect(sanitizeModules(['homebrew', 'ports', 'doctor', 'claude'], true)).not.toContain('remote');
   expect(sanitizeModules(['remote'], true)).toEqual(['remote']);
-  expect(visibleTabs(['remote'])).toEqual(['servers', 'settings']);
+  expect(visibleTabs(['remote'])).toEqual(['home', 'servers', 'settings']);
+});
+
+test('no preset contains an optIn module', () => {
+  const optInIds = MODULES.filter((m) => m.optIn).map((m) => m.id);
+  expect(optInIds.length).toBeGreaterThan(0);
+  for (const preset of PRESETS) {
+    for (const optInId of optInIds) {
+      expect(preset.modules).not.toContain(optInId);
+    }
+  }
+});
+
+test('module groups: all modules belong to a valid group in sentence case order', () => {
+  const validGroupIds = MODULE_GROUPS.map((g) => g.id);
+  for (const m of MODULES) {
+    expect(validGroupIds).toContain(m.group);
+  }
+  expect(MODULE_GROUPS.map((g) => g.label)).toEqual([
+    'Local',
+    'Servers',
+    'Projects',
+    'This Mac',
+    'Cloud & Web',
+    'Tools',
+  ]);
+});
+
+test('hubs: rail is Home + at most 6 hubs, only hubs with an enabled module', () => {
+  const all = visibleHubs([...MODULES.map((m) => m.id)]);
+  expect(all.length + 1).toBeLessThanOrEqual(7);
+  expect(visibleHubs(['homebrew', 'ports']).map((h) => h.id)).toEqual(['local']);
+  expect(visibleHubs(['homebrew', 'ports'])[0].tabs.map((t) => t.tab)).toEqual([
+    'services',
+    'packages',
+    'sessions',
+    'ports',
+  ]);
+});
+
+test('hubOfTab / moduleOfTab: every module page has a hub and a privacy line', () => {
+  for (const m of MODULES) {
+    for (const n of m.nav) {
+      expect(hubOfTab(n.tab)).toBe(m.group);
+      expect(n.group).toBe(m.group);
+      expect(moduleOfTab(n.tab)?.privacy.reads.length).toBeGreaterThan(0);
+    }
+  }
+  expect(hubOfTab('home')).toBeNull();
+  expect(hubOfTab('settings')).toBeNull();
 });

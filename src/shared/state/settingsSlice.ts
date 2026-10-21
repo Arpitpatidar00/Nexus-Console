@@ -28,6 +28,16 @@ interface SettingsState {
   autoArchiveEnabled: boolean;
   autoArchiveCutoffDays: number;
   autoVacuumEnabled: boolean;
+  /** Global hotkey string (e.g. CommandOrControl+Alt+Space) or null if unset. */
+  globalHotkey: string | null;
+  /** Minutes of idle before auto-disconnecting prod servers (0 = off, default 10). */
+  remoteDeadmanMinutes: number;
+  /** Favorite ports persisted in settings store (T-24). */
+  favoritePorts: number[];
+  /** Recent command palette IDs persisted in settings store (T-24). */
+  recentCommandIds: string[];
+  /** Palette actions pinned to the top (PLAN F.6). */
+  pinnedCommandIds: string[];
   /** false until persisted settings are loaded from tauri-store on boot. */
   hydrated: boolean;
 }
@@ -48,7 +58,36 @@ export type PersistedSettings = Pick<
   | 'autoArchiveEnabled'
   | 'autoArchiveCutoffDays'
   | 'autoVacuumEnabled'
+  | 'globalHotkey'
+  | 'remoteDeadmanMinutes'
+  | 'favoritePorts'
+  | 'recentCommandIds'
+  | 'pinnedCommandIds'
 >;
+
+/** Every persisted key — the save listener writes exactly these. */
+export const PERSISTED_KEYS = [
+  'theme',
+  'layout',
+  'pollIntervalMs',
+  'remotePollIntervalMs',
+  'remoteBackgroundMinutes',
+  'macleanAutoCleanDays',
+  'macleanLowDiskGb',
+  'quitBehavior',
+  'cardOrder',
+  'enabledModules',
+  'autoArchiveEnabled',
+  'autoArchiveCutoffDays',
+  'autoVacuumEnabled',
+  'globalHotkey',
+  'remoteDeadmanMinutes',
+  'favoritePorts',
+  'recentCommandIds',
+  'pinnedCommandIds',
+] as const satisfies readonly (keyof PersistedSettings)[];
+
+const RECENT_CAP = 10;
 
 const initialState: SettingsState = {
   theme: 'system',
@@ -64,6 +103,11 @@ const initialState: SettingsState = {
   autoArchiveEnabled: false,
   autoArchiveCutoffDays: 30,
   autoVacuumEnabled: false,
+  globalHotkey: null,
+  remoteDeadmanMinutes: 10,
+  favoritePorts: [],
+  recentCommandIds: [],
+  pinnedCommandIds: [],
   hydrated: false,
 };
 
@@ -115,6 +159,39 @@ const settingsSlice = createSlice({
     setAutoVacuumEnabled(state, action: PayloadAction<boolean>) {
       state.autoVacuumEnabled = action.payload;
     },
+    setGlobalHotkey(state, action: PayloadAction<string | null>) {
+      state.globalHotkey = action.payload;
+    },
+    setRemoteDeadmanMinutes(state, action: PayloadAction<number>) {
+      state.remoteDeadmanMinutes = action.payload;
+    },
+    setFavoritePorts(state, action: PayloadAction<number[]>) {
+      state.favoritePorts = action.payload;
+    },
+    toggleFavoritePort(state, action: PayloadAction<number>) {
+      const port = action.payload;
+      if (state.favoritePorts.includes(port)) {
+        state.favoritePorts = state.favoritePorts.filter((p) => p !== port);
+      } else {
+        state.favoritePorts.push(port);
+      }
+    },
+    addRecentCommandId(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      state.recentCommandIds = [id, ...state.recentCommandIds.filter((item) => item !== id)].slice(
+        0,
+        RECENT_CAP,
+      );
+    },
+    setRecentCommandIds(state, action: PayloadAction<string[]>) {
+      state.recentCommandIds = action.payload.slice(0, RECENT_CAP);
+    },
+    togglePinnedCommand(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      state.pinnedCommandIds = state.pinnedCommandIds.includes(id)
+        ? state.pinnedCommandIds.filter((p) => p !== id)
+        : [...state.pinnedCommandIds, id];
+    },
     hydrateSettings(state, action: PayloadAction<Partial<PersistedSettings>>) {
       Object.assign(state, action.payload);
       state.hydrated = true;
@@ -136,6 +213,13 @@ export const {
   setAutoArchiveEnabled,
   setAutoArchiveCutoffDays,
   setAutoVacuumEnabled,
+  setGlobalHotkey,
+  setRemoteDeadmanMinutes,
+  setFavoritePorts,
+  toggleFavoritePort,
+  addRecentCommandId,
+  setRecentCommandIds,
+  togglePinnedCommand,
   hydrateSettings,
 } = settingsSlice.actions;
 export const settingsReducer = settingsSlice.reducer;

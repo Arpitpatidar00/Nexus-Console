@@ -5,9 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 **Stackroost** — a macOS desktop/menu-bar app: Tauri 2 (Rust) + React 19 + Vite + Tailwind v4.
-It manages local Homebrew services/packages/ports, an embedded PTY terminal, and **Stackroost Doctor**
-(read-only machine-health probes, the Claude chat Archiver, VSCode cleanup). macOS 11+, single
-window (`main`), no backend, no network API.
+It integrates six core modules:
+
+1. **Homebrew** — local services, installed packages, and session management.
+2. **Ports** — listening sockets, process inspection, and conflict resolution.
+3. **Servers** — Linux server fleet management over OpenSSH (probes, Docker containers, systemd, live logs).
+4. **Doctor** — read-only system and developer environment health diagnosis.
+5. **Mac Clean** — storage disk usage breakdown, safe dev cache cleanup, and memory/swap monitor.
+6. **Claude Chats** — Claude Code chat session browser, search, and JSON archive export.
+
+macOS 11+, single window (`main`). The network surface is strictly limited to user-added remote servers over `/usr/bin/ssh` using the user's existing `~/.ssh/config` and keys (BatchMode for non-blocking probes; interactive PTY for terminal shells). Zero telemetry, zero third-party tracking, zero external accounts.
 
 > **Ignore stack-specific `.claude/rules/*`.** Those files are auto-loaded but describe a
 > _different_ project (Nexus ERP — NestJS, Prisma, MUI, `server/` + `nexus-fe/`, none of which
@@ -88,21 +95,37 @@ is registered with `StateFlags::all() & !VISIBLE` — restoring VISIBLE would re
 and reintroduce the white flash. Closing the window hides to tray (services keep running); real quit
 (`ExitRequested`) kills PTYs and stops explicitly-unlinked services.
 
-### Rust conventions
+### Rust conventions & Safety Foundations
 
-- Never build a shell string: `run_brew(bin, &["services", "start", name])`, with formula names
-  through `util::validate::validate_formula`. `HOMEBREW_NO_AUTO_UPDATE=1` on every call.
-- `BrewLock` serializes brew mutations; `ServicesCache` caches `brew services list --json` (~1.6s)
-  keyed on TTL + the launchctl pid map — **every write command must `invalidate()` it**.
-- Commands that shell out are `async` + `spawn_blocking` (`commands::blocking`) — a sync command
-  freezes the UI on the 4s poll.
-- Destructive mutations gate on `commands::confirm_action` (native NSAlert, parented to the main
-  window) _in Rust_, so the frontend cannot bypass the confirm. `confirm_bulk` is the FE-callable
-  variant returning a bool.
-- Doctor probes are **strictly read-only and must never wake a daemon** (querying watchman starts
-  it — see `docs/doctor/SESSION-CONTEXT.md` §2). Mutations only via explicit `doctor_fix`/`vscode_*`
-  commands. Every `Finding` carries an honest `Tag` (`speed`/`storage`/`info`) — never claim disk
-  cleanup makes a machine faster.
+- **Strict argv execution (`core::exec`):** Never build a shell string or invoke `/bin/sh -c` / `bash -c`. All commands execute as explicit argv slices (`core::exec::run`) with enforced timeouts. Architecture guard test `guard_no_shell_commands` strictly prevents unauthorized shell usage.
+- **Strict type validation (`core::validate`):** All user-supplied identifiers, domains, hostnames, DB names, remote paths, and AWS profiles/regions must be validated newtypes (`HostName`, `DomainName`, `DbName`, `RemotePath`, etc.) that reject command injection payloads, control characters, and path traversals.
+- **Mutation gate (`core::mutation`):** Every mutating command must acquire an RAII `MutationGuard` (`core::mutation::mutation` or `mutation_unattended`). Destructive operations require native macOS confirmation (`NSAlert`). Guard `guard_mutations_gated` scans all mutation commands. Every mutation is journaled on drop.
+- **No ignored command outputs:** Guard `guard_no_ignored_outputs` enforces that command exits are checked and errors surfaced.
+- **Zero browser dialogs:** Guard `guard_no_browser_confirms` ensures `window.confirm` and `window.alert` are never used.
+- **Stores (`core::store`):** persisted JSON goes through `load_store`/`save_store` — atomic temp+rename,
+  `{version, data}` envelope (raw legacy files still load), a corrupt file is moved to
+  `<name>.corrupt.<epoch>` instead of being overwritten, `sensitive` → 0600. No hand-rolled `fs::write`.
+- **Consent (`core::consent`):** reading `~/.ssh/config`, `~/.aws`, shell history, project `.env` files
+  or `~/Library` requires `require_consent(DataSource::…)` **in Rust** before the read. Default is denied.
+  Frontend asks with `<ConsentGate source=…>` (`shared/privacy`); Settings → Privacy lists and revokes.
+  SSH consent is owned by `RemoteState` (revoking disconnects) and mirrored into the unified store.
+- **Network (`core::net`):** every outbound destination is declared in `declared_destinations()` (shown in
+  Settings → Privacy) and checked with `check_outbound_allowed` before connecting. A new endpoint means a
+  new declared entry — never a silent call.
+- **Module gate (`core::capabilities`):** `lib.rs` wraps the invoke handler with `module_gate`; a command
+  whose `command_module()` is switched off is rejected (`forbidden`) before it runs. New command prefixes
+  must be mapped there; commands needed while a module is off (e.g. `claude_installed`) map to `None`.
+- **Updates & diagnostics:** updates go through `tauri-plugin-updater` in Rust only (`app_check_update`
+  on click, `app_install_update` behind the mutation gate); the pubkey is in `tauri.conf.json`, the
+  private key never enters the repo. Every non-cancelled, non-silent query/mutation failure is written to
+  the local `core::diag` log (`logError`, deduped per minute); `diag_report` is redacted before copying.
+  Versions change only via `npm run version:set -- x.y.z`; `CHANGELOG.md` is generated (`npm run changelog`).
+- **Background work (`services::scheduler`):** one thread, 10 s tick. Jobs expose `tick(...)` and keep
+  their own cadence via `due()`; everything but the prod dead-man switch pauses on low battery. Don't
+  spawn a new loop thread — add a job.
+- `BrewLock` serializes brew mutations; `ServicesCache` caches `brew services list --json` (~1.6s) keyed on TTL + the launchctl pid map — **every write command must `invalidate()` it**.
+- Commands that shell out are `async` + `spawn_blocking` (`commands::blocking`) — a sync command freezes the UI on the poll loop.
+- Doctor probes are **strictly read-only and must never wake a daemon** (querying watchman starts it — see `docs/doctor/SESSION-CONTEXT.md` §2). Mutations only via explicit `doctor_fix`/`vscode_*` commands. Every `Finding` carries an honest `Tag` (`speed`/`storage`/`info`) — never claim disk cleanup makes a machine faster.
 
 ### Frontend structure & styling
 
@@ -116,8 +139,11 @@ initial chunk are deliberately deep-imported instead — the comments in `App.ts
 the build for `INEFFECTIVE_DYNAMIC_IMPORT` before "fixing" one back to a barrel.
 
 Styling is Tailwind v4 CSS-first: semantic tokens in `src/styles/theme.css` (`bg-canvas`, `text-fg`,
-`border-border`, `text-accent`, status ramp), dark mode via `[data-theme='dark']` var overrides —
-**never hardcode a hex, and don't scatter `dark:` utilities**. Component variants use `cva`
+`border-border`, brand `bg-ember`/`text-ember-text`/`bg-ember-soft`, status ramp `success`/`warning`/
+`info`/`destructive` + `-soft`), dark mode via `[data-theme='dark']` var overrides —
+**never hardcode a hex, and don't scatter `dark:` utilities**. `accent` is shadcn's _hover surface_
+(`hover:bg-accent`), not the brand color. `src/styles/tokens.guard.test.ts` fails on raw palette classes
+(`bg-red-500`…) and dead legacy aliases (`text-accent`, `bg-surface-*`, `text-text-*`…). Component variants use `cva`
 (`Button.styles.ts`). Dark mode is flat: 1px borders and tonal surfaces, no shadows. React Compiler
 is on (Babel plugin) — don't hand-add `useMemo`/`useCallback` for memoization alone.
 

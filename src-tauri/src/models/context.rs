@@ -11,6 +11,7 @@ pub struct AppContext {
     pub brew_prefix: Option<String>,
     pub brew_bin: Option<String>,
     pub brew_version: Option<String>,
+    pub max_ptys: usize,
 }
 
 /// `brew --version` result, resolved off the startup path — the subprocess costs
@@ -58,6 +59,7 @@ pub fn discover() -> AppContext {
         brew_bin,
         // Resolved async after startup (see BrewVersion) — never block paint on it.
         brew_version: None,
+        max_ptys: crate::services::pty::MAX_PTYS,
     }
 }
 
@@ -87,11 +89,13 @@ mod tests {
             brew_prefix: Some("/opt/homebrew".into()),
             brew_bin: Some("/opt/homebrew/bin/brew".into()),
             brew_version: Some("6.0.10".into()),
+            max_ptys: 8,
         };
         let v = serde_json::to_value(&ctx).unwrap();
         assert_eq!(v["platform"], "macos");
         assert_eq!(v["brewPrefix"], "/opt/homebrew");
         assert_eq!(v["brewVersion"], "6.0.10");
+        assert_eq!(v["maxPtys"], 8);
     }
 
     // Real-machine round-trip proof (this Mac has brew). Ignored in CI where
@@ -102,6 +106,7 @@ mod tests {
         let ctx = discover();
         assert_eq!(ctx.platform, "macos");
         assert!(ctx.brew_prefix.is_some(), "brew prefix should be found");
+        assert_eq!(ctx.max_ptys, 8);
         assert!(
             ctx.brew_version.is_none(),
             "version is resolved async, not in discover()"
@@ -119,8 +124,10 @@ mod tests {
             brew_prefix: None,
             brew_bin: None,
             brew_version: None,
+            max_ptys: 8,
         };
         let v = serde_json::to_value(&ctx).unwrap();
         assert!(v["brewPrefix"].is_null());
+        assert_eq!(v["maxPtys"], 8);
     }
 }

@@ -13,8 +13,6 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 
-const TICK: Duration = Duration::from_secs(60);
-
 /// Fresh snapshots taken here, so an open Servers tab shows them too.
 pub const SNAPSHOT_EVENT: &str = "remote://snapshot";
 
@@ -70,19 +68,31 @@ pub fn notification_body(label: &str, env_caps: &str, news: &[&HostFinding]) -> 
     }
 }
 
-pub fn start(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        let mut last: Option<Instant> = None;
-        loop {
-            if let Some(every) = interval(crate::settings::read(&app).as_ref()) {
-                if last.is_none_or(|t| t.elapsed() >= every) {
-                    run_once(&app);
-                    last = Some(Instant::now());
-                }
-            }
-            std::thread::sleep(TICK);
+/// Auto-connect any host marked `auto_connect: true` on startup using BatchMode.
+/// Silent failure: never prompts and sends no notification.
+pub fn auto_connect_all(app: &tauri::AppHandle) {
+    let state = app.state::<RemoteState>();
+    let Ok(hosts) = state.read().map(|s| s.hosts.clone()) else {
+        return;
+    };
+    for h in hosts {
+        if !h.auto_connect {
+            continue;
         }
-    });
+        let Ok(target) = state.target(&h.id) else {
+            continue;
+        };
+        let _ = ssh::exec(&target, &["true"], None, ssh::DEFAULT_TIMEOUT);
+    }
+}
+
+pub fn tick(app: &tauri::AppHandle, last: &mut Option<Instant>) {
+    if let Some(every) = interval(crate::settings::read(app).as_ref()) {
+        if last.is_none_or(|t| t.elapsed() >= every) {
+            run_once(app);
+            *last = Some(Instant::now());
+        }
+    }
 }
 
 fn run_once(app: &tauri::AppHandle) {

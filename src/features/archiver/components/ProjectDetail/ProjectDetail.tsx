@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Archive, ArchiveRestore, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Trash2, FileText, Brain, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
@@ -16,6 +16,8 @@ import {
 } from '@/features/archiver/api/useArchiver';
 import { ChatRows, type RowAction } from './ChatRows';
 import { olderThan } from './helpers';
+import { useExportMarkdown, useProjectUsage } from '../../api/useArchiverUpgrades';
+import { ContextAnalysisModal } from '../ContextAnalysisModal';
 import type { ProjectDetailProps } from './ProjectDetail.types';
 
 /** Age filter for the live list — the Archive… action archives what's shown. */
@@ -64,6 +66,9 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
     del.isPending ||
     delLive.isPending;
   const canRestore = row.live != null;
+  const [inspectContextFile, setInspectContextFile] = useState<string | null>(null);
+  const exportMd = useExportMarkdown();
+  const usage = useProjectUsage(row.live?.dirName ?? null);
 
   // Cutoff archive: the native macOS dialog (shown by Rust, with the real
   // count) is the confirm — no in-app dialog needed anymore.
@@ -149,6 +154,45 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
   // Per-row three-dots actions.
   const liveActions: RowAction[] = [
     {
+      label: 'Resume in Terminal',
+      icon: <Terminal className="h-4 w-4 text-success" />,
+      disabled: busy,
+      onAct: (f) => {
+        const id = f.replace('.jsonl', '');
+        const cmd = 'claude --resume ' + id;
+        navigator.clipboard.writeText(cmd);
+        toast.success('Copied resume command: ' + cmd);
+      },
+    },
+    {
+      label: 'Export Markdown',
+      icon: <FileText className="h-4 w-4 text-info" />,
+      disabled: busy,
+      onAct: async (f) => {
+        if (!row.live) return;
+        try {
+          const md = await exportMd.mutateAsync({ dirName: row.live.dirName, sessionFile: f });
+          const blob = new Blob([md], { type: 'text/markdown' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = f.replace('.jsonl', '') + '.md';
+          a.click();
+          URL.revokeObjectURL(url);
+          toast.success('Transcript exported to Markdown');
+        } catch (e: unknown) {
+          const err = e as Error;
+          toast.error('Export failed: ' + err.message);
+        }
+      },
+    },
+    {
+      label: 'Context Analysis',
+      icon: <Brain className="h-4 w-4 text-info" />,
+      disabled: busy,
+      onAct: (f) => setInspectContextFile(f),
+    },
+    {
       label: 'Archive',
       icon: <Archive className="h-4 w-4" />,
       disabled: busy,
@@ -190,6 +234,24 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
           {row.live?.cacheBytes != null && ` · ${formatBytes(row.live.cacheBytes)} VSCode cache`}
         </p>
       </div>
+
+      {usage.data && (
+        <div className="mx-6 mb-2 flex items-center justify-between rounded-lg border border-border bg-muted p-2.5 text-xs">
+          <div className="flex items-center gap-3">
+            <span className="text-fg-muted">Estimated Spend:</span>
+            <span className="font-mono font-semibold text-success">
+              ${usage.data.estimatedCostUsd.toFixed(2)}
+            </span>
+            <span className="text-fg-muted">·</span>
+            <span className="font-mono text-fg-muted">
+              {((usage.data.inputTokens + usage.data.outputTokens) / 1000).toFixed(0)}k tokens
+            </span>
+          </div>
+          <span className="text-[10px] text-fg-muted">
+            Estimated spend (model price table estimate, editable in Settings)
+          </span>
+        </div>
+      )}
 
       {/* Live chats — filter by age, select, archive. */}
       {row.live && (
@@ -338,6 +400,14 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
           </div>
         )}
       </div>
+
+      {inspectContextFile && row.live && (
+        <ContextAnalysisModal
+          dirName={row.live.dirName}
+          sessionFile={inspectContextFile}
+          onClose={() => setInspectContextFile(null)}
+        />
+      )}
     </section>
   );
 };

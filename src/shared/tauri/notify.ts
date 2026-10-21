@@ -31,3 +31,16 @@ export function setTrayTitle(title: string): void {
 export function setTrayServices(services: { name: string; running: boolean }[]): void {
   void invoke(CMD.SET_TRAY_SERVICES, { services }).catch(() => {});
 }
+
+export interface TrayServerItem {
+  id: string;
+  label: string;
+  env: string;
+  connected: boolean;
+  status: string;
+}
+
+/** Rebuild the tray menu's Connected Servers list. */
+export function setTrayServers(servers: TrayServerItem[]): void {
+  void invoke(CMD.SET_TRAY_SERVERS, { servers }).catch(() => {});
+}

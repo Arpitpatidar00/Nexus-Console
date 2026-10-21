@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FolderOpen, Settings2 } from 'lucide-react';
+import { FolderOpen, Settings2, Search } from 'lucide-react';
+import { TranscriptSearchModal } from '../../components/TranscriptSearchModal';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Panel } from '@/shared/ui/Panel';
@@ -16,6 +17,7 @@ export const ArchiverPage = () => {
   const archived = useArchivedChats();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const isPending = projects.isPending || archived.isPending;
 
@@ -50,16 +52,28 @@ export const ArchiverPage = () => {
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
         <p className="sr-caption tabular-nums">{subtitle}</p>
-        <Button
-          variant="glass"
-          size="sm"
-          aria-label="Archive settings"
-          title="Archive settings"
-          onClick={() => setSettingsOpen(true)}
-        >
-          <Settings2 className="size-4" />
-          Archive Settings
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="glass"
+            size="sm"
+            aria-label="Search transcripts"
+            title="Search transcripts"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="size-4" />
+            Search Chats
+          </Button>
+          <Button
+            variant="glass"
+            size="sm"
+            aria-label="Archive settings"
+            title="Archive settings"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings2 className="size-4" />
+            Archive Settings
+          </Button>
+        </div>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 md:grid-cols-[340px_1fr]">
@@ -97,6 +111,16 @@ export const ArchiverPage = () => {
       </div>
 
       <ArchiveSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      {searchOpen && (
+        <TranscriptSearchModal
+          onClose={() => setSearchOpen(false)}
+          onResume={(sessionId) => {
+            const cmd = 'claude --resume ' + sessionId;
+            void navigator.clipboard.writeText(cmd);
+            setSearchOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

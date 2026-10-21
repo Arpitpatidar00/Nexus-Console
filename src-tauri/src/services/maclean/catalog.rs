@@ -14,7 +14,7 @@ use std::time::{Duration, SystemTime};
 
 const TOOL_TIMEOUT: Duration = Duration::from_secs(30);
 
-pub const ITEM_IDS: [&str; 15] = [
+pub const ITEM_IDS: [&str; 23] = [
     "npm",
     "pnpm",
     "yarn",
@@ -30,6 +30,14 @@ pub const ITEM_IDS: [&str; 15] = [
     "next",
     "xcode",
     "simulators",
+    "gradle",
+    "cocoapods",
+    "flutter",
+    "xcode_devices",
+    "android_images",
+    "pub_cache",
+    "old_installers",
+    "old_screenshots",
 ];
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -101,6 +109,9 @@ pub fn paths_of(id: &str, env: &Env) -> Option<Vec<PathBuf>> {
         }
         "docker_installer" => vec![env.h("Library/Application Support/com.docker.install")],
         "xcode" => vec![env.h("Library/Developer/Xcode/DerivedData")],
+        "gradle" => vec![env.h(".gradle/caches")],
+        "cocoapods" => vec![env.h("Library/Caches/CocoaPods")],
+        "pub_cache" => vec![env.h(".pub-cache")],
         _ => return None,
     })
 }
@@ -122,6 +133,14 @@ fn label_of(id: &str, rules: &Rules) -> String {
         "next" => "Idle Next.js builds (.next)".into(),
         "xcode" => "Xcode DerivedData".into(),
         "simulators" => "Unavailable iOS simulators".into(),
+        "gradle" => "Gradle caches".into(),
+        "cocoapods" => "CocoaPods cache".into(),
+        "flutter" => "Idle Flutter builds (build/)".into(),
+        "xcode_devices" => "Old iOS DeviceSupport".into(),
+        "android_images" => "Unused Android system images".into(),
+        "pub_cache" => "Pub cache (report only)".into(),
+        "old_installers" => "Old installers in Downloads (> 30d)".into(),
+        "old_screenshots" => "Old screenshots & screen recordings (> 30d)".into(),
         _ => id.into(),
     }
 }
@@ -297,6 +316,105 @@ pub fn idle_next_dirs(env: &Env) -> Vec<PathBuf> {
 
 // --- the catalog ----------------------------------------------------------------
 
+pub fn screenshot_dir(home: &Path) -> PathBuf {
+    if let Ok(out) = std::process::Command::new("defaults")
+        .args(["read", "com.apple.screencapture", "location"])
+        .output()
+    {
+        if out.status.success() {
+            let loc = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let p = PathBuf::from(&loc);
+            if p.exists() {
+                return p;
+            }
+        }
+    }
+    home.join("Desktop")
+}
+
+pub fn find_old_files<F: Fn(&str) -> bool>(
+    dir: &Path,
+    age_days: u32,
+    now: SystemTime,
+    matcher: F,
+) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return files;
+    };
+    let cutoff = now - Duration::from_secs(u64::from(age_days) * 86_400);
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if matcher(name) {
+                    if let Ok(m) = entry.metadata() {
+                        if m.modified().is_ok_and(|t| t < cutoff) {
+                            files.push(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    files
+}
+
+pub fn old_xcode_devices(env: &Env) -> Vec<PathBuf> {
+    let base = env.h("Library/Developer/Xcode/iOS DeviceSupport");
+    let Ok(entries) = std::fs::read_dir(&base) else {
+        return Vec::new();
+    };
+    let mut dirs: Vec<(PathBuf, SystemTime)> = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let mtime = entry
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(SystemTime::UNIX_EPOCH);
+            dirs.push((path, mtime));
+        }
+    }
+    dirs.sort_by_key(|(_, t)| *t);
+    // Keep the newest 2
+    if dirs.len() > 2 {
+        let remove_count = dirs.len() - 2;
+        dirs.into_iter()
+            .take(remove_count)
+            .map(|(p, _)| p)
+            .collect()
+    } else {
+        Vec::new()
+    }
+}
+
+pub fn idle_flutter_dirs(env: &Env) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    let roots = env.rules.roots(&env.home);
+    let cutoff = env.now - Duration::from_secs(u64::from(env.rules.next_idle_days) * 86_400);
+    for root in roots {
+        let Ok(entries) = std::fs::read_dir(&root) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() && p.join("pubspec.yaml").is_file() {
+                let build_dir = p.join("build");
+                if build_dir.is_dir() {
+                    let fresh = std::fs::metadata(&build_dir)
+                        .and_then(|m| m.modified())
+                        .is_ok_and(|t| t >= cutoff);
+                    if !fresh {
+                        dirs.push(build_dir);
+                    }
+                }
+            }
+        }
+    }
+    dirs
+}
+
 pub fn skip_for(
     id: &str,
     env: &Env,
@@ -305,6 +423,15 @@ pub fn skip_for(
 ) -> Option<String> {
     let open = |app: &str, what: &str| tools::app_running(app).then(|| format!("{what} is open"));
     match id {
+        "gradle" => {
+            if tools::app_running("java") || tools::app_running("gradle") {
+                Some("Java or Gradle daemon is running".into())
+            } else {
+                None
+            }
+        }
+        "pub_cache" => Some("Report only: clean with `dart pub cache clean`".into()),
+        "xcode_devices" => open("Xcode", "Xcode"),
         "chrome" => open("Google Chrome", "Chrome"),
         "vscode" => open("Visual Studio Code", "VS Code"),
         "antigravity" => open("Antigravity IDE", "Antigravity"),
@@ -414,6 +541,97 @@ pub fn measure_item(id: &'static str, env: &Env, docker: &DockerUsage) -> Option
                 }
                 total
             }
+            "flutter" => {
+                let dirs = idle_flutter_dirs(env);
+                let mut total = 0;
+                for d in &dirs {
+                    let b = du(&[d], &[], env.cancel)?;
+                    detail.push(format!(
+                        "{} · {}",
+                        env.tilde(d),
+                        crate::doctor::vscode::fmt_mb(b)
+                    ));
+                    total += b;
+                }
+                total
+            }
+            "xcode_devices" => {
+                let dirs = old_xcode_devices(env);
+                let mut total = 0;
+                for d in &dirs {
+                    let b = du(&[d], &[], env.cancel)?;
+                    detail.push(format!(
+                        "{} · {}",
+                        env.tilde(d),
+                        crate::doctor::vscode::fmt_mb(b)
+                    ));
+                    total += b;
+                }
+                note = Some("Keeps the newest 2 device runtimes; older ones are removed.".into());
+                total
+            }
+            "android_images" => {
+                let base = env.h("Library/Android/sdk/system-images");
+                let mut total = 0;
+                if base.is_dir() {
+                    if let Ok(entries) = std::fs::read_dir(&base) {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p.is_dir() {
+                                let b = du(&[&p], &[], env.cancel)?;
+                                detail.push(format!(
+                                    "{} · {}",
+                                    env.tilde(&p),
+                                    crate::doctor::vscode::fmt_mb(b)
+                                ));
+                                total += b;
+                            }
+                        }
+                    }
+                }
+                total
+            }
+            "old_installers" => {
+                let files = find_old_files(&env.h("Downloads"), 30, env.now, |name| {
+                    name.ends_with(".dmg") || name.ends_with(".pkg") || name.ends_with(".zip")
+                });
+                let mut total = 0;
+                for f in &files {
+                    let b = du(&[f], &[], env.cancel)?;
+                    detail.push(format!(
+                        "{} · {}",
+                        env.tilde(f),
+                        crate::doctor::vscode::fmt_mb(b)
+                    ));
+                    total += b;
+                }
+                note = Some(
+                    "Installers older than 30 days. Moved to Trash, never permanently deleted."
+                        .into(),
+                );
+                total
+            }
+            "old_screenshots" => {
+                let sdir = screenshot_dir(&env.home);
+                let files = find_old_files(&sdir, 30, env.now, |name| {
+                    name.starts_with("Screenshot") || name.starts_with("Screen Recording")
+                });
+                let mut total = 0;
+                for f in &files {
+                    let b = du(&[f], &[], env.cancel)?;
+                    detail.push(format!(
+                        "{} · {}",
+                        env.tilde(f),
+                        crate::doctor::vscode::fmt_mb(b)
+                    ));
+                    total += b;
+                }
+                note = Some(
+                    "Screenshots older than 30 days. Moved to Trash, never permanently deleted."
+                        .into(),
+                );
+                total
+            }
             _ => 0,
         }
     };
@@ -426,7 +644,15 @@ pub fn measure_item(id: &'static str, env: &Env, docker: &DockerUsage) -> Option
         label: label_of(id, env.rules),
         bytes,
         skip: skip_for(id, env, docker, brew_bin.as_deref()),
-        default_selected: id != "docker_images",
+        default_selected: !matches!(
+            id,
+            "docker_images"
+                | "xcode_devices"
+                | "android_images"
+                | "pub_cache"
+                | "old_installers"
+                | "old_screenshots"
+        ),
         note,
         detail,
     })

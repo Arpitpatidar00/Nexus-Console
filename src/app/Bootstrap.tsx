@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { hydrateSettings } from '@/shared/state/settingsSlice';
 import { hydrateServiceIntent } from '@/shared/state/serviceIntentSlice';
 import { hydrateSessions } from '@/shared/state/sessionsSlice';
+import { setTerminalCap } from '@/shared/state/terminalsSlice';
 import { loadPersistedSettings } from '@/shared/state/settingsPersist';
 import { loadPersistedServiceIntent } from '@/shared/state/serviceIntentPersist';
 import { loadPersistedSessions } from '@/shared/state/sessionsPersist';
@@ -40,7 +41,7 @@ type Phase = 'splash' | 'leaving' | 'done';
 export const Bootstrap = ({ children }: PropsWithChildren) => {
   const dispatch = useAppDispatch();
   const hydrated = useAppSelector((s) => s.settings.hydrated);
-  const { isPending } = useAppContext();
+  const { data: appContext, isPending } = useAppContext();
   const ready = hydrated && !isPending;
   // null = this install has never chosen its modules → first-run picker instead
   // of the app (see sanitizeModules for how "never chosen" is told apart from
@@ -49,6 +50,12 @@ export const Bootstrap = ({ children }: PropsWithChildren) => {
 
   const [phase, setPhase] = useState<Phase>('splash');
   const mountedAt = useRef(Date.now());
+
+  useEffect(() => {
+    if (appContext?.maxPtys) {
+      dispatch(setTerminalCap(appContext.maxPtys));
+    }
+  }, [appContext?.maxPtys, dispatch]);
 
   useEffect(() => {
     void persisted.then(([settings, intent, sessions]) => {

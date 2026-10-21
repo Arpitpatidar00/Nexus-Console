@@ -1,46 +1,49 @@
-import React, { useState } from 'react';
+import React from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cn } from '@/shared/lib/cn';
 
 export interface TooltipProps {
   label: React.ReactNode;
   side?: 'top' | 'right' | 'bottom' | 'left';
+  align?: 'start' | 'center' | 'end';
+  sideOffset?: number;
   className?: string;
   children: React.ReactNode;
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ label, side = 'right', className, children }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const Tooltip: React.FC<TooltipProps> = ({
+  label,
+  side = 'right',
+  align = 'center',
+  sideOffset = 12,
+  className,
+  children,
+}) => {
+  if (!label) return <>{children}</>;
 
-  const sideStyle: React.CSSProperties =
-    side === 'right'
-      ? { top: '50%', left: 'calc(100% + 10px)', transform: 'translateY(-50%)' }
-      : side === 'left'
-        ? { top: '50%', right: 'calc(100% + 10px)', transform: 'translateY(-50%)' }
-        : side === 'bottom'
-          ? { top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)' }
-          : { bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)' };
+  const trigger = React.isValidElement(children) ? (
+    children
+  ) : (
+    <span className="inline-flex">{children}</span>
+  );
 
   return (
-    <span
-      className="sr-tip-wrap relative inline-flex"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-      onFocus={() => setIsOpen(true)}
-      onBlur={() => setIsOpen(false)}
-    >
-      {children}
-      {isOpen && (
-        <span
-          role="tooltip"
-          style={sideStyle}
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>{trigger}</TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side={side}
+          align={align}
+          sideOffset={sideOffset}
           className={cn(
-            'sr-tip is-open pointer-events-none absolute z-50 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-md transition-opacity duration-150',
+            'z-[var(--z-tooltip,1500)] animate-in rounded-lg border border-hairline bg-popover/95 px-3 py-1.5 text-xs font-medium tracking-wide text-popover-foreground shadow-float backdrop-blur-md duration-150 fade-in-0 select-none zoom-in-95 data-[state=closed]:zoom-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
             className,
           )}
         >
           {label}
-        </span>
-      )}
-    </span>
+          <TooltipPrimitive.Arrow className="fill-popover/95" />
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 };

@@ -1,0 +1,1 @@
+export { DuplicateFilesCard } from './DuplicateFilesCard';

@@ -14,6 +14,7 @@ export type IpcErrorKind =
   | 'hostKey'
   | 'unreachable'
   | 'timeout'
+  | 'conflict'
   | 'contract'
   | 'unknown';
 

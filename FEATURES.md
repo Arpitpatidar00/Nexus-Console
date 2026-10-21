@@ -23,14 +23,28 @@ disk cleanup and memory, Claude Code chats, and a built-in terminal.
 
 ## At a glance
 
-| Module       | Tabs                         | What it's for                                                  | Runs in the background                                          | On by default |
-| ------------ | ---------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- | ------------- |
-| Homebrew     | Services, Packages, Sessions | Start/stop services, manage packages and versions              | A light check every few seconds (keeps the menu-bar count live) | Yes           |
-| Ports        | Ports                        | See what's listening, kill what's stuck                        | Nothing                                                         | Yes           |
-| Servers      | Servers                      | Health, containers and logs of your own Linux servers over SSH | Optional re-check of connected servers                          | No (opt-in)   |
-| Doctor       | Doctor                       | Read-only machine health checks and cleanup                    | Optional daily VSCode cleanup                                   | Yes           |
-| Mac Clean    | Storage, Memory              | Where your disk went, safe cleanup, memory and swap            | Optional scheduled cleanup and low-disk warning                 | Yes           |
-| Claude Chats | Claude Chats                 | Browse and archive Claude Code history                         | Optional daily archiving                                        | Yes           |
+| Module       | Tabs                         | What it's for                                                                      | Runs in the background                                          | On by default |
+| ------------ | ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------- |
+| Homebrew     | Services, Packages, Sessions | Start/stop services, manage packages, keg rollback & cellar versions               | A light check every few seconds (keeps the menu-bar count live) | Yes           |
+| Ports        | Ports                        | See what's listening, kill stuck processes, detached process detection             | Nothing                                                         | Yes           |
+| Servers      | Servers                      | Health, containers, logs, deploy/rollback & parity audits over OpenSSH             | Optional re-check of connected servers                          | No (opt-in)   |
+| Doctor       | Doctor                       | Read-only machine health checks, VSCode vacuum & cache cleanup                     | Optional daily VSCode cleanup                                   | Yes           |
+| Mac Clean    | Storage, Memory, Energy      | Where your disk went, safe cleanup, memory and swap pressure                       | Optional scheduled cleanup and low-disk warning                 | Yes           |
+| Claude Chats | Claude Chats                 | Browse and archive Claude Code history                                             | Optional daily archiving                                        | Yes           |
+| Docker       | Containers                   | Local container runtime, compose stacks, and live container logs                   | Nothing                                                         | No (opt-in)   |
+| Databases    | Databases                    | Local & remote database client, read-only session inspection                       | Nothing                                                         | No (opt-in)   |
+| Projects     | Projects                     | Git status, workspaces, saved commands, and GitHub PRs                             | Nothing                                                         | Yes           |
+| Toolbox      | Dev Toolbox                  | Offline converters, regex tester, cron, hashes & tokens                            | Nothing                                                         | Yes           |
+| Domains      | Domains & Uptime             | RDAP expiry, DNS lookup, SSL check, background uptime pings & SSL alerts (<14d)    | Optional background uptime pings & SSL certificate warnings     | No (opt-in)   |
+| Secrets      | Secrets Scanner              | Detect committed secrets, unignored .env files & leaked keys                       | Nothing                                                         | No (opt-in)   |
+| Cloud        | Cloud AWS                    | AWS profiles, EC2 instances (prod-tagged protection), on-demand Cost Explorer      | Nothing (Cost queries run on explicit click only)               | No (opt-in)   |
+| Backups      | Backups                      | Automated database dumps with 0600 perms & project .env archives (shell-free)      | Nothing                                                         | No (opt-in)   |
+| Network      | Network & Chaos              | Live per-app bandwidth, DNS flush, atomic /etc/hosts editor, Tokio TCP chaos proxy | Nothing (active proxies cleanly terminated on app quit)         | No (opt-in)   |
+| Devices      | Simulators & AVDs            | iOS Simulators, Android AVDs, lifecycle controls & build cache cleaner             | Nothing                                                         | No (opt-in)   |
+| Releases     | Release Config               | Local project version names, build numbers, and Fastlane deployment lanes          | Nothing                                                         | No (opt-in)   |
+| AI Explain   | Local AI Assistant (Ollama)  | Diagnose errors and command output via local Ollama HTTP with secret pattern masks | Nothing (local loopback HTTP on 127.0.0.1:11434 only)           | No (opt-in)   |
+
+*Note: "On by default" applies to fresh installs only; existing installs keep their enabled modules.
 
 Settings is always reachable, whatever modules are on. The terminal is shared by every module.
 
@@ -49,8 +63,8 @@ Settings is always reachable, whatever modules are on. The terminal is shared by
 
 ### Services
 
-- Every Homebrew service with its **real** state. A service brew calls "started" that isn't healthy
-  yet shows as **Starting**, never green.
+- Every Homebrew service with its **real** state. Real health checks probe known formulae (`redis-cli PING`, `pg_isready`, `mysqladmin ping`, `mongosh` ping) with a 2s timeout. A service brew calls "started" that isn't responding shows as **Starting** or **Not responding**, never fake green.
+- **Port conflict warning**: checks if default formula port (e.g. 5432, 6379, 3306) is already bound by another process before starting.
 - **Start, stop, restart** with one click; **Start all / Stop all** with one native confirm.
 - **Linked vs unlinked**: linked services are registered with launchd and survive quitting the app;
   unlinked ones run for this session only and are stopped when you quit (configurable).
@@ -76,6 +90,10 @@ Settings is always reachable, whatever modules are on. The terminal is shared by
 
 - Every listening port with the process, PID, user, CPU and memory. Toggle **listening only / all
   connections**; search by port, PID or process.
+- **Detached port detector**: flags orphan dev processes (Node, Bun, Vite, Python, etc. with PPID 1 and no controlling terminal) holding ports after terminal window was closed, with a clear warning badge.
+- **Project directory owner**: identifies and displays the project name from process working directory.
+- **Open in browser**: probes HTTP listener on demand with a fast 300ms HEAD check and opens in browser.
+- **Favorite ports**: pin important ports (e.g. 3000, 5173, 8080) to the top of the table.
 - **Kill** (SIGTERM), **Force** (SIGKILL), and **Kill with admin** via the native admin prompt when
   permission is denied. System-owned processes carry a warning.
 - Nothing runs in the background.
@@ -98,8 +116,7 @@ on the servers, no account, no server of ours.
 
 - Hosts are grouped by **project**, prod last. Each row shows status as a dot plus words
   ("Not connected", "Healthy", "2 issues", "Host key not trusted").
-- **Connect** is always your click; the app never auto-connects. One SSH connection per host is
-  reused (about 115 ms for the first command, about 15 ms after).
+- **Connect** is explicit by default, with an optional "Connect when Stackroost opens" toggle per host. One SSH connection per host is reused (the first command does the SSH handshake; later commands are fast).
 - **Overview**: OS, kernel, uptime, CPU and load, memory, swap, disks, with live sparklines.
 - **Containers**: state and health, CPU, memory, restarts, compose project. Per container: **live
   logs**, **shell inside**, **restart / stop / start / remove**.
@@ -119,6 +136,9 @@ on the servers, no account, no server of ours.
 - Every container action shows a native confirm with the server name and **ENV in capitals**; on
   **prod** you first type the server's name, then confirm natively. Stop and remove are styled as
   danger.
+- **Prod dead-man's switch**: auto-disconnects idle control masters (`ssh -O exit`) when the screen locks, system sleeps, or after N minutes of inactivity (default 10m).
+- **PTY safety guarantee**: never kills a prod terminal if a foreground command (build, migration, script) is active; sends a notification instead. Copy recommends `tmux` for long prod jobs.
+- **Tray PROD indicator**: the menu bar icon displays `[PROD]` whenever any production server connection is active.
 - The app only sends a host id; Rust builds every command from constants and names the server
   itself reported.
 
@@ -133,6 +153,7 @@ Read-only health checks with honest tags: **Speed**, **Storage** or **Info**. Di
 claimed to make the Mac faster.
 
 - **Scopes**: System, Claude, VSCode, Browser, Disk, Startup.
+- **Toolchain check**: verifies installed developer toolchains (Node, npm, pnpm, Rust, Python, Docker, Flutter, Dart) and flags issues.
 - **Quick scan** streams findings as each check finishes; **Deep scan** adds a node_modules sweep and
   dev-cache sizes, with progress and Cancel.
 - Checks include free disk, load vs cores, memory pressure and swap, Low Power Mode, Time Machine
@@ -300,8 +321,7 @@ Settings → Mac Clean:
 
 - **No account, no telemetry, no server of ours.** Settings, sessions, archives and journals are plain
   files on your Mac.
-- **Network**: Homebrew downloads what you ask for; Servers connects only to the servers you add,
-  with your own `ssh`; nothing else.
+- **Network**: Strictly controlled. OpenSSH to user-added servers; Homebrew package downloads; domain RDAP (`rdap.org`); public DNS resolvers (1.1.1.1, 8.8.8.8, 9.9.9.9) for propagation; update checks (`api.github.com`); AWS CLI when configured; local loopback Ollama (`127.0.0.1:11434`). Zero cloud telemetry.
 - **Read-only by default.** Every change is a button you press, confirmed in a **native macOS sheet**
   shown by Rust (the web UI can't skip it), and written to a journal.
 - **Admin rights** only through the native macOS prompt: Ports "Kill with admin", Mac Clean's

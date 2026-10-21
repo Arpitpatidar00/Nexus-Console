@@ -14,6 +14,7 @@ export * from './Panel';
 export * from './Progress';
 export * from './SearchField';
 export * from './SegmentedControl';
+export * from './Skeleton';
 export * from './Sparkline';
 export * from './Spinner';
 export * from './SplashScreen';

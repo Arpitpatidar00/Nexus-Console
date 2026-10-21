@@ -1,7 +1,8 @@
 import { Suspense, useEffect } from 'react';
-import { useVisibleTabs } from '@/shared/modules';
+import { hubOfTab, useVisibleTabs } from '@/shared/modules';
+import { HubTabs } from '@/shared/layout/HubTabs';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
-import { setActiveTab } from '@/shared/state/uiSlice';
+import { rememberHubTab, setActiveTab } from '@/shared/state/uiSlice';
 import { Spinner } from '@/shared/ui/Spinner';
 import { PAGES } from './MainView.config';
 
@@ -18,17 +19,27 @@ export const MainView = () => {
     if (tab !== activeTab) dispatch(setActiveTab(tab));
   }, [tab, activeTab, dispatch]);
 
+  useEffect(() => {
+    const hub = hubOfTab(tab);
+    if (hub) dispatch(rememberHubTab({ hub, tab }));
+  }, [tab, dispatch]);
+
   const Page = PAGES[tab];
 
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-full items-center justify-center">
-          <Spinner />
-        </div>
-      }
-    >
-      <Page />
-    </Suspense>
+    <>
+      <HubTabs />
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center">
+              <Spinner />
+            </div>
+          }
+        >
+          <Page />
+        </Suspense>
+      </div>
+    </>
   );
 };

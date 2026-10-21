@@ -37,5 +37,14 @@ pub async fn pty_resize(
 
 #[tauri::command]
 pub async fn pty_kill(id: String, mgr: State<'_, PtyManager>) -> AppResult<()> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Kill Terminal PTY",
+            format!("Kill terminal PTY session {id}"),
+            "pty_kill",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
+        .target(&id),
+    );
     crate::services::pty::pty_kill(id, mgr).await
 }

@@ -1,5 +1,11 @@
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
-import { setTheme, setLayout, setEnabledModules } from '@/shared/state/settingsSlice';
+import {
+  setTheme,
+  setLayout,
+  setEnabledModules,
+  setGlobalHotkey,
+} from '@/shared/state/settingsSlice';
+import { Button } from '@/shared/ui/Button';
 import { useEnabledModules } from '@/shared/modules';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Panel } from '@/shared/ui/Panel';
@@ -8,12 +14,18 @@ import { HomebrewStatusCard } from '@/features/settings/components/HomebrewStatu
 import { ManagedServicesEditor } from '@/features/settings/components/ManagedServicesEditor';
 import { ServersSettingsCard } from '@/features/settings/components/ServersSettingsCard';
 import { MacCleanSettingsCard } from '@/features/settings/components/MacCleanSettingsCard';
+import { BlueprintCard } from '@/features/settings/components/BlueprintCard';
+import { AppUpdateCard } from '@/features/settings/components/AppUpdateCard';
+import { PrivacyCard } from '@/features/settings/components/PrivacyCard';
+import { DiagnosticsCard } from '@/features/settings/components/DiagnosticsCard';
+
 import { THEME_OPTIONS, LAYOUT_OPTIONS } from './SettingsPage.config';
 
 export const SettingsPage = () => {
   const dispatch = useAppDispatch();
   const theme = useAppSelector((s) => s.settings.theme);
   const layout = useAppSelector((s) => s.settings.layout);
+  const globalHotkey = useAppSelector((s) => s.settings.globalHotkey);
   const enabledModules = useEnabledModules();
 
   return (
@@ -71,11 +83,47 @@ export const SettingsPage = () => {
           </div>
         </Panel>
 
+        {/* Shortcuts Panel */}
+        <Panel title="Shortcuts" subtitle="System-wide hotkeys">
+          <div className="flex items-center justify-between gap-4 py-3.5">
+            <div>
+              <p className="text-sm font-medium text-foreground">Global toggle hotkey</p>
+              <p className="text-xs text-muted-foreground">
+                Show and focus Stackroost from anywhere; press again to hide.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-muted px-2.5 py-1 font-mono text-xs text-foreground">
+                {globalHotkey ?? 'Unset (Ctrl+Option+Space)'}
+              </span>
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() =>
+                  dispatch(setGlobalHotkey(globalHotkey ? null : 'CommandOrControl+Alt+Space'))
+                }
+              >
+                {globalHotkey ? 'Disable' : 'Enable'}
+              </Button>
+            </div>
+          </div>
+        </Panel>
+
         <HomebrewStatusCard />
 
         {enabledModules.includes('remote') && <ServersSettingsCard />}
 
         {enabledModules.includes('maclean') && <MacCleanSettingsCard />}
+
+        <AppUpdateCard />
+
+        <PrivacyCard />
+
+        <DiagnosticsCard />
+
+        <div className="xl:col-span-2">
+          <BlueprintCard />
+        </div>
 
         <div className="xl:col-span-2">
           <ManagedServicesEditor />

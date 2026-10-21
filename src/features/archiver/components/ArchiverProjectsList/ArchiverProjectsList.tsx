@@ -37,14 +37,14 @@ export const ArchiverProjectsList = ({
                 aria-pressed={isSelected}
                 onClick={() => onSelect(r.id)}
                 className={cn(
-                  'block w-full border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
-                  isSelected ? 'bg-accent-soft' : 'hover:bg-list',
+                  'block w-full border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ember focus-visible:ring-inset',
+                  isSelected ? 'bg-ember-soft' : 'hover:bg-list',
                 )}
               >
                 <span
                   className={cn(
                     'block truncate text-sm font-medium',
-                    isSelected ? 'text-accent' : 'text-fg',
+                    isSelected ? 'text-ember-text' : 'text-fg',
                   )}
                 >
                   {r.displayName}

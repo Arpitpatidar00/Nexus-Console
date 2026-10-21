@@ -12,7 +12,19 @@ use serde::Serialize;
 use std::path::{Component, Path};
 use std::sync::Mutex;
 
-/// Why `safe_rm` refused a path, or `None` if it may go.
+pub fn move_to_trash(path: &Path, home: &Path) -> Result<(), String> {
+    let trash = home.join(".Trash");
+    let name = path.file_name().ok_or("invalid file name")?;
+    let mut target = trash.join(name);
+    if target.exists() {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        target = trash.join(format!("{ts}_{}", name.to_string_lossy()));
+    }
+    std::fs::rename(path, target).map_err(|e| format!("move to trash: {e}"))
+}
+
 pub fn refuse_reason(path: &Path, home: &Path, rules: &Rules) -> Option<&'static str> {
     if !path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
         return Some("not a clean absolute path");
@@ -180,6 +192,55 @@ pub fn clean_item(
             &["simctl", "delete", "unavailable"],
         )
         .map(|_| "unavailable simulators deleted".into()),
+        "flutter" => {
+            let dirs = catalog::idle_flutter_dirs(env);
+            rm_all(&dirs).map(|_| format!("{} build folders removed", dirs.len()))
+        }
+        "xcode_devices" => {
+            let dirs = catalog::old_xcode_devices(env);
+            rm_all(&dirs).map(|_| format!("{} old device runtimes removed", dirs.len()))
+        }
+        "android_images" => {
+            let base = env.h("Library/Android/sdk/system-images");
+            let mut dirs = Vec::new();
+            if base.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&base) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() {
+                            dirs.push(p);
+                        }
+                    }
+                }
+            }
+            rm_all(&dirs).map(|_| format!("{} android system image folders removed", dirs.len()))
+        }
+        "pub_cache" => Ok("report only: clean with `dart pub cache clean`".into()),
+        "old_installers" => {
+            let files = catalog::find_old_files(&env.h("Downloads"), 30, env.now, |name| {
+                name.ends_with(".dmg") || name.ends_with(".pkg") || name.ends_with(".zip")
+            });
+            let mut count = 0;
+            for f in &files {
+                if move_to_trash(f, &env.home).is_ok() {
+                    count += 1;
+                }
+            }
+            Ok(format!("{count} installers moved to Trash"))
+        }
+        "old_screenshots" => {
+            let sdir = catalog::screenshot_dir(&env.home);
+            let files = catalog::find_old_files(&sdir, 30, env.now, |name| {
+                name.starts_with("Screenshot") || name.starts_with("Screen Recording")
+            });
+            let mut count = 0;
+            for f in &files {
+                if move_to_trash(f, &env.home).is_ok() {
+                    count += 1;
+                }
+            }
+            Ok(format!("{count} screenshots moved to Trash"))
+        }
         _ => Err(format!("unknown item {id}")),
     }
 }

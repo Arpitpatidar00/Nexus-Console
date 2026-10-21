@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Button } from '@/shared/ui/Button';
+import { Switch } from '@/shared/ui/Switch';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { Spinner } from '@/shared/ui/Spinner';
 import { useRemoveHost, useUpdateHost } from '@/features/remote/api/remoteMutations';
@@ -9,7 +10,7 @@ import type { RemoteHost } from '@/features/remote/api/remote.schema';
 import { hostAddress } from '@/features/remote/utils/host';
 import { EnvField, ProjectField, TextField } from '@/features/remote/components/HostFields';
 
-/** Label, project and env. Where the host points is fixed: re-import or
+/** Label, project, env and auto-connect. Where the host points is fixed: re-import or
  * re-add to change it. Mounted only while open, so state starts fresh. */
 export const EditHostDialog = ({
   host,
@@ -25,10 +26,19 @@ export const EditHostDialog = ({
   const [label, setLabel] = useState(host.label);
   const [project, setProject] = useState(host.project);
   const [env, setEnv] = useState(host.env);
+  const [autoConnect, setAutoConnect] = useState(host.autoConnect ?? false);
 
   const save = () =>
     update.mutate(
-      { id: host.id, patch: { label: label.trim(), project: project.trim() || 'Ungrouped', env } },
+      {
+        id: host.id,
+        patch: {
+          label: label.trim(),
+          project: project.trim() || 'Ungrouped',
+          env,
+          autoConnect,
+        },
+      },
       { onSuccess: onClose },
     );
 
@@ -54,6 +64,31 @@ export const EditHostDialog = ({
         />
         <ProjectField value={project} onChange={setProject} suggestions={projects} />
         <EnvField value={env} onChange={setEnv} />
+
+        <div className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-muted/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground">
+                Connect when Stackroost opens
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Automatically check this server on startup
+              </span>
+            </div>
+            <Switch
+              checked={autoConnect}
+              onChange={setAutoConnect}
+              ariaLabel="Connect when Stackroost opens"
+            />
+          </div>
+          {autoConnect && env === 'prod' && (
+            <p className="mt-1 text-[11px] leading-relaxed font-medium text-warning">
+              Warning: This will establish an SSH connection automatically to production on
+              application launch.
+            </p>
+          )}
+        </div>
+
         {update.isError && <ErrorPanel error={update.error} fallback="Couldn't save" />}
         <div className="flex items-center justify-between gap-2 pt-1">
           {/* Rust asks with a native sheet; nothing on the server changes. */}

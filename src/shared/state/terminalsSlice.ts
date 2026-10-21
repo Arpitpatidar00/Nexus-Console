@@ -27,13 +27,19 @@ export function terminalKey(t: PtyTarget): string {
   }
 }
 
-interface TerminalsState {
+export interface TerminalsState {
   sessions: TerminalSession[];
   activeId: string | null;
   drawerOpen: boolean;
+  cap: number;
 }
 
-const initialState: TerminalsState = { sessions: [], activeId: null, drawerOpen: false };
+const initialState: TerminalsState = {
+  sessions: [],
+  activeId: null,
+  drawerOpen: false,
+  cap: env.VITE_PTY_CAP ?? 8,
+};
 
 const terminalsSlice = createSlice({
   name: 'terminals',
@@ -43,9 +49,10 @@ const terminalsSlice = createSlice({
     openTerminal: {
       reducer(state, action: PayloadAction<TerminalSession>) {
         const existing = state.sessions.find((s) => s.key === action.payload.key);
+        const limit = state.cap ?? env.VITE_PTY_CAP ?? 8;
         if (existing) {
           state.activeId = existing.id;
-        } else if (state.sessions.length < env.VITE_PTY_CAP) {
+        } else if (state.sessions.length < limit) {
           state.sessions.push(action.payload);
           state.activeId = action.payload.id;
         }
@@ -70,9 +77,12 @@ const terminalsSlice = createSlice({
     setDrawerOpen(state, action: PayloadAction<boolean>) {
       state.drawerOpen = action.payload;
     },
+    setTerminalCap(state, action: PayloadAction<number>) {
+      state.cap = action.payload;
+    },
   },
 });
 
-export const { openTerminal, closeTerminal, setActiveTerminal, setDrawerOpen } =
+export const { openTerminal, closeTerminal, setActiveTerminal, setDrawerOpen, setTerminalCap } =
   terminalsSlice.actions;
 export const terminalsReducer = terminalsSlice.reducer;

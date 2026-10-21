@@ -1,0 +1,1 @@
+export { PrivacyCard } from './PrivacyCard';

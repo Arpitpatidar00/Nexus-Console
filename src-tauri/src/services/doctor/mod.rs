@@ -101,6 +101,9 @@ pub const REGISTRY: &[Probe] = &[
     system::MEMORY_TRUTH,
     system::BACKUP_RISK,
     system::STARTUP_ITEMS,
+    system::TOOLCHAINS,
+    system::BATTERY_HEALTH,
+    system::THERMAL_THROTTLE,
     vscode::ORPHANS,
     vscode::DB_BLOAT,
     vscode::EXTENSION_AUDIT,
@@ -156,13 +159,13 @@ mod tests {
             Scope::Startup,
         ];
         // The Windows stub is registered but filtered on macOS.
-        assert_eq!(REGISTRY.len(), 15);
-        assert_eq!(probes_for(&all).len(), 14);
+        assert_eq!(REGISTRY.len(), 16);
+        assert_eq!(probes_for(&all).len(), 15);
         assert_eq!(probes_for(&[Scope::Browser]).len(), 4);
         assert_eq!(probes_for(&[Scope::Vscode]).len(), 3);
         assert_eq!(probes_for(&[Scope::Disk]).len(), 2);
         assert_eq!(probes_for(&[Scope::Disk])[0].id, "disk_free");
-        assert_eq!(probes_for(&[Scope::System]).len(), 4);
+        assert_eq!(probes_for(&[Scope::System]).len(), 5);
         assert_eq!(probes_for(&[Scope::System])[0].id, "load_vs_cores");
         assert_eq!(probes_for(&[Scope::Startup])[0].id, "startup_items");
         assert!(probes_for(&[]).is_empty());

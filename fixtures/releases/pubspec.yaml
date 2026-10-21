@@ -1,0 +1,11 @@
+name: sample_flutter_app
+description: "A sample Flutter application for release config parsing"
+publish_to: "none"
+version: 2.4.1+48
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter

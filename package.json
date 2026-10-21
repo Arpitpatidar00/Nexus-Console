@@ -13,6 +13,8 @@
     "setup:check": "sh scripts/setup.sh --check",
     "start": "tauri dev",
     "release": "tauri build",
+    "changelog": "node scripts/changelog.mjs",
+    "version:set": "node scripts/version.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -23,6 +25,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:remote": "sh scripts/remote-testbed/testbed.sh test",
+    "test:machine": "cargo test --manifest-path src-tauri/Cargo.toml -- --ignored",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -35,7 +38,7 @@
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.6",
-    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/api": "^2.12.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-store": "^2.4.3",
     "@xterm/addon-fit": "^0.11.0",
@@ -54,7 +57,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
-    "@tauri-apps/cli": "^2.11.4",
+    "@tauri-apps/cli": "^2.12.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",

@@ -1,9 +1,12 @@
 use crate::error::{AppError, AppResult};
-use crate::util::{lsof, ps};
+use crate::util::{lsof, proc, ps};
 use std::collections::HashSet;
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpStream};
 use std::process::Command;
+use std::time::Duration;
 
-/// One listening port + its owning process, enriched with cpu/mem.
+/// One listening port + its owning process, enriched with cpu/mem, detached status, and project owner.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PortDto {
@@ -14,6 +17,53 @@ pub struct PortDto {
     pub proto: String,
     pub cpu: Option<f64>,
     pub memory_bytes: Option<u64>,
+    pub detached: bool,
+    pub project: Option<String>,
+}
+
+/// Probes whether a port responds to a standard HTTP request with a 300ms timeout.
+#[tauri::command]
+pub async fn probe_port_http(port: u16) -> AppResult<bool> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_millis(300)) else {
+            return Ok(false);
+        };
+        let _ = stream.set_read_timeout(Some(Duration::from_millis(300)));
+        let _ = stream.set_write_timeout(Some(Duration::from_millis(300)));
+        let req = format!("HEAD / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+        if stream.write_all(req.as_bytes()).is_err() {
+            return Ok(false);
+        }
+        let mut buf = [0u8; 16];
+        if let Ok(n) = stream.read(&mut buf) {
+            let s = String::from_utf8_lossy(&buf[..n]);
+            if s.starts_with("HTTP/") {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("http probe failed: {e}")))?
+}
+
+#[tauri::command]
+pub async fn open_in_browser(url: String) -> AppResult<()> {
+    if !url.starts_with("http://127.0.0.1:") && !url.starts_with("http://localhost:") {
+        return Err(AppError::Forbidden(
+            "Only loopback URLs may be opened".into(),
+        ));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| AppError::Io(format!("Failed to open browser: {e}")))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("open task failed: {e}")))?
 }
 
 /// `async` + `spawn_blocking` so the lsof/ps shell-outs run OFF the main thread —
@@ -33,22 +83,40 @@ fn collect_ports(listening_only: bool) -> AppResult<Vec<PortDto>> {
     let mut seen = HashSet::new();
     rows.retain(|r| seen.insert((r.pid, r.port)));
 
-    let ids: Vec<String> = {
-        let mut pids: Vec<u32> = rows.iter().map(|r| r.pid).collect();
-        pids.sort_unstable();
-        pids.dedup();
-        pids.iter().map(u32::to_string).collect()
+    let pids: Vec<u32> = {
+        let mut ps: Vec<u32> = rows.iter().map(|r| r.pid).collect();
+        ps.sort_unstable();
+        ps.dedup();
+        ps
     };
+
+    let ids: Vec<String> = pids.iter().map(u32::to_string).collect();
     let samples = if ids.is_empty() {
         Default::default()
     } else {
         ps::parse_ps(&run_ps(&ids))
     };
 
+    let proc_table = proc::get_process_table(&pids);
+    let cwds = proc::get_process_cwds(&pids);
+
     Ok(rows
         .into_iter()
         .map(|r| {
             let s = samples.get(&r.pid);
+            let proc_info = proc_table.get(&r.pid);
+            let cwd = cwds.get(&r.pid);
+            let detached = proc_info.is_some_and(|info| {
+                proc::is_detached(
+                    info.ppid,
+                    &info.tty,
+                    &r.command,
+                    cwd.map(|p| p.as_path()),
+                    &[],
+                )
+            });
+            let project = cwd.and_then(|p| proc::project_name_from_cwd(p));
+
             PortDto {
                 cpu: s.map(|s| s.cpu),
                 memory_bytes: s.map(|s| s.rss_bytes),
@@ -57,6 +125,8 @@ fn collect_ports(listening_only: bool) -> AppResult<Vec<PortDto>> {
                 user: r.user,
                 port: r.port,
                 proto: r.proto,
+                detached,
+                project,
             }
         })
         .collect())
@@ -64,8 +134,6 @@ fn collect_ports(listening_only: bool) -> AppResult<Vec<PortDto>> {
 
 /// SIGTERM (or SIGKILL when `force`). `sudo` escalates via the native admin prompt.
 /// Guards: never signal pid < 2 (kernel/launchd) or Nexus itself.
-// async so the sudo path's `osascript … with administrator privileges` (a
-// blocking macOS auth dialog) doesn't stall the main-thread event loop.
 #[tauri::command]
 pub async fn kill_process(pid: u32, force: bool, sudo: bool) -> AppResult<()> {
     if pid < 2 {
@@ -74,6 +142,16 @@ pub async fn kill_process(pid: u32, force: bool, sudo: bool) -> AppResult<()> {
     if pid == std::process::id() {
         return Err(AppError::Forbidden("refusing to kill Stackroost".into()));
     }
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Kill Process",
+            format!("Signal process PID {pid} (force={force}, sudo={sudo})"),
+            "kill_process",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalSystem)
+        .destructive(force)
+        .target(pid.to_string()),
+    );
     let sig_name = if force { "KILL" } else { "TERM" };
 
     if sudo {

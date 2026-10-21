@@ -11,6 +11,7 @@ use std::sync::{Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 pub const SSH_BIN: &str = "/usr/bin/ssh";
+pub const SCP_BIN: &str = "/usr/bin/scp";
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
 const STDOUT_CAP: usize = 4 * 1024 * 1024;
 const STDERR_CAP: usize = 64 * 1024;
@@ -40,6 +41,30 @@ impl SshTarget {
             .clone()
             .map(|a| SshTarget(vec![a]))
             .ok_or_else(|| AppError::Parse(format!("host {} has no alias", host.id)))
+    }
+
+    pub fn scp_parts(&self) -> (Vec<String>, String) {
+        if self.0.is_empty() {
+            return (vec![], String::new());
+        }
+        let dest = self.0.last().cloned().unwrap_or_default();
+        let mut opts = Vec::new();
+        let mut i = 0;
+        let len = self.0.len().saturating_sub(1);
+        while i < len {
+            if self.0[i] == "-p" {
+                opts.push("-P".to_string());
+                if i + 1 < len {
+                    opts.push(self.0[i + 1].clone());
+                    i += 2;
+                    continue;
+                }
+            } else {
+                opts.push(self.0[i].clone());
+            }
+            i += 1;
+        }
+        (opts, dest)
     }
 
     #[cfg(test)]
@@ -102,7 +127,7 @@ fn opt(kv: String) -> [String; 2] {
 }
 
 /// Multiplexing options shared by background execs and `-O` control ops.
-fn control_opts(control_dir: &std::path::Path) -> Vec<String> {
+pub fn control_opts(control_dir: &std::path::Path) -> Vec<String> {
     let path = control_dir.join("%C").to_string_lossy().into_owned();
     // ssh tokenizes `-o` values on whitespace; quote a path with spaces.
     let path = if path.contains(char::is_whitespace) {
@@ -338,6 +363,88 @@ pub fn control_exit(target: &SshTarget) -> bool {
     control(target, "exit")
 }
 
+/// Forward a port on an active master: `ssh -O forward -L <spec> <target>`
+pub fn control_forward(target: &SshTarget, spec: &str) -> AppResult<()> {
+    let dir = control_dir()?;
+    let mut args = base_args();
+    args.extend(["-O".into(), "forward".into(), "-L".into(), spec.into()]);
+    args.extend(control_opts(&dir));
+    args.extend(target.0.iter().cloned());
+
+    let out = Command::new(SSH_BIN)
+        .args(&args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| AppError::Io(format!("executing ssh forward: {e}")))?;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr);
+        Err(AppError::Shell(format!(
+            "ssh forward failed: {}",
+            err.trim()
+        )))
+    }
+}
+
+/// Cancel a forwarded port on an active master: `ssh -O cancel -L <spec> <target>`
+pub fn control_cancel(target: &SshTarget, spec: &str) -> AppResult<()> {
+    let dir = control_dir()?;
+    let mut args = base_args();
+    args.extend(["-O".into(), "cancel".into(), "-L".into(), spec.into()]);
+    args.extend(control_opts(&dir));
+    args.extend(target.0.iter().cloned());
+
+    let out = Command::new(SSH_BIN)
+        .args(&args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| AppError::Io(format!("executing ssh cancel: {e}")))?;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr);
+        Err(AppError::Shell(format!(
+            "ssh cancel failed: {}",
+            err.trim()
+        )))
+    }
+}
+
+/// Spawn an isolated standalone tunnel: `ssh -N -L <spec> <target>`
+pub fn spawn_tunnel(target: &SshTarget, spec: &str) -> AppResult<std::process::Child> {
+    let dir = control_dir()?;
+    let mut args = base_args();
+    args.extend(["-N".into(), "-L".into(), spec.into()]);
+    args.extend(control_opts(&dir));
+    args.extend(target.0.iter().cloned());
+
+    let mut child = Command::new(SSH_BIN)
+        .args(&args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| AppError::Io(format!("spawning ssh tunnel: {e}")))?;
+
+    std::thread::sleep(Duration::from_millis(150));
+    if let Ok(Some(status)) = child.try_wait() {
+        let mut err = String::new();
+        if let Some(mut stderr) = child.stderr.take() {
+            let _ = stderr.read_to_string(&mut err);
+        }
+        return Err(AppError::Shell(format!(
+            "ssh tunnel exited immediately with status {}: {}",
+            status,
+            err.trim()
+        )));
+    }
+
+    Ok(child)
+}
+
 /// Classify ssh's own failure (exit 255) by its stderr. The first meaningful
 /// line rides along as `detail`.
 pub fn classify(stderr: &str) -> AppError {
@@ -425,6 +532,7 @@ mod tests {
             project: "P".into(),
             env: Env::Dev,
             order: 0,
+            auto_connect: false,
         };
         let v = args_for(&SshTarget::from_host(&h).unwrap(), &["true"]);
         assert!(has_pair(&v, "-p", "2202"));

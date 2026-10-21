@@ -782,6 +782,320 @@ pub(crate) fn format_date(epoch: u64) -> String {
     format!("{d} {} {y}", MONTHS[(m - 1) as usize])
 }
 
+// --- Phase 8: Search, Export, Usage & Context Analysis ----------------------
+
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeSearchResult {
+    pub dir_name: String,
+    pub session_file: String,
+    pub session_title: String,
+    pub snippet: String,
+    pub line_number: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextItem {
+    pub label: String,
+    pub token_estimate: u64,
+    pub pct: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionContextAnalysis {
+    pub total_tokens: u64,
+    pub max_tokens: u64,
+    pub pct_used: f32,
+    pub user_tokens: u64,
+    pub assistant_tokens: u64,
+    pub tool_result_tokens: u64,
+    pub large_items: Vec<ContextItem>,
+    pub recommendation: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectTokenUsage {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_read_tokens: u64,
+    pub estimated_cost_usd: f64,
+}
+
+pub fn search_transcripts(query: &str) -> AppResult<Vec<ClaudeSearchResult>> {
+    let q_lower = query.to_lowercase();
+    let mut results = Vec::new();
+    let root = match paths::claude_projects_dir() {
+        Some(p) => p,
+        None => return Ok(results),
+    };
+
+    let entries = match fs::read_dir(&root) {
+        Ok(e) => e,
+        Err(_) => return Ok(results),
+    };
+
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if !p.is_dir() {
+            continue;
+        }
+        let dir_name = p
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        if let Ok(files) = fs::read_dir(&p) {
+            for file in files.flatten() {
+                let fpath = file.path();
+                if fpath.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                    let fname = fpath
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    if let Ok(content) = fs::read_to_string(&fpath) {
+                        let mut title = fname.clone();
+                        for (idx, line) in content.lines().enumerate() {
+                            if idx == 0 {
+                                if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                                    if let Some(t) = v.get("title").and_then(|s| s.as_str()) {
+                                        title = t.to_string();
+                                    }
+                                }
+                            }
+
+                            if line.to_lowercase().contains(&q_lower) {
+                                // Extract a snippet around the match
+                                let start = line.to_lowercase().find(&q_lower).unwrap_or(0);
+                                let snippet_start = start.saturating_sub(40);
+                                let snippet_end = (start + q_lower.len() + 60).min(line.len());
+                                let snippet = line[snippet_start..snippet_end].trim().to_string();
+
+                                results.push(ClaudeSearchResult {
+                                    dir_name: dir_name.clone(),
+                                    session_file: fname.clone(),
+                                    session_title: title.clone(),
+                                    snippet: format!("...{snippet}..."),
+                                    line_number: idx + 1,
+                                });
+
+                                if results.len() >= 50 {
+                                    return Ok(results);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(results)
+}
+
+pub fn export_transcript_markdown(dir_name: &str, session_file: &str) -> AppResult<String> {
+    validate_name(dir_name)?;
+    validate_jsonl(session_file)?;
+
+    let root =
+        paths::claude_projects_dir().ok_or_else(|| AppError::NotFound("claude root".into()))?;
+    let path = root.join(dir_name).join(session_file);
+    let content =
+        fs::read_to_string(&path).map_err(|e| AppError::Io(format!("read transcript: {e}")))?;
+
+    let mut md = String::new();
+    md.push_str(&format!(
+        "# Claude Code Session: {session_file}
+
+"
+    ));
+
+    for line in content.lines() {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+            let role = v
+                .get("type")
+                .or_else(|| v.get("role"))
+                .and_then(|s| s.as_str())
+                .unwrap_or("message");
+            if let Some(text) = v.get("content").and_then(|c| c.as_str()) {
+                md.push_str(&format!(
+                    "### {role}
+
+{text}
+
+---
+
+"
+                ));
+            } else if let Some(text) = v.get("text").and_then(|c| c.as_str()) {
+                md.push_str(&format!(
+                    "### {role}
+
+{text}
+
+---
+
+"
+                ));
+            } else if let Some(tool) = v.get("tool_name").and_then(|s| s.as_str()) {
+                md.push_str(&format!(
+                    "<details><summary>Tool Call: {tool}</summary>
+
+```json
+{line}
+```
+</details>
+
+"
+                ));
+            }
+        }
+    }
+
+    Ok(md)
+}
+
+pub fn analyze_session_context(
+    dir_name: &str,
+    session_file: &str,
+) -> AppResult<SessionContextAnalysis> {
+    validate_name(dir_name)?;
+    validate_jsonl(session_file)?;
+
+    let root =
+        paths::claude_projects_dir().ok_or_else(|| AppError::NotFound("claude root".into()))?;
+    let path = root.join(dir_name).join(session_file);
+    let content =
+        fs::read_to_string(&path).map_err(|e| AppError::Io(format!("read transcript: {e}")))?;
+
+    let max_tokens = 200_000u64;
+    let mut user_tokens = 0u64;
+    let mut assistant_tokens = 0u64;
+    let mut tool_tokens = 0u64;
+
+    for line in content.lines() {
+        let len = line.len() as u64;
+        let token_approx = len / 4;
+        if line.contains("\"user\"") {
+            user_tokens += token_approx;
+        } else if line.contains("\"assistant\"") {
+            assistant_tokens += token_approx;
+        } else if line.contains("tool") {
+            tool_tokens += token_approx;
+        }
+    }
+
+    let total = user_tokens + assistant_tokens + tool_tokens;
+    let pct = (total as f32 / max_tokens as f32) * 100.0;
+
+    let recommendation = if pct > 85.0 {
+        "Context window nearly full (>85%). Run /compact or start a fresh session to avoid degraded reasoning.".to_string()
+    } else if pct > 50.0 {
+        "Moderate context usage. Context is healthy.".to_string()
+    } else {
+        "Fresh context window. Ample capacity remaining.".to_string()
+    };
+
+    Ok(SessionContextAnalysis {
+        total_tokens: total,
+        max_tokens,
+        pct_used: pct.min(100.0),
+        user_tokens,
+        assistant_tokens,
+        tool_result_tokens: tool_tokens,
+        large_items: vec![
+            ContextItem {
+                label: "Tool outputs & files".into(),
+                token_estimate: tool_tokens,
+                pct: if total > 0 {
+                    (tool_tokens as f32 / total as f32) * 100.0
+                } else {
+                    0.0
+                },
+            },
+            ContextItem {
+                label: "Assistant reasoning".into(),
+                token_estimate: assistant_tokens,
+                pct: if total > 0 {
+                    (assistant_tokens as f32 / total as f32) * 100.0
+                } else {
+                    0.0
+                },
+            },
+            ContextItem {
+                label: "User prompts".into(),
+                token_estimate: user_tokens,
+                pct: if total > 0 {
+                    (user_tokens as f32 / total as f32) * 100.0
+                } else {
+                    0.0
+                },
+            },
+        ],
+        recommendation,
+    })
+}
+
+pub fn get_project_usage(dir_name: &str) -> AppResult<ProjectTokenUsage> {
+    validate_name(dir_name)?;
+    let root =
+        paths::claude_projects_dir().ok_or_else(|| AppError::NotFound("claude root".into()))?;
+    let path = root.join(dir_name);
+
+    let mut input_tokens = 0u64;
+    let mut output_tokens = 0u64;
+    let mut cache_read_tokens = 0u64;
+
+    if let Ok(files) = fs::read_dir(&path) {
+        for file in files.flatten() {
+            let fpath = file.path();
+            if fpath.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                if let Ok(content) = fs::read_to_string(&fpath) {
+                    for line in content.lines() {
+                        if line.contains("\"usage\"") {
+                            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                                if let Some(u) = v.get("usage") {
+                                    input_tokens +=
+                                        u.get("input_tokens").and_then(|n| n.as_u64()).unwrap_or(0);
+                                    output_tokens += u
+                                        .get("output_tokens")
+                                        .and_then(|n| n.as_u64())
+                                        .unwrap_or(0);
+                                    cache_read_tokens += u
+                                        .get("cache_read_input_tokens")
+                                        .and_then(|n| n.as_u64())
+                                        .unwrap_or(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Model price table in dedicated file (T-20)
+    let cost = crate::services::ai::pricing::calculate_cost(
+        "claude-3-5-sonnet",
+        input_tokens,
+        output_tokens,
+        cache_read_tokens,
+    );
+
+    Ok(ProjectTokenUsage {
+        input_tokens,
+        output_tokens,
+        cache_read_tokens,
+        estimated_cost_usd: cost,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

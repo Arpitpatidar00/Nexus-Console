@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { showMainWindow } from '@/shared/tauri';
+import { logError, showMainWindow } from '@/shared/tauri';
 
 interface Props {
   children: ReactNode;
@@ -19,6 +19,7 @@ export class RootErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Stackroost crashed:', error, info);
+    logError('ui', error, info.componentStack?.trim().split('\n')[0]);
     // A crash before Bootstrap's reveal must never leave the window invisible.
     void showMainWindow();
   }
@@ -32,7 +33,7 @@ export class RootErrorBoundary extends Component<Props, State> {
           <p className="text-sm text-fg-muted">{error.message}</p>
           <button
             type="button"
-            className="text-accent-fg mt-2 rounded-md bg-accent px-3 py-1.5 text-sm"
+            className="mt-2 rounded-md bg-ember px-3 py-1.5 text-sm text-ember-foreground"
             onClick={() => this.setState({ error: null })}
           >
             Try again

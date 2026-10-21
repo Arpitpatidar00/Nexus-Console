@@ -1,0 +1,22 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    build_app(workspace: "App.xcworkspace", scheme: "App")
+    upload_to_testflight
+  end
+
+  desc "Promote beta to App Store production"
+  lane :release do
+    deliver(force: true)
+  end
+end
+
+platform :android do
+  desc "Build APK and upload to internal track"
+  lane :internal do
+    gradle(task: "bundleRelease")
+    upload_to_play_store(track: "internal")
+  end
+end

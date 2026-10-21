@@ -22,11 +22,11 @@ export const Checkbox = ({ checked, onChange, ariaLabel, disabled }: CheckboxPro
     />
     <span
       className={cn(
-        'flex h-5 w-5 items-center justify-center rounded-full border transition-colors duration-[var(--duration-fast)] peer-focus-visible:ring-2 peer-focus-visible:ring-accent',
-        checked ? 'border-accent bg-accent' : 'border-fg-subtle/50 hover:border-fg-subtle',
+        'flex h-5 w-5 items-center justify-center rounded-full border transition-colors duration-[var(--duration-fast)] peer-focus-visible:ring-2 peer-focus-visible:ring-ember',
+        checked ? 'border-ember bg-ember' : 'border-fg-subtle/50 hover:border-fg-subtle',
       )}
     >
-      {checked && <Check className="text-accent-fg h-3 w-3" strokeWidth={3} />}
+      {checked && <Check className="h-3 w-3 text-ember-foreground" strokeWidth={3} />}
     </span>
   </label>
 );

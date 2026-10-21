@@ -1,7 +1,10 @@
 import type { ITheme } from '@xterm/xterm';
 
 const read = (name: string, fallback: string): string => {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
+    return fallback;
+  }
+  const v = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
 };
 

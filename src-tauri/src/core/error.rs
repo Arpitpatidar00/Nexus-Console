@@ -46,6 +46,8 @@ pub enum AppError {
     /// `Unreachable`).
     #[error("The server didn't answer in time.")]
     Timeout(String),
+    #[error("{0}")]
+    Conflict(String),
 }
 
 impl AppError {
@@ -64,6 +66,7 @@ impl AppError {
             AppError::HostKey(_) => "hostKey",
             AppError::Unreachable(_) => "unreachable",
             AppError::Timeout(_) => "timeout",
+            AppError::Conflict(_) => "conflict",
         }
     }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Plug, RotateCw, ServerOff, TerminalSquare, Unplug } from 'lucide-react';
+import { Pencil, Plug, RotateCw, ServerOff, TerminalSquare, Unplug, Send } from 'lucide-react';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { openTerminal } from '@/shared/state/terminalsSlice';
 import { cn } from '@/shared/lib/cn';
@@ -23,8 +23,36 @@ import { ContainersTable } from '@/features/remote/components/ContainersTable';
 import { ServicesPanel } from '@/features/remote/components/ServicesPanel';
 import { PortsPanel } from '@/features/remote/components/PortsPanel';
 import { IssuesPanel } from '@/features/remote/components/IssuesPanel';
+import { TunnelsPanel } from '@/features/remote/components/TunnelsPanel';
+import { ComposeStacksView } from '@/features/remote/components/ComposeStacksView';
+import { InspectionPanel } from '@/features/remote/components/InspectionPanel';
+import { ServerDiskPanel } from '@/features/remote/components/ServerDiskPanel';
+import { NotesTab } from '@/features/remote/components/NotesTab';
+import { TimelineTab } from '@/features/remote/components/TimelineTab';
+import { RunbooksPanel } from '@/features/remote/components/RunbooksPanel';
+import { LogsViewer } from '@/features/remote/components/LogsViewer';
+import { FilesBrowser } from '@/features/remote/components/FilesBrowser';
+import { DeployCenterView } from '@/features/remote/components/DeployCenterView';
+import { ParityAuditorView } from '@/features/remote/components/ParityAuditorView';
+import { ImageTeleportDialog } from '@/features/remote/components/ImageTeleportDialog';
 
-type View = 'overview' | 'containers' | 'services' | 'ports' | 'issues';
+type View =
+  | 'overview'
+  | 'stacks'
+  | 'deploy'
+  | 'parity'
+  | 'containers'
+  | 'services'
+  | 'nginx'
+  | 'ports'
+  | 'disk'
+  | 'files'
+  | 'logs'
+  | 'timeline'
+  | 'notes'
+  | 'runbooks'
+  | 'tunnels'
+  | 'issues';
 
 const BodySkeleton = () => (
   <div aria-hidden className="space-y-5 p-5">
@@ -39,6 +67,7 @@ const BodySkeleton = () => (
 
 export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => void }) => {
   const [view, setView] = useState<View>('overview');
+  const [teleportOpen, setTeleportOpen] = useState(false);
   const dispatch = useAppDispatch();
   const openShell = () =>
     dispatch(
@@ -63,9 +92,20 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
   const issues = s?.findings.length ?? 0;
   const views = [
     { value: 'overview' as const, label: 'Overview' },
+    { value: 'stacks' as const, label: 'Stacks' },
+    { value: 'deploy' as const, label: 'Deploy & Ship' },
+    { value: 'parity' as const, label: 'Parity' },
     { value: 'containers' as const, label: 'Containers' },
     { value: 'services' as const, label: 'Services' },
+    { value: 'nginx' as const, label: 'Nginx & Cron' },
     { value: 'ports' as const, label: 'Ports' },
+    { value: 'disk' as const, label: 'Disk & Cleanup' },
+    { value: 'files' as const, label: 'Files' },
+    { value: 'logs' as const, label: 'Logs' },
+    { value: 'timeline' as const, label: 'Timeline' },
+    { value: 'notes' as const, label: 'Notes' },
+    { value: 'runbooks' as const, label: 'Runbooks' },
+    { value: 'tunnels' as const, label: 'Tunnels' },
     { value: 'issues' as const, label: issues > 0 ? `Issues (${issues})` : 'Issues' },
   ];
 
@@ -93,6 +133,15 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             <Badge tone={statusTone} dot size="sm">
               {statusLabel}
             </Badge>
+            {host.env === 'prod' && connected && (
+              <Badge
+                tone="warning"
+                size="sm"
+                title="Auto-disconnects after 10m idle or on screen lock. Use tmux for long prod jobs."
+              >
+                Idle guard: 10m
+              </Badge>
+            )}
           </div>
           <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
             <span className="truncate">{hostAddress(host)}</span>
@@ -106,6 +155,18 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {connected && host.env !== 'prod' && (
+            <Button
+              variant="glass"
+              size="sm"
+              aria-label="Teleport local image over SSH"
+              title="Push local image over SSH"
+              onClick={() => setTeleportOpen(true)}
+            >
+              <Send className="size-3.5 text-primary" />
+              Teleport
+            </Button>
+          )}
           {connected && (
             <Button
               variant="glass"
@@ -198,7 +259,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center border-b border-hairline px-6 py-2.5">
+          <div className="flex shrink-0 items-center overflow-x-auto border-b border-hairline px-6 py-2.5">
             <SegmentedControl
               ariaLabel="Server view"
               value={view}
@@ -221,17 +282,41 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             )
           ) : view === 'overview' ? (
             <OverviewPanel snapshot={s} history={history} />
+          ) : view === 'stacks' ? (
+            <ComposeStacksView host={host} snapshot={s} />
+          ) : view === 'deploy' ? (
+            <DeployCenterView host={host} snapshot={s} connected={connected} />
+          ) : view === 'parity' ? (
+            <ParityAuditorView host={host} connected={connected} />
           ) : view === 'containers' ? (
             <ContainersTable host={host} snapshot={s} />
           ) : view === 'services' ? (
             <ServicesPanel snapshot={s} />
+          ) : view === 'nginx' ? (
+            <InspectionPanel host={host} connected={connected} />
           ) : view === 'ports' ? (
             <PortsPanel snapshot={s} />
+          ) : view === 'disk' ? (
+            <ServerDiskPanel host={host} connected={connected} />
+          ) : view === 'files' ? (
+            <FilesBrowser host={host} connected={connected} />
+          ) : view === 'logs' ? (
+            <LogsViewer host={host} snapshot={s} />
+          ) : view === 'timeline' ? (
+            <TimelineTab host={host} connected={connected} />
+          ) : view === 'notes' ? (
+            <NotesTab host={host} />
+          ) : view === 'runbooks' ? (
+            <RunbooksPanel host={host} />
+          ) : view === 'tunnels' ? (
+            <TunnelsPanel host={host} />
           ) : (
             <IssuesPanel snapshot={s} />
           )}
         </div>
       )}
+
+      <ImageTeleportDialog host={host} open={teleportOpen} onClose={() => setTeleportOpen(false)} />
     </Panel>
   );
 };

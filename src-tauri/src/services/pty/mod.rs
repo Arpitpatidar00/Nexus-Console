@@ -6,11 +6,12 @@ use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize}
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::os::unix::io::RawFd;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
 use tauri::State;
 
-const MAX_PTYS: usize = 8;
+pub const MAX_PTYS: usize = 8;
 /// Cap per flushed Output event — bounds both IPC payloads and xterm write calls.
 const MAX_BATCH: usize = 32 * 1024;
 
@@ -63,6 +64,23 @@ struct Session {
     writer: Box<dyn Write + Send>,
     master: Box<dyn MasterPty + Send>,
     child: Box<dyn Child + Send + Sync>,
+    target: PtyTarget,
+    last_activity: Arc<AtomicU64>,
+}
+
+impl Session {
+    pub fn is_foreground_job_running(&self) -> bool {
+        if let Some(fd) = self.master.as_raw_fd() {
+            let child_pid = self.child.process_id().unwrap_or(0);
+            unsafe {
+                let pgrp = libc::tcgetpgrp(fd);
+                if pgrp > 0 && child_pid > 0 {
+                    return pgrp as u32 != child_pid;
+                }
+            }
+        }
+        false
+    }
 }
 
 #[derive(Default)]
@@ -75,6 +93,7 @@ impl PtyManager {
     fn open(
         &self,
         id: String,
+        target: PtyTarget,
         program: String,
         args: Vec<String>,
         cols: u16,
@@ -104,6 +123,17 @@ impl PtyManager {
         cmd.args(&args);
         cmd.env("TERM", "xterm-256color");
 
+        if target.inject_keychain() {
+            // Optional Keychain injection into Nexus terminals (T-18)
+            for key in ["DATABASE_URL", "DB_PASSWORD", "API_KEY", "SECRET_KEY"] {
+                if let Ok(Some(secret)) =
+                    crate::core::keychain::get_password(&format!("nexus.terminal:{key}"))
+                {
+                    cmd.env(key, secret);
+                }
+            }
+        }
+
         let child = pair
             .slave
             .spawn_command(cmd)
@@ -125,6 +155,8 @@ impl PtyManager {
         // a fast producer (`yes`, big logs) floods neither IPC nor xterm, while
         // interactive echo still flushes per read with no added latency.
         let master_fd = pair.master.as_raw_fd();
+        let last_activity = Arc::new(AtomicU64::new(crate::doctor::claude::now_epoch()));
+        let act_reader = last_activity.clone();
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
             let mut acc: Vec<u8> = Vec::with_capacity(8192);
@@ -132,6 +164,7 @@ impl PtyManager {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
+                        act_reader.store(crate::doctor::claude::now_epoch(), Ordering::Relaxed);
                         acc.extend_from_slice(&buf[..n]);
                         while acc.len() < MAX_BATCH && master_fd.is_some_and(readable_now) {
                             match reader.read(&mut buf) {
@@ -164,6 +197,8 @@ impl PtyManager {
                 writer,
                 master: pair.master,
                 child,
+                target,
+                last_activity,
             },
         );
         Ok(())
@@ -172,12 +207,67 @@ impl PtyManager {
     fn write(&self, id: &str, data: &[u8]) -> AppResult<()> {
         let mut map = lock(&self.sessions)?;
         if let Some(s) = map.get_mut(id) {
+            s.last_activity
+                .store(crate::doctor::claude::now_epoch(), Ordering::Relaxed);
             s.writer
                 .write_all(data)
                 .map_err(|e| AppError::Io(format!("pty write: {e}")))?;
             let _ = s.writer.flush();
         }
         Ok(())
+    }
+
+    pub fn is_foreground_job_running(&self, id: &str) -> bool {
+        let Ok(map) = lock(&self.sessions) else {
+            return false;
+        };
+        map.get(id).is_some_and(|s| s.is_foreground_job_running())
+    }
+
+    pub fn host_has_foreground_job(&self, host_id: &str) -> bool {
+        let Ok(map) = lock(&self.sessions) else {
+            return false;
+        };
+        for s in map.values() {
+            if s.target.host_id() == Some(host_id) && s.is_foreground_job_running() {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn host_last_activity(&self, host_id: &str) -> Option<u64> {
+        let Ok(map) = lock(&self.sessions) else {
+            return None;
+        };
+        let mut max_act = None;
+        for s in map.values() {
+            if s.target.host_id() == Some(host_id) {
+                let act = s.last_activity.load(Ordering::Relaxed);
+                max_act = Some(max_act.map_or(act, |m: u64| m.max(act)));
+            }
+        }
+        max_act
+    }
+
+    pub fn kill_by_host(&self, host_id: &str) -> Vec<String> {
+        let mut killed = Vec::new();
+        if let Ok(mut map) = self.sessions.lock() {
+            let ids: Vec<String> = map
+                .iter()
+                .filter(|(_, s)| {
+                    s.target.host_id() == Some(host_id) && !s.is_foreground_job_running()
+                })
+                .map(|(id, _)| id.clone())
+                .collect();
+            for id in ids {
+                if let Some(mut s) = map.remove(&id) {
+                    kill_group(&mut s.child);
+                    killed.push(id);
+                }
+            }
+        }
+        killed
     }
 
     fn resize(&self, id: &str, cols: u16, rows: u16) -> AppResult<()> {
@@ -253,6 +343,32 @@ pub enum PtyTarget {
         host_id: String,
         container: String,
     },
+    #[serde(rename_all = "camelCase")]
+    Workspace {
+        command: String,
+        project_path: String,
+        inject_keychain: Option<bool>,
+    },
+}
+
+impl PtyTarget {
+    pub fn host_id(&self) -> Option<&str> {
+        match self {
+            PtyTarget::RemoteShell { host_id } => Some(host_id),
+            PtyTarget::RemoteLogs { host_id, .. } => Some(host_id),
+            PtyTarget::RemoteExec { host_id, .. } => Some(host_id),
+            PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } => None,
+        }
+    }
+
+    pub fn inject_keychain(&self) -> bool {
+        match self {
+            PtyTarget::Workspace {
+                inject_keychain, ..
+            } => inject_keychain.unwrap_or(false),
+            _ => false,
+        }
+    }
 }
 
 /// Inside the container: bash if it has one, else sh. One argv entry, quoted,
@@ -291,7 +407,9 @@ fn resolve_remote(target: &PtyTarget, remote: &RemoteState) -> AppResult<(String
                 ],
             )
         }
-        PtyTarget::Brew { .. } => unreachable!("brew targets resolve locally"),
+        PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } => {
+            unreachable!("brew and workspace targets resolve locally")
+        }
     };
     let t = remote.target(host_id)?;
     let cmd: Vec<&str> = cmd.iter().map(String::as_str).collect();
@@ -308,6 +426,20 @@ fn resolve_target(
 ) -> AppResult<(String, Vec<String>)> {
     match target {
         PtyTarget::Brew { formula, kind } => resolve_command(formula, kind, ctx),
+        PtyTarget::Workspace {
+            command,
+            project_path,
+            ..
+        } => {
+            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+            let mut args = vec!["-l".to_string(), "-c".to_string()];
+            if !project_path.is_empty() {
+                args.push(format!("cd \"{project_path}\" && {command}"));
+            } else {
+                args.push(command.clone());
+            }
+            Ok((shell, args))
+        }
         _ => resolve_remote(target, remote),
     }
 }
@@ -369,7 +501,7 @@ pub async fn pty_open(
     mgr: State<'_, PtyManager>,
 ) -> AppResult<()> {
     let (program, args) = resolve_target(&target, &ctx, &remote)?;
-    mgr.open(id, program, args, cols, rows, on_event)
+    mgr.open(id, target, program, args, cols, rows, on_event)
 }
 
 pub async fn pty_write(id: String, data: String, mgr: State<'_, PtyManager>) -> AppResult<()> {
@@ -433,6 +565,7 @@ mod tests {
             brew_prefix: Some("/nonexistent-prefix".into()),
             brew_bin: None,
             brew_version: None,
+            max_ptys: MAX_PTYS,
         };
         let remote = RemoteState::load(std::env::temp_dir().join("nexus-pty-unused.json"));
         let t = PtyTarget::Brew {
@@ -510,5 +643,71 @@ mod tests {
         let out = String::from_utf8_lossy(&buf[..n]).into_owned();
         let _ = child.wait();
         assert!(out.contains("nexus-pty-ok"), "got: {out:?}");
+    }
+
+    #[test]
+    #[ignore]
+    fn pty_foreground_job_detects_busy() {
+        let pair = native_pty_system()
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .unwrap();
+        let mut cmd = CommandBuilder::new("/bin/sh");
+        cmd.args(["-c", "set -m; sleep 5"]);
+        let child = pair.slave.spawn_command(cmd).unwrap();
+        drop(pair.slave);
+
+        let writer = pair.master.take_writer().unwrap();
+        let mut session = Session {
+            writer,
+            master: pair.master,
+            child,
+            target: PtyTarget::Brew {
+                formula: "test".into(),
+                kind: "cli".into(),
+            },
+            last_activity: Arc::new(AtomicU64::new(0)),
+        };
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        assert!(session.is_foreground_job_running());
+        let _ = session.child.kill();
+    }
+
+    #[test]
+    #[ignore]
+    fn pty_foreground_job_idle_is_not_busy() {
+        let pair = native_pty_system()
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .unwrap();
+        let mut cmd = CommandBuilder::new("/bin/sh");
+        cmd.args(["-i"]);
+        let child = pair.slave.spawn_command(cmd).unwrap();
+        drop(pair.slave);
+
+        let writer = pair.master.take_writer().unwrap();
+        let mut session = Session {
+            writer,
+            master: pair.master,
+            child,
+            target: PtyTarget::Brew {
+                formula: "test".into(),
+                kind: "cli".into(),
+            },
+            last_activity: Arc::new(AtomicU64::new(0)),
+        };
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        assert!(!session.is_foreground_job_running());
+        let _ = session.child.kill();
     }
 }

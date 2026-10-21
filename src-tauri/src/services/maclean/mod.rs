@@ -8,12 +8,16 @@ pub mod catalog;
 pub mod clean;
 pub mod deep;
 pub mod disk;
+pub mod duplicates;
+pub mod energy;
 pub mod explore;
+pub mod ghost;
 pub mod measure;
 pub mod memory;
 pub mod scan;
 pub mod store;
 pub mod tools;
+pub mod trends;
 
 use crate::error::{AppError, AppResult};
 use std::path::PathBuf;

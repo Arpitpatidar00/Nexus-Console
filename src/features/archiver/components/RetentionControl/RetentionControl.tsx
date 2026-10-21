@@ -58,7 +58,7 @@ export const RetentionControl = () => {
           inputMode="numeric"
           value={value}
           onChange={(e) => setDraft(e.target.value)}
-          className="h-8 w-20 rounded-md border border-border bg-paper px-2 text-right text-sm text-fg tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="h-8 w-20 rounded-md border border-border bg-paper px-2 text-right text-sm text-fg tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
         />
         <span className="text-sm text-fg-muted">days</span>
         <Button

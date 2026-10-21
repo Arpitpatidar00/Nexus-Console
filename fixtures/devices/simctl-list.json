@@ -1,0 +1,41 @@
+{
+  "devicetypes": [
+    {
+      "name": "iPhone 16 Pro",
+      "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+    }
+  ],
+  "runtimes": [
+    {
+      "version": "18.0",
+      "name": "iOS 18.0",
+      "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-18-0"
+    }
+  ],
+  "devices": {
+    "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
+      {
+        "lastBootedAt": "2026-10-21T10:00:00Z",
+        "dataPath": "/Users/me/Library/Developer/CoreSimulator/Devices/A1B2C3D4-E5F6-7890-ABCD-EF1234567890/data",
+        "dataPathSize": 254820120,
+        "logPath": "/Users/me/Library/Logs/CoreSimulator/A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+        "udid": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+        "isAvailable": true,
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
+        "state": "Booted",
+        "name": "iPhone 16 Pro"
+      },
+      {
+        "lastBootedAt": "2026-10-18T14:22:00Z",
+        "dataPath": "/Users/me/Library/Developer/CoreSimulator/Devices/B2C3D4E5-F6A7-8901-BCDE-F12345678901/data",
+        "dataPathSize": 182100400,
+        "logPath": "/Users/me/Library/Logs/CoreSimulator/B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+        "udid": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+        "isAvailable": true,
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
+        "state": "Shutdown",
+        "name": "iPhone 16 Pro (Testing)"
+      }
+    ]
+  }
+}

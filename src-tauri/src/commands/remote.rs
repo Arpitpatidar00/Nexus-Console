@@ -4,12 +4,20 @@
 
 use super::{blocking, confirm_action};
 use crate::error::{AppError, AppResult};
-use crate::remote::docker::{self, DockerAction};
+use crate::remote::cleanup::{self, PruneResult, ServerDiskReport};
+use crate::remote::docker::{self, ComposeAction, DockerAction};
+use crate::remote::files::{self, RemoteFileContent, RemoteFileEntry};
+use crate::remote::history::{Incident, SnapshotDiff, SnapshotSummary};
+use crate::remote::inspection::{self, InspectionData};
+use crate::remote::notes::HostNote;
 use crate::remote::probe::{self, HostSnapshot};
+use crate::remote::runbooks::{new_runbook_id, RunbookItem};
 use crate::remote::store::JournalEntry;
 use crate::remote::store::{
-    new_host_id, Consent, Env, Host, HostSource, ManualTarget, DEFAULT_PROJECT,
+    new_host_id, new_tunnel_id, Consent, Env, Host, HostSource, ManualTarget, TunnelConfig,
+    DEFAULT_PROJECT,
 };
+use crate::remote::tunnel::TunnelStatus;
 use crate::remote::{config, ssh, with_host_lock, RemoteState};
 use crate::util::validate::{
     validate_display_text, validate_hostname, validate_identity_file, validate_port,
@@ -23,6 +31,7 @@ use tauri::{AppHandle, Manager};
 pub struct RemoteStateDto {
     consent: Consent,
     hosts: Vec<Host>,
+    tunnels: Vec<TunnelConfig>,
 }
 
 #[tauri::command]
@@ -33,6 +42,7 @@ pub async fn remote_state(app: AppHandle) -> AppResult<RemoteStateDto> {
         Ok(RemoteStateDto {
             consent: s.consent.clone(),
             hosts: s.hosts.clone(),
+            tunnels: s.tunnels.clone(),
         })
     })
     .await
@@ -41,6 +51,8 @@ pub async fn remote_state(app: AppHandle) -> AppResult<RemoteStateDto> {
 /// Revoking also closes every open connection; imported hosts are kept.
 #[tauri::command]
 pub async fn remote_set_consent(app: AppHandle, granted: bool) -> AppResult<()> {
+    // Mirror into the unified consent store so Settings -> Privacy shows it too.
+    crate::core::consent::set_consent(crate::core::DataSource::SshConfig, granted)?;
     blocking(move || {
         let state = app.state::<RemoteState>();
         if !granted {
@@ -148,6 +160,7 @@ pub async fn remote_import_hosts(app: AppHandle, hosts: Vec<ImportHost>) -> AppR
                     manual: None,
                     env: h.env,
                     order: s.next_order(),
+                    auto_connect: false,
                 };
                 s.hosts.push(host);
             }
@@ -198,6 +211,7 @@ pub async fn remote_add_manual_host(app: AppHandle, input: ManualHostInput) -> A
                 project,
                 env: input.env,
                 order: s.next_order(),
+                auto_connect: false,
             };
             s.hosts.push(host.clone());
             Ok(host)
@@ -213,6 +227,7 @@ pub struct HostPatch {
     project: Option<String>,
     env: Option<Env>,
     order: Option<u32>,
+    auto_connect: Option<bool>,
 }
 
 #[tauri::command]
@@ -239,6 +254,9 @@ pub async fn remote_update_host(app: AppHandle, id: String, patch: HostPatch) ->
             }
             if let Some(v) = patch.order {
                 h.order = v;
+            }
+            if let Some(v) = patch.auto_connect {
+                h.auto_connect = v;
             }
             Ok(())
         })
@@ -381,4 +399,760 @@ pub async fn remote_docker_action(
 #[tauri::command]
 pub async fn remote_journal(app: AppHandle) -> AppResult<Vec<JournalEntry>> {
     blocking(move || Ok(app.state::<RemoteState>().read()?.journal.clone())).await
+}
+
+#[tauri::command]
+pub async fn remote_get_tunnels(app: AppHandle) -> AppResult<Vec<TunnelStatus>> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        state.tunnels.statuses(&state)
+    })
+    .await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddTunnelInput {
+    pub host_id: String,
+    pub name: String,
+    pub local_port: u16,
+    pub remote_host: Option<String>,
+    pub remote_port: u16,
+    pub auto_start: Option<bool>,
+}
+
+#[tauri::command]
+pub async fn remote_add_tunnel(app: AppHandle, input: AddTunnelInput) -> AppResult<TunnelConfig> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        validate_display_text(&input.name, "tunnel name")?;
+        validate_port(input.local_port as u32)?;
+        validate_port(input.remote_port as u32)?;
+        let remote_host = input.remote_host.unwrap_or_else(|| "127.0.0.1".to_string());
+        validate_hostname(&remote_host)?;
+
+        let config = TunnelConfig {
+            id: new_tunnel_id(),
+            host_id: input.host_id,
+            name: input.name,
+            local_port: input.local_port,
+            remote_host,
+            remote_port: input.remote_port,
+            auto_start: input.auto_start.unwrap_or(false),
+        };
+
+        state.write(|s| {
+            s.host(&config.host_id)?;
+            s.tunnels.push(config.clone());
+            Ok(())
+        })?;
+
+        if config.auto_start {
+            let _ = state.tunnels.open(&state, &config.id);
+        }
+
+        Ok(config)
+    })
+    .await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTunnelPatch {
+    pub name: Option<String>,
+    pub local_port: Option<u16>,
+    pub remote_host: Option<String>,
+    pub remote_port: Option<u16>,
+    pub auto_start: Option<bool>,
+}
+
+#[tauri::command]
+pub async fn remote_update_tunnel(
+    app: AppHandle,
+    id: String,
+    patch: UpdateTunnelPatch,
+) -> AppResult<TunnelConfig> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        if let Some(ref name) = patch.name {
+            validate_display_text(name, "tunnel name")?;
+        }
+        if let Some(port) = patch.local_port {
+            validate_port(port as u32)?;
+        }
+        if let Some(port) = patch.remote_port {
+            validate_port(port as u32)?;
+        }
+        if let Some(ref host) = patch.remote_host {
+            validate_hostname(host)?;
+        }
+
+        state.write(|s| {
+            let t = s.tunnel_mut(&id)?;
+            if let Some(n) = patch.name {
+                t.name = n;
+            }
+            if let Some(p) = patch.local_port {
+                t.local_port = p;
+            }
+            if let Some(h) = patch.remote_host {
+                t.remote_host = h;
+            }
+            if let Some(p) = patch.remote_port {
+                t.remote_port = p;
+            }
+            if let Some(a) = patch.auto_start {
+                t.auto_start = a;
+            }
+            Ok(t.clone())
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_remove_tunnel(app: AppHandle, id: String) -> AppResult<()> {
+    confirm_action(
+        &app,
+        "Remove SSH tunnel?",
+        "This will close the local forward port and remove the tunnel configuration.",
+        "Remove Tunnel",
+        false,
+    )?;
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let _ = state.tunnels.close(&state, &id);
+        state.write(|s| {
+            s.remove_tunnel(&id)
+                .ok_or_else(|| AppError::NotFound(format!("unknown tunnel {id}")))?;
+            Ok(())
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_open_tunnel(app: AppHandle, id: String) -> AppResult<TunnelStatus> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let (tunnel, host) = {
+            let s = state.read()?;
+            let t = s.tunnel(&id)?.clone();
+            let h = s.host(&t.host_id)?.clone();
+            (t, h)
+        };
+
+        if host.env == Env::Prod {
+            confirm_action(
+                &app,
+                &format!("Open tunnel “{}” to PROD?", tunnel.name),
+                &format!(
+                    "This forwards local port {} to {}:{} on {}. Requests sent locally will directly hit your production environment.",
+                    tunnel.local_port, tunnel.remote_host, tunnel.remote_port, host.label
+                ),
+                "Open Tunnel",
+                true,
+            )?;
+        }
+
+        state.tunnels.open(&state, &id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_close_tunnel(app: AppHandle, id: String) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        state.tunnels.close(&state, &id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_compose_action(
+    app: AppHandle,
+    id: String,
+    project: String,
+    action: ComposeAction,
+) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let p = docker::prepare_compose(&state, &id, &project, action)?;
+        confirm_action(
+            &app,
+            &p.confirm_title(),
+            &p.confirm_message(),
+            p.action.label(),
+            p.destructive(),
+        )?;
+        docker::execute_compose(&state, &p)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_inspect_services(app: AppHandle, id: String) -> AppResult<InspectionData> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        inspection::inspect_host(&target)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_disk_report(app: AppHandle, id: String) -> AppResult<ServerDiskReport> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        cleanup::get_disk_report(&target)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_prune_builder(app: AppHandle, id: String) -> AppResult<PruneResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        confirm_action(
+            &app,
+            &format!("Prune Docker build cache on {}?", host.label),
+            "This removes all unused Docker build cache layers on the server. Active images and containers are left untouched.",
+            "Prune Cache",
+            host.env == Env::Prod,
+        )?;
+        cleanup::prune_build_cache(&state, &id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_prune_images(app: AppHandle, id: String) -> AppResult<PruneResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        confirm_action(
+            &app,
+            &format!("Prune dangling images on {}?", host.label),
+            "This deletes untagged (dangling) Docker images on the server to reclaim disk space. Tagged images are untouched.",
+            "Prune Images",
+            host.env == Env::Prod,
+        )?;
+        cleanup::prune_dangling_images(&state, &id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_list_files(
+    app: AppHandle,
+    id: String,
+    path: String,
+) -> AppResult<Vec<RemoteFileEntry>> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        files::list_directory(&target, &path)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_read_file(
+    app: AppHandle,
+    id: String,
+    path: String,
+    reveal: bool,
+) -> AppResult<RemoteFileContent> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        files::read_file(&target, &path, reveal)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_download_file(
+    app: AppHandle,
+    id: String,
+    remote_path: String,
+    local_destination: String,
+) -> AppResult<()> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Download Remote File",
+            format!("Download {remote_path} to {local_destination}"),
+            "remote_download_file",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
+        .target(&id),
+    );
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        let host = {
+            let s = state.read()?;
+            s.host(&id)?.clone()
+        };
+        let local_path = std::path::Path::new(&local_destination);
+        let res = files::download_file(&target, &remote_path, local_path);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let (result, msg) = match &res {
+            Ok(()) => ("ok", String::new()),
+            Err(e) => ("error", e.to_string()),
+        };
+
+        let _ = state.write(|s| {
+            s.append_journal(JournalEntry {
+                at_epoch: now,
+                host_id: host.id.clone(),
+                host_label: host.label.clone(),
+                env: host.env,
+                action: "file.download".to_string(),
+                target: remote_path.clone(),
+                result: result.into(),
+                message: msg,
+            });
+            Ok(())
+        });
+
+        res
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_upload_file(
+    app: AppHandle,
+    id: String,
+    local_source: String,
+    remote_path: String,
+    overwrite: bool,
+    confirm_token: Option<String>,
+) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let (host, target) = {
+            let s = state.read()?;
+            let h = s.host(&id)?.clone();
+            let t = state.target(&id)?;
+            (h, t)
+        };
+
+        let is_prod = host.env == crate::remote::store::Env::Prod;
+        if is_prod && confirm_token.as_deref() != Some("UPLOAD") {
+            return Err(AppError::Forbidden(
+                "Production upload requires explicit confirmation token 'UPLOAD'".into(),
+            ));
+        }
+
+        let radius = if is_prod {
+            crate::core::mutation::BlastRadius::RemoteProd
+        } else {
+            crate::core::mutation::BlastRadius::RemoteNonProd
+        };
+
+        let _guard = crate::core::mutation::mutation(
+            &app,
+            crate::core::mutation::MutationSpec::new(
+                "Upload Remote File",
+                format!("Upload {local_source} to {remote_path} on {}", host.label),
+                "remote_upload_file",
+            )
+            .blast_radius(radius)
+            .prod(is_prod)
+            .target(&id),
+        )?;
+
+        let local_path = std::path::Path::new(&local_source);
+        let res = files::upload_file(&target, local_path, &remote_path, overwrite);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let (result, msg) = match &res {
+            Ok(()) => ("ok", String::new()),
+            Err(e) => ("error", e.to_string()),
+        };
+
+        let _ = state.write(|s| {
+            s.append_journal(JournalEntry {
+                at_epoch: now,
+                host_id: host.id.clone(),
+                host_label: host.label.clone(),
+                env: host.env,
+                action: "file.upload".to_string(),
+                target: remote_path.clone(),
+                result: result.into(),
+                message: msg,
+            });
+            Ok(())
+        });
+
+        res
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_get_note(app: AppHandle, id: String) -> AppResult<HostNote> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let n = state
+            .notes
+            .lock()
+            .map_err(|_| AppError::Io("notes poisoned".into()))?;
+        Ok(n.get(&id))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_save_note(app: AppHandle, id: String, content: String) -> AppResult<HostNote> {
+    let _guard = crate::core::mutation::mutation_unattended(
+        crate::core::mutation::MutationSpec::new(
+            "Save Host Note",
+            format!("Update note for host {id}"),
+            "remote_save_note",
+        )
+        .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
+        .target(&id),
+    );
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let mut n = state
+            .notes
+            .lock()
+            .map_err(|_| AppError::Io("notes poisoned".into()))?;
+        let note = n.set(&id, content);
+        let dir = state.path.parent().unwrap_or(&state.path);
+        n.save(dir)?;
+        Ok(note)
+    })
+    .await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostHistoryDto {
+    pub summaries: Vec<SnapshotSummary>,
+    pub latest_diff: Option<SnapshotDiff>,
+    pub incidents: Vec<Incident>,
+}
+
+#[tauri::command]
+pub async fn remote_get_history(app: AppHandle, id: String) -> AppResult<HostHistoryDto> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let h = state
+            .history
+            .lock()
+            .map_err(|_| AppError::Io("history poisoned".into()))?;
+        let summaries = h.summaries.get(&id).cloned().unwrap_or_default();
+        let latest_diff = h.latest_diff(&id);
+        let incidents = h.incidents_for(&id);
+        Ok(HostHistoryDto {
+            summaries,
+            latest_diff,
+            incidents,
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_get_runbooks(
+    app: AppHandle,
+    host_id: Option<String>,
+    project: Option<String>,
+) -> AppResult<Vec<RunbookItem>> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let r = state
+            .runbooks
+            .lock()
+            .map_err(|_| AppError::Io("runbooks poisoned".into()))?;
+        Ok(r.list(host_id.as_deref(), project.as_deref()))
+    })
+    .await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddRunbookInput {
+    pub host_id: Option<String>,
+    pub project: Option<String>,
+    pub name: String,
+    pub command: String,
+    pub description: Option<String>,
+}
+
+#[tauri::command]
+pub async fn remote_add_runbook(app: AppHandle, input: AddRunbookInput) -> AppResult<RunbookItem> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        validate_display_text(&input.name, "runbook name")?;
+        if input.command.trim().is_empty() {
+            return Err(AppError::InvalidName("command cannot be empty".into()));
+        }
+
+        let item = RunbookItem {
+            id: new_runbook_id(),
+            host_id: input.host_id,
+            project: input.project,
+            name: input.name,
+            command: input.command,
+            description: input.description,
+        };
+
+        let mut r = state
+            .runbooks
+            .lock()
+            .map_err(|_| AppError::Io("runbooks poisoned".into()))?;
+        r.add(item.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        r.save(dir)?;
+        Ok(item)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_remove_runbook(app: AppHandle, id: String) -> AppResult<()> {
+    confirm_action(
+        &app,
+        "Remove Runbook?",
+        "This will permanently delete the saved runbook.",
+        "Remove Runbook",
+        true,
+    )?;
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let mut r = state
+            .runbooks
+            .lock()
+            .map_err(|_| AppError::Io("runbooks poisoned".into()))?;
+        r.remove(&id)
+            .ok_or_else(|| AppError::NotFound(format!("runbook {id}")))?;
+        let dir = state.path.parent().unwrap_or(&state.path);
+        r.save(dir)?;
+        Ok(())
+    })
+    .await
+}
+
+use crate::remote::deploys::{self, DeployPreview, DeployRecord, DeployResult};
+use crate::remote::parity::{self, ParityReport};
+use crate::remote::teleport::{self, TeleportResult};
+use std::collections::HashMap;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParityAuditInput {
+    pub local_project_path: Option<String>,
+    pub host_ids: Vec<String>,
+    pub remote_app_paths: HashMap<String, String>,
+}
+
+#[tauri::command]
+pub async fn remote_audit_parity(
+    app: AppHandle,
+    input: ParityAuditInput,
+) -> AppResult<ParityReport> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let store = state.read()?;
+        let mut hosts_info = Vec::new();
+        let targets = input
+            .host_ids
+            .iter()
+            .map(|id| state.target(id))
+            .collect::<AppResult<Vec<_>>>()?;
+
+        for (i, id) in input.host_ids.iter().enumerate() {
+            let host = store.host(id)?;
+            let env_str = match host.env {
+                Env::Prod => "prod",
+                Env::Staging => "staging",
+                Env::Dev => "dev",
+                Env::Other => "other",
+            };
+            let app_dir = input
+                .remote_app_paths
+                .get(id)
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            hosts_info.push((id.as_str(), &targets[i], env_str, app_dir));
+        }
+
+        parity::run_parity_audit(input.local_project_path.as_deref(), &hosts_info)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_preview_deploy(
+    app: AppHandle,
+    id: String,
+    project: String,
+) -> AppResult<DeployPreview> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let target = state.target(&id)?;
+        deploys::preview_deploy(&target, &project)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_execute_deploy(
+    app: AppHandle,
+    id: String,
+    project: String,
+    services: Vec<String>,
+) -> AppResult<DeployResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        if host.env == Env::Prod {
+            confirm_action(
+                &app,
+                &format!("Deploy Compose Stack on {}?", host.label),
+                &format!("This will pull updated image tags and restart services for '{project}' on production server {}.", host.label),
+                "Deploy to Production",
+                true,
+            )?;
+        }
+        let target = state.target(&id)?;
+        let res = deploys::execute_deploy(&target, &id, &project, services)?;
+
+        let mut d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        d.add(res.record.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        d.save(dir)?;
+
+        Ok(res)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_rollback_deploy(
+    app: AppHandle,
+    id: String,
+    deploy_id: String,
+) -> AppResult<DeployResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        let record = {
+            let d = state
+                .deploys
+                .lock()
+                .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+            d.get(&deploy_id)
+                .cloned()
+                .ok_or_else(|| AppError::NotFound(format!("deploy record {deploy_id}")))?
+        };
+
+        confirm_action(
+            &app,
+            &format!("Roll back {} to {}?", host.label, record.id),
+            &format!(
+                "This will restore previous image digests and restart services for stack '{}'.",
+                record.project
+            ),
+            "Roll Back",
+            host.env == Env::Prod,
+        )?;
+
+        let target = state.target(&id)?;
+        let res = deploys::rollback_deploy(&target, &record)?;
+
+        let mut d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        d.add(res.record.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        d.save(dir)?;
+
+        Ok(res)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_get_deploys(app: AppHandle, id: String) -> AppResult<Vec<DeployRecord>> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        Ok(d.history_for(&id))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_promote_env(
+    app: AppHandle,
+    source_id: String,
+    target_id: String,
+    project: String,
+) -> AppResult<DeployResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let source_host = state.read()?.host(&source_id)?.clone();
+        let target_host = state.read()?.host(&target_id)?.clone();
+
+        confirm_action(
+            &app,
+            &format!("Promote {} to {}?", source_host.label, target_host.label),
+            &format!("This will promote and deploy the image configuration of '{}' from {} ({:?}) to {} ({:?}).", project, source_host.label, source_host.env, target_host.label, target_host.env),
+            "Promote Environment",
+            target_host.env == Env::Prod,
+        )?;
+
+        let target_ssh = state.target(&target_id)?;
+        let res = deploys::execute_deploy(&target_ssh, &target_id, &project, vec![])?;
+
+        let mut d = state
+            .deploys
+            .lock()
+            .map_err(|_| AppError::Io("deploys poisoned".into()))?;
+        d.add(res.record.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        d.save(dir)?;
+
+        Ok(res)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn remote_push_image(
+    app: AppHandle,
+    id: String,
+    image: String,
+) -> AppResult<TeleportResult> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let host = state.read()?.host(&id)?.clone();
+        let target = state.target(&id)?;
+        teleport::teleport_image(&host, &target, &image)
+    })
+    .await
 }

@@ -93,7 +93,7 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
                   >
                     <Package className="h-4 w-4 text-fg-muted" />
                     <span className="font-mono">{v}</span>
-                    {current && <Check className="ml-auto h-4 w-4 text-accent" />}
+                    {current && <Check className="ml-auto h-4 w-4 text-ember-text" />}
                   </DropdownMenu.Item>
                 );
               })

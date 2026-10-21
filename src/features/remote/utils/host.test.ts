@@ -11,6 +11,7 @@ const base: RemoteHost = {
   project: 'Fameo',
   env: 'prod',
   order: 0,
+  autoConnect: false,
 };
 const manual: RemoteHost = {
   ...base,

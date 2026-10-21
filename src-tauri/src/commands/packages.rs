@@ -1,3 +1,4 @@
+use super::confirm_action;
 use crate::brew::{run_brew, BrewLock};
 use crate::context::AppContext;
 use crate::error::{AppError, AppResult};
@@ -184,6 +185,13 @@ pub async fn upgrade_package(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    confirm_action(
+        &app,
+        &format!("Upgrade package '{name}'?"),
+        &format!("Upgrade Homebrew formula/cask '{name}' to the latest version."),
+        "Upgrade",
+        false,
+    )?;
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -200,6 +208,13 @@ pub async fn upgrade_package(
 
 #[tauri::command]
 pub async fn upgrade_all(ctx: State<'_, AppContext>, app: AppHandle) -> AppResult<()> {
+    confirm_action(
+        &app,
+        "Upgrade all outdated packages?",
+        "This will upgrade all installed Homebrew formulae and casks to their latest versions.",
+        "Upgrade All",
+        false,
+    )?;
     let bin = brew_bin(&ctx)?.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let lock = app.state::<BrewLock>();
@@ -314,4 +329,193 @@ mod tests {
         println!("{count} formulae");
         assert!(count > 50, "expected many installed formulae");
     }
+}
+
+use crate::core::mutation::{mutation_unattended, BlastRadius, MutationSpec};
+
+#[tauri::command]
+pub async fn package_pin(
+    name: String,
+    ctx: State<'_, AppContext>,
+    app: AppHandle,
+) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new("Pin package", format!("Pin package {name}"), "package_pin")
+            .blast_radius(BlastRadius::LocalSystem)
+            .target(&name),
+    );
+    let bin = brew_bin(&ctx)?.to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let lock = app.state::<BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        run_brew(&bin, &["pin", &name])?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+}
+
+#[tauri::command]
+pub async fn package_unpin(
+    name: String,
+    ctx: State<'_, AppContext>,
+    app: AppHandle,
+) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Unpin package",
+            format!("Unpin package {name}"),
+            "package_unpin",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name),
+    );
+    let bin = brew_bin(&ctx)?.to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let lock = app.state::<BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        run_brew(&bin, &["unpin", &name])?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+}
+
+#[tauri::command]
+pub async fn package_cellar_versions(
+    name: String,
+    ctx: State<'_, AppContext>,
+) -> AppResult<Vec<String>> {
+    validate::validate_formula(&name)?;
+    let prefix = ctx
+        .brew_prefix
+        .clone()
+        .unwrap_or_else(|| "/opt/homebrew".to_string());
+    super::blocking(move || {
+        let cellar = std::path::PathBuf::from(prefix).join("Cellar").join(&name);
+
+        if !cellar.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut versions = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(cellar) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    let v = entry.file_name().to_string_lossy().to_string();
+                    if !v.starts_with('.') {
+                        versions.push(v);
+                    }
+                }
+            }
+        }
+        versions.sort();
+        versions.reverse();
+        Ok(versions)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn package_rollback(
+    name: String,
+    version: String,
+    ctx: State<'_, AppContext>,
+    app: AppHandle,
+) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Rollback package",
+            format!("Rollback package {name} to version {version}"),
+            "package_rollback",
+        )
+        .blast_radius(BlastRadius::LocalSystem)
+        .target(&name)
+        .destructive(true),
+    );
+    let bin = brew_bin(&ctx)?.to_string();
+    let prefix = ctx
+        .brew_prefix
+        .as_deref()
+        .unwrap_or("/opt/homebrew")
+        .to_string();
+    let cellar = std::path::PathBuf::from(&prefix).join("Cellar").join(&name);
+    let keg_path = cellar.join(&version);
+
+    if !cellar.exists() {
+        return Err(AppError::NotFound(
+            "Not possible: Homebrew kept no older version".into(),
+        ));
+    }
+
+    // Check how many kegs exist
+    let mut keg_count = 0;
+    if let Ok(entries) = std::fs::read_dir(&cellar) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                let fname = entry.file_name().to_string_lossy().to_string();
+                if !fname.starts_with('.') {
+                    keg_count += 1;
+                }
+            }
+        }
+    }
+
+    if keg_count <= 1 {
+        return Err(AppError::NotFound(
+            "Not possible: Homebrew kept no older version".into(),
+        ));
+    }
+
+    if !keg_path.exists() {
+        return Err(AppError::NotFound(format!(
+            "Not possible: Homebrew kept no older version ({version} not found in Cellar)"
+        )));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let lock = app.state::<BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+
+        // 1. Unlink current version
+        let _ = run_brew(&bin, &["unlink", &name]);
+
+        // 2. Explicitly update the opt symlink to this specific keg
+        let opt_dir = std::path::PathBuf::from(prefix).join("opt");
+        let opt_link = opt_dir.join(&name);
+        if opt_link.is_symlink() || opt_link.exists() {
+            let _ = std::fs::remove_file(&opt_link);
+        }
+        #[cfg(unix)]
+        {
+            let rel_target = std::path::PathBuf::from("..").join("Cellar").join(&name).join(&version);
+            let _ = std::os::unix::fs::symlink(rel_target, &opt_link);
+        }
+
+        // 3. Relink explicit keg
+        run_brew(&bin, &["link", "--overwrite", &name])?;
+
+        // 4. Verify with `brew list --versions <name>`
+        let verify = run_brew(&bin, &["list", "--versions", &name])?;
+        if !verify.contains(&version) {
+            return Err(AppError::Shell(format!(
+                "Verification failed: brew list --versions did not reflect {version} after rollback. Got: {verify}"
+            )));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
 }

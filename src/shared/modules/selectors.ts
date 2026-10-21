@@ -1,6 +1,14 @@
-import { Settings } from 'lucide-react';
+import { House, Settings } from 'lucide-react';
 import type { Tab } from '@/shared/state/uiSlice';
-import { MODULES, MODULE_IDS, type ModuleId, type NavEntry } from './modules.config';
+import {
+  MODULES,
+  MODULE_GROUPS,
+  MODULE_IDS,
+  type ModuleDef,
+  type ModuleGroup,
+  type ModuleId,
+  type NavEntry,
+} from './modules.config';
 
 export const ALL_MODULES: ModuleId[] = [...MODULE_IDS];
 
@@ -12,10 +20,39 @@ export const DEFAULT_MODULES: ModuleId[] = MODULES.filter((m) => !m.optIn).map((
  * is configured, so a bad choice is always recoverable from inside the app. */
 const SETTINGS_NAV: NavEntry = { tab: 'settings', label: 'Settings', icon: Settings };
 
-/** Sidebar nav for the enabled modules, in registry order, Settings last. */
+/** Home belongs to no module either: it summarises whichever ones are on. */
+export const HOME_NAV: NavEntry = { tab: 'home', label: 'Home', icon: House };
+
+/** Every reachable page for the enabled modules: Home, module pages in hub
+ * order (registry order inside a hub), Settings last. */
 export function visibleNav(enabled: ModuleId[]): NavEntry[] {
-  const owned = MODULES.filter((m) => enabled.includes(m.id)).flatMap((m) => m.nav);
-  return [...owned, SETTINGS_NAV];
+  const owned = visibleHubs(enabled).flatMap((h) => h.tabs);
+  return [HOME_NAV, ...owned, SETTINGS_NAV];
+}
+
+export interface VisibleHub {
+  id: ModuleGroup;
+  label: string;
+  icon: (typeof MODULE_GROUPS)[number]['icon'];
+  tabs: NavEntry[];
+}
+
+/** Hubs with at least one enabled module, in hub order — the rail (PLAN F.1). */
+export function visibleHubs(enabled: ModuleId[]): VisibleHub[] {
+  return MODULE_GROUPS.map((g) => ({
+    ...g,
+    tabs: MODULES.filter((m) => m.group === g.id && enabled.includes(m.id)).flatMap((m) => m.nav),
+  })).filter((h) => h.tabs.length > 0);
+}
+
+/** The hub a page lives in; Home and Settings live in none. */
+export function hubOfTab(tab: Tab): ModuleGroup | null {
+  return MODULES.find((m) => m.nav.some((n) => n.tab === tab))?.group ?? null;
+}
+
+/** The module that owns a page, for its privacy line. */
+export function moduleOfTab(tab: Tab): ModuleDef | null {
+  return MODULES.find((m) => m.nav.some((n) => n.tab === tab)) ?? null;
 }
 
 export function visibleTabs(enabled: ModuleId[]): Tab[] {

@@ -15,6 +15,14 @@ import {
   setAutoArchiveEnabled,
   setAutoArchiveCutoffDays,
   setAutoVacuumEnabled,
+  setFavoritePorts,
+  toggleFavoritePort,
+  addRecentCommandId,
+  setRecentCommandIds,
+  setGlobalHotkey,
+  setRemoteDeadmanMinutes,
+  togglePinnedCommand,
+  PERSISTED_KEYS,
   type PersistedSettings,
 } from './settingsSlice';
 
@@ -52,39 +60,19 @@ settingsListener.startListening({
     setAutoArchiveEnabled,
     setAutoArchiveCutoffDays,
     setAutoVacuumEnabled,
+    setFavoritePorts,
+    toggleFavoritePort,
+    addRecentCommandId,
+    setRecentCommandIds,
+    setGlobalHotkey,
+    setRemoteDeadmanMinutes,
+    togglePinnedCommand,
   ),
   effect: async (_action, api) => {
-    const {
-      theme,
-      layout,
-      pollIntervalMs,
-      remotePollIntervalMs,
-      remoteBackgroundMinutes,
-      macleanAutoCleanDays,
-      macleanLowDiskGb,
-      quitBehavior,
-      cardOrder,
-      enabledModules,
-      autoArchiveEnabled,
-      autoArchiveCutoffDays,
-      autoVacuumEnabled,
-    } = (api.getState() as RootState).settings;
+    const settings = (api.getState() as RootState).settings;
+    const persisted = Object.fromEntries(PERSISTED_KEYS.map((k) => [k, settings[k]]));
     const store = await getStore();
-    await store.set(KEY, {
-      theme,
-      layout,
-      pollIntervalMs,
-      remotePollIntervalMs,
-      remoteBackgroundMinutes,
-      macleanAutoCleanDays,
-      macleanLowDiskGb,
-      quitBehavior,
-      cardOrder,
-      enabledModules,
-      autoArchiveEnabled,
-      autoArchiveCutoffDays,
-      autoVacuumEnabled,
-    });
+    await store.set(KEY, persisted);
     await store.save();
   },
 });

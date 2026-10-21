@@ -14,8 +14,8 @@ export const DoctorScopeTabs = ({ tabs, activeTab, onSelectTab }: DoctorScopeTab
           aria-pressed={activeTab === value}
           onClick={() => onSelectTab(value)}
           className={cn(
-            'relative h-10 px-4 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
-            activeTab === value ? 'text-accent' : 'text-fg-muted hover:bg-list hover:text-fg',
+            'relative h-10 px-4 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ember focus-visible:ring-inset',
+            activeTab === value ? 'text-ember-text' : 'text-fg-muted hover:bg-list hover:text-fg',
           )}
         >
           {label}
@@ -23,7 +23,7 @@ export const DoctorScopeTabs = ({ tabs, activeTab, onSelectTab }: DoctorScopeTab
             <motion.span
               aria-hidden
               layoutId="doctor-tab-underline"
-              className="absolute inset-x-0 -bottom-px h-0.5 bg-accent"
+              className="absolute inset-x-0 -bottom-px h-0.5 bg-ember"
               transition={
                 reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }
               }

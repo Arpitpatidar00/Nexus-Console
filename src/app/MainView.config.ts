@@ -6,6 +6,7 @@ import type { Tab } from '@/shared/state/uiSlice';
 // `.then(m => ({ default }))` satisfies React.lazy's default-import contract
 // while preserving strict named exports across the codebase.
 export const PAGES: Record<Tab, ComponentType> = {
+  home: lazy(() => import('@/features/home/pages/HomePage').then((m) => ({ default: m.HomePage }))),
   services: lazy(() =>
     import('@/features/services/pages/ServicesPage').then((m) => ({ default: m.ServicesPage })),
   ),
@@ -17,6 +18,9 @@ export const PAGES: Record<Tab, ComponentType> = {
   ),
   memory: lazy(() =>
     import('@/features/maclean/pages/MemoryPage').then((m) => ({ default: m.MemoryPage })),
+  ),
+  energy: lazy(() =>
+    import('@/features/maclean/pages/EnergyPage').then((m) => ({ default: m.EnergyPage })),
   ),
   servers: lazy(() =>
     import('@/features/remote/pages/RemotePage').then((m) => ({ default: m.RemotePage })),
@@ -32,6 +36,39 @@ export const PAGES: Record<Tab, ComponentType> = {
   ),
   archiver: lazy(() =>
     import('@/features/archiver/pages/ArchiverPage').then((m) => ({ default: m.ArchiverPage })),
+  ),
+  docker: lazy(() =>
+    import('@/features/docker/pages/DockerPage').then((m) => ({ default: m.DockerPage })),
+  ),
+  databases: lazy(() =>
+    import('@/features/databases/pages/DatabasesPage').then((m) => ({ default: m.DatabasesPage })),
+  ),
+  projects: lazy(() =>
+    import('@/features/projects/pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
+  ),
+  toolbox: lazy(() =>
+    import('@/features/toolbox/pages/ToolboxPage').then((m) => ({ default: m.ToolboxPage })),
+  ),
+  domains: lazy(() =>
+    import('@/features/domains/pages/DomainsPage').then((m) => ({ default: m.DomainsPage })),
+  ),
+  secrets: lazy(() =>
+    import('@/features/secrets/pages/SecretsPage').then((m) => ({ default: m.SecretsPage })),
+  ),
+  cloud: lazy(() =>
+    import('@/features/cloud/pages/CloudPage').then((m) => ({ default: m.CloudPage })),
+  ),
+  backups: lazy(() =>
+    import('@/features/backups/pages/BackupsPage').then((m) => ({ default: m.BackupsPage })),
+  ),
+  network: lazy(() =>
+    import('@/features/network/pages/NetworkPage').then((m) => ({ default: m.NetworkPage })),
+  ),
+  devices: lazy(() =>
+    import('@/features/devices/pages/DevicesPage').then((m) => ({ default: m.DevicesPage })),
+  ),
+  releases: lazy(() =>
+    import('@/features/releases/pages/ReleasesPage').then((m) => ({ default: m.ReleasesPage })),
   ),
   settings: lazy(() =>
     import('@/features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),

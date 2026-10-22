@@ -29,6 +29,48 @@ pub const SAFE_ENV_VARS: &[&str] = &[
     "HOMEBREW_REPOSITORY",
 ];
 
+/// Where developer CLIs live on a Mac. A Finder/Dock launch inherits launchd's
+/// bare `/usr/bin:/bin:/usr/sbin:/sbin`, so `psql`, `docker`, `aws`, `gh`…
+/// failed with "No such file or directory" outside a terminal.
+const TOOL_DIRS: &[&str] = &[
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin",
+    "/usr/local/sbin",
+    "/Applications/Docker.app/Contents/Resources/bin",
+];
+
+/// Pure: `current` with the tool dirs (and `~/.orbstack/bin`) appended when
+/// missing. Appended, not prepended — the system's own binaries keep winning.
+pub fn augmented_path(current: &str, home: Option<&str>) -> String {
+    let mut parts: Vec<String> = current
+        .split(':')
+        .filter(|p| !p.is_empty())
+        .map(String::from)
+        .collect();
+    let extra = TOOL_DIRS
+        .iter()
+        .map(|d| (*d).to_string())
+        .chain(home.map(|h| format!("{h}/.orbstack/bin")));
+    for dir in extra {
+        if !parts.contains(&dir) {
+            parts.push(dir);
+        }
+    }
+    parts.join(":")
+}
+
+/// Call once at startup, before any thread exists, so every spawn path —
+/// `exec::run` and the raw `Command`s alike — finds Homebrew/Docker tools.
+pub fn ensure_tool_path() {
+    let current = std::env::var("PATH").unwrap_or_default();
+    let home = std::env::var("HOME").ok();
+    let next = augmented_path(&current, home.as_deref());
+    if next != current {
+        std::env::set_var("PATH", next);
+    }
+}
+
 /// Options for executing a subprocess via argv.
 #[derive(Debug, Clone)]
 pub struct ExecOpts {
@@ -272,6 +314,15 @@ pub fn run<P: AsRef<Path>, S: AsRef<str>>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn augmented_path_adds_tool_dirs_once_after_system_dirs() {
+        let p = super::augmented_path("/usr/bin:/bin:/usr/sbin:/sbin", Some("/Users/me"));
+        assert!(p.starts_with("/usr/bin:/bin:/usr/sbin:/sbin:"));
+        assert!(p.contains(":/opt/homebrew/bin"));
+        assert!(p.ends_with(":/Users/me/.orbstack/bin"));
+        assert_eq!(super::augmented_path(&p, Some("/Users/me")), p);
+    }
+
     use super::*;
 
     #[test]

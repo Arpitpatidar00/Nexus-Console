@@ -10,6 +10,8 @@ import { ProjectCard } from '../components/ProjectCard';
 import { WorkspaceModal } from '../components/WorkspaceModal';
 import { SavedCommandsModal } from '../components/SavedCommandsModal';
 import type { DiscoveredProject } from '../api/projects.schema';
+import { useAppDispatch } from '@/shared/state/hooks';
+import { openTerminal } from '@/shared/state/terminalsSlice';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 
 export function ProjectsPage() {
@@ -34,9 +36,13 @@ export function ProjectsPage() {
       (p.git && p.git.branch.toLowerCase().includes(filter.toLowerCase())),
   );
 
+  const dispatch = useAppDispatch();
+  // Runs in the terminal drawer, in the project folder. (It used to only copy
+  // `cd … && cmd` to the clipboard, silently.)
   const handleRunTerminal = (command: string, cwd: string) => {
-    // Open in terminal drawer via clipboard
-    void navigator.clipboard.writeText(`cd "${cwd}" && ${command}`);
+    dispatch(
+      openTerminal({ target: { type: 'workspace', command, projectPath: cwd }, title: command }),
+    );
   };
 
   return (
@@ -66,6 +72,7 @@ export function ProjectsPage() {
               <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
               <input
                 type="text"
+                data-nx-page-search
                 placeholder="Search projects by name, path, branch..."
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}

@@ -4,7 +4,7 @@
 // Imports with step-by-step confirmation and conflict detection.
 
 use crate::context::AppContext;
-use crate::database::remote_store::{Env, Host, HostSource};
+use crate::database::remote_store::{Env, Host, HostSource, ManualTarget};
 use crate::error::{AppError, AppResult};
 use crate::services::maclean::store::Rules;
 use crate::services::maclean::MacleanState;
@@ -25,6 +25,10 @@ pub struct BlueprintHost {
     pub label: String,
     pub project: String,
     pub env: String,
+    /// Hand-added hosts' address. Missing from older blueprints, which is why
+    /// imported hosts couldn't connect (Manual source with no target).
+    #[serde(default)]
+    pub manual: Option<ManualTarget>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +106,7 @@ pub fn export_blueprint(app: &AppHandle) -> AppResult<NexusBlueprint> {
                     label: h.label.clone(),
                     project: h.project.clone(),
                     env: format!("{:?}", h.env).to_lowercase(),
+                    manual: h.manual.clone(),
                 });
             }
             for t in &s.tunnels {
@@ -340,10 +345,15 @@ pub fn apply_blueprint_hosts(hosts: Vec<BlueprintHost>, app: &AppHandle) -> AppR
     let count = remote_state.write(|store| {
         let mut added = 0;
         for bh in hosts {
-            let exists = match &bh.alias {
-                Some(a) => store.hosts.iter().any(|h| h.alias.as_ref() == Some(a)),
-                None => false,
-            };
+            let exists = store.hosts.iter().any(|h| {
+                h.id == bh.id
+                    || bh.alias.is_some() && h.alias == bh.alias
+                    || bh.manual.is_some() && h.manual == bh.manual
+            });
+            // Neither an ssh_config alias nor an address: nothing to connect to.
+            if bh.alias.is_none() && bh.manual.is_none() {
+                continue;
+            }
             if !exists {
                 let env = match bh.env.as_str() {
                     "prod" => Env::Prod,
@@ -353,9 +363,13 @@ pub fn apply_blueprint_hosts(hosts: Vec<BlueprintHost>, app: &AppHandle) -> AppR
                 let next_order = store.hosts.iter().map(|h| h.order).max().unwrap_or(0) + 1;
                 store.hosts.push(Host {
                     id: bh.id,
-                    source: HostSource::Manual,
+                    source: if bh.manual.is_some() {
+                        HostSource::Manual
+                    } else {
+                        HostSource::SshConfig
+                    },
                     alias: bh.alias,
-                    manual: None,
+                    manual: bh.manual,
                     label: bh.label,
                     project: bh.project,
                     env,

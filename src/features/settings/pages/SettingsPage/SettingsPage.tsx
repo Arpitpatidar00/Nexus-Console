@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Panel } from '@/shared/ui/Panel';
 import { FeaturePicker } from '@/features/settings/components/FeaturePicker';
 import { HomebrewStatusCard } from '@/features/settings/components/HomebrewStatusCard';
+import { GLOBAL_HOTKEY } from '@/shared/lib/globalHotkey';
 import { ManagedServicesEditor } from '@/features/settings/components/ManagedServicesEditor';
 import { ServersSettingsCard } from '@/features/settings/components/ServersSettingsCard';
 import { MacCleanSettingsCard } from '@/features/settings/components/MacCleanSettingsCard';
@@ -94,14 +95,12 @@ export const SettingsPage = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded bg-muted px-2.5 py-1 font-mono text-xs text-foreground">
-                {globalHotkey ?? 'Unset (Ctrl+Option+Space)'}
+                {globalHotkey ? '⌃⌥Space — shows or hides Stackroost' : 'Off · ⌃⌥Space'}
               </span>
               <Button
                 variant="glass"
                 size="sm"
-                onClick={() =>
-                  dispatch(setGlobalHotkey(globalHotkey ? null : 'CommandOrControl+Alt+Space'))
-                }
+                onClick={() => dispatch(setGlobalHotkey(globalHotkey ? null : GLOBAL_HOTKEY))}
               >
                 {globalHotkey ? 'Disable' : 'Enable'}
               </Button>
@@ -109,7 +108,7 @@ export const SettingsPage = () => {
           </div>
         </Panel>
 
-        <HomebrewStatusCard />
+        {enabledModules.includes('homebrew') && <HomebrewStatusCard />}
 
         {enabledModules.includes('remote') && <ServersSettingsCard />}
 
@@ -125,9 +124,11 @@ export const SettingsPage = () => {
           <BlueprintCard />
         </div>
 
-        <div className="xl:col-span-2">
-          <ManagedServicesEditor />
-        </div>
+        {enabledModules.includes('homebrew') && (
+          <div className="xl:col-span-2">
+            <ManagedServicesEditor />
+          </div>
+        )}
       </div>
     </div>
   );

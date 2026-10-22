@@ -54,7 +54,11 @@ export const PackagesTable = ({
                 {p.kind}
               </span>
               {p.pinned && (
-                <Badge variant="neutral" className="gap-1 py-0 text-[10px] text-warning">
+                <Badge
+                  variant="neutral"
+                  size="sm"
+                  className="shrink-0 gap-1 px-1.5 text-[10px] text-warning"
+                >
                   <Pin className="h-2.5 w-2.5" />
                   pinned
                 </Badge>
@@ -70,7 +74,7 @@ export const PackagesTable = ({
         cell: ({ row }) => {
           const p = row.original;
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="truncate font-mono text-xs text-fg-muted">{p.version}</span>
               {p.outdated && <OutdatedBadge latestVersion={p.latestVersion} />}
             </div>

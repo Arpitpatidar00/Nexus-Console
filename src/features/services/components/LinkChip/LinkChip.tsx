@@ -27,7 +27,7 @@ export const LinkChip = ({ linkState }: { linkState: LinkState }) => {
       <Tooltip.Portal>
         <Tooltip.Content
           sideOffset={6}
-          className="nx-pop z-[var(--z-tooltip)] max-w-56 rounded-md border border-border bg-paper px-2.5 py-1.5 text-xs text-fg-muted shadow-sm"
+          className="nx-pop z-[var(--z-tooltip)] max-w-56 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-fg-muted text-popover-foreground shadow-sm"
         >
           {linked
             ? 'Kept running in the background (survives quit).'

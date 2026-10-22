@@ -25,7 +25,11 @@ pub async fn devices_control_ios(
     udid: String,
     action: String,
 ) -> AppResult<String> {
-    check_sim_udid(&udid)?;
+    // "open" launches Simulator.app and takes no device — the header button
+    // sends an empty UDID, which this check used to reject every time.
+    if action != "open" {
+        check_sim_udid(&udid)?;
+    }
     if !matches!(action.as_str(), "boot" | "shutdown" | "open" | "erase") {
         return Err(AppError::InvalidName(format!(
             "Invalid simulator action: {action}"
@@ -38,7 +42,7 @@ pub async fn devices_control_ios(
             MutationSpec::new(
                 "Erase Simulator",
                 format!("Erase all content and settings for iOS Simulator {udid}"),
-                "devices_control_ios",
+                "Erase",
             )
             .destructive(true)
             .blast_radius(BlastRadius::LocalSystem)
@@ -88,7 +92,7 @@ pub async fn devices_install_apk(
         MutationSpec::new(
             "Install Android APK",
             format!("Install APK '{apk_path}' on device"),
-            "devices_install_apk",
+            "Install",
         )
         .blast_radius(BlastRadius::LocalSystem)
         .target(&apk_path),

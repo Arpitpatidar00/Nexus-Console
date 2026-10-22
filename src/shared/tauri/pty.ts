@@ -12,7 +12,9 @@ export type PtyTarget =
   | { type: 'brew'; formula: string; kind: 'cli' | 'logs' }
   | { type: 'remoteShell'; hostId: string }
   | { type: 'remoteLogs'; hostId: string; container: string }
-  | { type: 'remoteExec'; hostId: string; container: string };
+  | { type: 'remoteExec'; hostId: string; container: string }
+  /** A command in the user's login shell, optionally inside a project folder. */
+  | { type: 'workspace'; command: string; projectPath: string; injectKeychain?: boolean };
 
 export interface PtyOpenParams {
   id: string;

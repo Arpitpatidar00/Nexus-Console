@@ -33,7 +33,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 blake3 = "1.8.7"
-tokio = { version = "1", features = ["net", "io-util", "sync", "time", "macros"] }
+tokio = { version = "1", features = ["net", "io-util", "sync", "time", "macros", "rt-multi-thread"] }
 regex = "1"
 security-framework = "3.7.0"
 

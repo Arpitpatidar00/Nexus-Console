@@ -1,2 +1,2 @@
 export { HostStatus } from './HostStatus';
-export { describeStatus, type Tone } from './HostStatus.config';
+export { describeStatus, DOT, type Tone } from './HostStatus.config';

@@ -5,6 +5,7 @@ import { useAppDispatch } from '@/shared/state/hooks';
 import { removeManaged, renameManaged } from '@/shared/state/serviceIntentSlice';
 import { brewKeys } from './keys';
 import type { ServiceDto } from './schemas';
+import { clearStartAttempt, markStartAttempt } from '@/shared/lib/startAttempts';
 
 type OptimisticPatch = Partial<Pick<ServiceDto, 'status' | 'healthy'>>;
 
@@ -53,7 +54,10 @@ function useServiceMutation<V extends { name: string }>(
 export function useStartService(opts?: MutationOpts) {
   return useServiceMutation<{ name: string; linked: boolean }>(
     'Starting',
-    (v) => ipcVoid(CMD.START_SERVICE, v),
+    (v) => {
+      markStartAttempt(v.name);
+      return ipcVoid(CMD.START_SERVICE, v);
+    },
     {
       status: 'started',
       healthy: false,
@@ -68,7 +72,10 @@ export function useStartService(opts?: MutationOpts) {
 export function useStopService(opts?: MutationOpts) {
   return useServiceMutation<{ name: string }>(
     'Stopping',
-    (v) => ipcVoid(CMD.STOP_SERVICE, v),
+    (v) => {
+      clearStartAttempt(v.name);
+      return ipcVoid(CMD.STOP_SERVICE, v);
+    },
     { status: 'stopping', healthy: null },
     opts,
   );
@@ -77,7 +84,10 @@ export function useStopService(opts?: MutationOpts) {
 export function useRestartService() {
   return useServiceMutation<{ name: string; linked: boolean }>(
     'Restarting',
-    (v) => ipcVoid(CMD.RESTART_SERVICE, v),
+    (v) => {
+      markStartAttempt(v.name);
+      return ipcVoid(CMD.RESTART_SERVICE, v);
+    },
     { status: 'started', healthy: false },
   );
 }

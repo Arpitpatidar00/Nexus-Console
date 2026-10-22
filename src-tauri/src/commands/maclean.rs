@@ -332,7 +332,10 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
             .lock()
             .map_err(|_| AppError::Io("report lock poisoned".into()))?
             .as_ref()
-            .is_some_and(|r| r.large_files.iter().any(|f| f.path == path));
+            .is_some_and(|r| r.large_files.iter().any(|f| f.path == path))
+            // Ghost leftovers are revealable too — they're never in large_files,
+            // so their Reveal button always failed with Forbidden.
+            || state_ghost_listed(&app, &path);
         if !listed {
             return Err(AppError::Forbidden(
                 "Only files from the latest scan can be revealed.".into(),
@@ -345,6 +348,13 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
         Ok(())
     })
     .await
+}
+
+fn state_ghost_listed(app: &AppHandle, path: &str) -> bool {
+    app.state::<MacleanState>()
+        .last_ghost_paths
+        .lock()
+        .is_ok_and(|p| p.iter().any(|x| x == path))
 }
 
 fn chrono_free_date(days_since_epoch: u64) -> String {
@@ -363,13 +373,17 @@ fn chrono_free_date(days_since_epoch: u64) -> String {
 
 #[tauri::command]
 pub async fn maclean_ghost_scan(
-    _app: AppHandle,
+    app: AppHandle,
 ) -> AppResult<crate::services::maclean::ghost::GhostScanReport> {
     crate::core::consent::require_consent(crate::core::consent::DataSource::LibraryScan)?;
     blocking(move || {
         let home = crate::doctor::paths::home()
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
-        Ok(crate::services::maclean::ghost::scan_ghost_leftovers(&home))
+        let report = crate::services::maclean::ghost::scan_ghost_leftovers(&home);
+        if let Ok(mut paths) = app.state::<MacleanState>().last_ghost_paths.lock() {
+            *paths = report.leftovers.iter().map(|l| l.path.clone()).collect();
+        }
+        Ok(report)
     })
     .await
 }
@@ -404,31 +418,122 @@ pub async fn maclean_energy_sample(
     blocking(move || Ok(crate::services::maclean::energy::sample_energy_report())).await
 }
 
+/// Energy → Pause, by PID. A Homebrew service is stopped through brew (the
+/// proper way to quiet a daemon); anything else gets SIGSTOP and is tracked so
+/// it can be resumed — and is resumed when Stackroost quits. The old version
+/// took a process *name*, so most clicks failed validation or silently did
+/// nothing after the user had confirmed.
 #[tauri::command]
-pub async fn maclean_pause_service(app: AppHandle, service_name: String) -> AppResult<()> {
-    crate::core::validate::validate_alphanumeric_slug(&service_name, "service name")?;
-    confirm_action(
-        &app,
-        &format!("Pause/stop service '{service_name}'?"),
-        &format!("This will send SIGSTOP or stop brew service '{service_name}'."),
-        "Pause Service",
-        false,
-    )?;
+pub async fn maclean_pause_service(app: AppHandle, pid: i32) -> AppResult<()> {
     blocking(move || {
-        if service_name.contains("homebrew")
-            || service_name.contains("redis")
-            || service_name.contains("postgres")
-            || service_name.contains("nginx")
-        {
-            let opts = crate::core::exec::ExecOpts::default();
-            let _ = crate::core::exec::run("brew", &["services", "stop", &service_name], opts);
-        } else if let Ok(pid) = service_name.parse::<i32>() {
-            let opts = crate::core::exec::ExecOpts::default();
-            let _ = crate::core::exec::run("kill", &["-STOP", &pid.to_string()], opts);
+        if pid <= 1 || pid as u32 == std::process::id() {
+            return Err(AppError::InvalidName(format!("can't pause PID {pid}")));
         }
+        let name = process_name(pid)
+            .ok_or_else(|| AppError::NotFound(format!("process {pid} is no longer running")))?;
+        let services = crate::util::launchctl::parse_launchctl(
+            &crate::commands::services::run_launchctl(),
+        );
+        let formula = services
+            .iter()
+            .find(|(_, p)| **p == pid as u32)
+            .map(|(f, _)| f.clone());
+
+        if let Some(formula) = formula {
+            confirm_action(
+                &app,
+                &format!("Stop the {formula} service?"),
+                &format!("{name} is the Homebrew service “{formula}”. Stackroost stops it with `brew services stop`; start it again from Services."),
+                "Stop service",
+                false,
+            )?;
+            let bin = app
+                .state::<AppContext>()
+                .brew_bin
+                .clone()
+                .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))?;
+            let lock = app.state::<crate::brew::BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            crate::brew::run_brew(&bin, &["services", "stop", &formula])?;
+            app.state::<crate::commands::services::ServicesCache>().invalidate();
+            return Ok(());
+        }
+
+        confirm_action(
+            &app,
+            &format!("Pause {name}?"),
+            &format!("PID {pid} stays in memory but stops using CPU and battery until you resume it. Stackroost resumes it when you quit."),
+            "Pause",
+            false,
+        )?;
+        signal(pid, libc::SIGSTOP)?;
+        app.state::<MacleanState>()
+            .paused
+            .lock()
+            .map_err(|_| AppError::Io("paused lock poisoned".into()))?
+            .insert(pid);
         Ok(())
     })
     .await
+}
+
+#[tauri::command]
+pub async fn maclean_resume_process(app: AppHandle, pid: i32) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<MacleanState>();
+        let mut paused = state
+            .paused
+            .lock()
+            .map_err(|_| AppError::Io("paused lock poisoned".into()))?;
+        // Only what Energy itself paused — never an arbitrary SIGCONT.
+        if !paused.remove(&pid) {
+            return Err(AppError::NotFound(format!(
+                "PID {pid} wasn't paused by Stackroost"
+            )));
+        }
+        signal(pid, libc::SIGCONT)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn maclean_paused_pids(app: AppHandle) -> AppResult<Vec<i32>> {
+    let state = app.state::<MacleanState>();
+    let mut paused = state
+        .paused
+        .lock()
+        .map_err(|_| AppError::Io("paused lock poisoned".into()))?;
+    // Forget processes that exited while paused.
+    // SAFETY: kill(pid, 0) only probes for existence.
+    paused.retain(|&pid| unsafe { libc::kill(pid, 0) } == 0);
+    Ok(paused.iter().copied().collect())
+}
+
+fn signal(pid: i32, sig: libc::c_int) -> AppResult<()> {
+    // SAFETY: kill(2) with a plain signal has no memory preconditions.
+    if unsafe { libc::kill(pid, sig) } == 0 {
+        Ok(())
+    } else {
+        Err(AppError::Io(format!(
+            "signal to PID {pid} failed: {}",
+            std::io::Error::last_os_error()
+        )))
+    }
+}
+
+fn process_name(pid: i32) -> Option<String> {
+    let pid = pid.to_string();
+    let out = crate::core::exec::run(
+        "/bin/ps",
+        &["-p", pid.as_str(), "-o", "comm="],
+        crate::core::exec::ExecOpts::default().no_check_exit(),
+    )
+    .ok()?;
+    let path = out.stdout_str.trim();
+    (!path.is_empty()).then(|| path.rsplit('/').next().unwrap_or(path).to_string())
 }
 
 #[tauri::command]
@@ -450,7 +555,7 @@ pub async fn maclean_trends(
 
 #[tauri::command]
 pub async fn maclean_duplicates_scan(
-    _app: AppHandle,
+    app: AppHandle,
     dirs: Option<Vec<String>>,
 ) -> AppResult<crate::services::maclean::duplicates::DuplicateReport> {
     blocking(move || {
@@ -461,30 +566,50 @@ pub async fn maclean_duplicates_scan(
         } else {
             crate::services::maclean::duplicates::default_scan_directories(&home)
         };
-        Ok(crate::services::maclean::duplicates::scan_duplicates(
-            &target_dirs,
-        ))
+        let report = crate::services::maclean::duplicates::scan_duplicates(&target_dirs);
+        *app.state::<MacleanState>()
+            .last_duplicates
+            .lock()
+            .map_err(|_| AppError::Io("duplicates lock poisoned".into()))? = Some(report.clone());
+        Ok(report)
     })
     .await
 }
 
 #[tauri::command]
 pub async fn maclean_duplicates_delete(app: AppHandle, paths: Vec<String>) -> AppResult<u64> {
-    confirm_action(
-        &app,
-        &format!(
-            "Delete {} duplicate file{}?",
-            paths.len(),
-            if paths.len() == 1 { "" } else { "s" }
-        ),
-        "This will permanently delete the selected duplicate files.",
-        "Delete Duplicates",
-        true,
-    )?;
+    use crate::services::maclean::duplicates;
     blocking(move || {
+        let state = app.state::<MacleanState>();
+        // Paths are checked against the scan Rust produced — never trusted
+        // as given — and each group keeps a copy.
+        {
+            let last = state
+                .last_duplicates
+                .lock()
+                .map_err(|_| AppError::Io("duplicates lock poisoned".into()))?;
+            let report = last
+                .as_ref()
+                .ok_or_else(|| AppError::Forbidden("Scan for duplicates first.".into()))?;
+            duplicates::check_deletion(report, &paths).map_err(AppError::Forbidden)?;
+        }
+        let n = paths.len();
+        confirm_action(
+            &app,
+            &format!("Move {n} duplicate file{} to the Trash?", if n == 1 { "" } else { "s" }),
+            "At least one copy of every file stays where it is. You can put these back from the Trash.",
+            "Move to Trash",
+            true,
+        )?;
         let home = crate::doctor::paths::home()
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
-        crate::services::maclean::duplicates::delete_duplicates(&home, &paths).map_err(AppError::Io)
+        let freed = duplicates::delete_duplicates(&home, &paths).map_err(AppError::Io)?;
+        if let Ok(mut last) = state.last_duplicates.lock() {
+            if let Some(r) = last.as_mut() {
+                duplicates::forget_paths(r, &paths);
+            }
+        }
+        Ok(freed)
     })
     .await
 }

@@ -93,6 +93,8 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
   const recentIds = useAppSelector((s) => s.settings.recentCommandIds);
   const pinnedIds = useAppSelector((s) => s.settings.pinnedCommandIds);
   const listRef = useRef<HTMLDivElement>(null);
+  // Only keyboard moves scroll the list; hover-selection must not make it jump.
+  const keyboardMove = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -118,36 +120,39 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
     }));
   }, [navItems]);
 
-  // Filter & rank actions
+  // Filter & rank, then group. The selectable order is derived FROM the grouped
+  // display order — ranking flat and grouping separately made ↑↓ highlight one
+  // row while ↵ ran another.
   const { selectableItems, groupedItems } = useMemo(() => {
     const q = query.trim();
+    let sections: { group: string; items: ActionItem[] }[];
     if (q) {
       const scored = actions
         .map((action) => ({ action, score: scoreAction(action, q) }))
         .filter((item) => item.score > 0)
         .sort((a, b) => b.score - a.score)
         .map((item) => item.action);
-
-      // Group scored results by their group for clean display
+      // Groups appear in the order of their best match.
       const groups = new Map<string, ActionItem[]>();
       for (const item of scored) {
         const list = groups.get(item.group) ?? [];
         list.push(item);
         groups.set(item.group, list);
       }
-
-      return {
-        selectableItems: scored,
-        groupedItems: Array.from(groups.entries()).map(([group, items]) => ({
-          group,
-          items,
-        })),
-      };
+      sections = Array.from(groups.entries()).map(([group, items]) => ({ group, items }));
+    } else {
+      // Empty query: repeat last, pinned, recent hosts, recents, then the catalog.
+      sections = paletteSections(actions, { pinnedIds, recentIds }).sections;
     }
-
-    // Empty query: repeat last, pinned, recent hosts, recents, then the catalog.
-    const { sections, flat } = paletteSections(actions, { pinnedIds, recentIds });
-    return { selectableItems: flat, groupedItems: sections };
+    let index = 0;
+    const indexed = sections.map(({ group, items }) => ({
+      group,
+      items: items.map((item) => ({ item, index: index++ })),
+    }));
+    return {
+      selectableItems: indexed.flatMap((g) => g.items.map((e) => e.item)),
+      groupedItems: indexed,
+    };
   }, [query, actions, recentIds, pinnedIds]);
 
   // Keep selectedIndex in bounds
@@ -189,11 +194,13 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
         onOpenChange(false);
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
+        keyboardMove.current = true;
         setSelectedIndex((prev) =>
           selectableItems.length > 0 ? (prev + 1) % selectableItems.length : 0,
         );
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        keyboardMove.current = true;
         setSelectedIndex((prev) =>
           selectableItems.length > 0
             ? (prev - 1 + selectableItems.length) % selectableItems.length
@@ -217,10 +224,8 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
 
   if (!open) return null;
 
-  let flatCounter = 0;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
       <button
         type="button"
         aria-label="Close command dialog backdrop"
@@ -290,8 +295,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
                 return (
                   <div key={groupEntry.group} className="flex flex-col gap-1.5">
                     <p className="sr-eyebrow mt-1 text-muted-foreground">{groupLabel}</p>
-                    {groupEntry.items.map((item) => {
-                      const itemIndex = flatCounter++;
+                    {groupEntry.items.map(({ item, index: itemIndex }) => {
                       const isSelected = itemIndex === selectedIndex;
                       const icon = item.danger ? (
                         <AlertTriangle className="size-4 text-destructive" />
@@ -305,10 +309,14 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
 
                       return (
                         <div
-                          key={item.id}
+                          key={`${groupEntry.group}:${item.id}`}
+                          onPointerMove={() => {
+                            if (!isSelected) setSelectedIndex(itemIndex);
+                          }}
                           ref={(el) => {
-                            if (isSelected) {
-                              el?.scrollIntoView({ block: 'nearest' });
+                            if (isSelected && el && keyboardMove.current) {
+                              keyboardMove.current = false;
+                              el.scrollIntoView({ block: 'nearest' });
                             }
                           }}
                         >

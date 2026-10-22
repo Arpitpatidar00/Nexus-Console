@@ -169,7 +169,7 @@ const SecretsView = () => {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-black/10 p-2.5">
+              <div className="rounded-lg border border-border bg-muted p-2.5">
                 <span className="text-[11px] font-semibold text-fg-muted">Masked Value:</span>
                 <p className="font-mono text-xs text-fg">{f.maskedPreview}</p>
               </div>

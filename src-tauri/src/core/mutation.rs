@@ -145,6 +145,18 @@ impl MutationGuard {
         }
     }
 
+    /// The user approved the native sheet; whether the action then worked is
+    /// up to the command. Recorded as `confirmed`, never as `success`.
+    pub fn confirmed(&self) {
+        if let Ok(mut lock) = self.outcome.lock() {
+            *lock = Some((
+                "confirmed".to_string(),
+                Some("user confirmed in native dialog".into()),
+            ));
+            self.completed.store(true, Ordering::SeqCst);
+        }
+    }
+
     pub fn failure<D: Into<String>>(&self, detail: D) {
         if let Ok(mut lock) = self.outcome.lock() {
             *lock = Some(("failed".to_string(), Some(detail.into())));
@@ -192,6 +204,14 @@ impl Drop for MutationGuard {
 }
 
 fn journal_path() -> Option<PathBuf> {
+    // Tests drop guards too — never let `cargo test` write into the user's
+    // real audit trail (it had filled it with "freed 10MB" fakes).
+    if cfg!(test) {
+        return Some(std::env::temp_dir().join(format!(
+            "stackroost-test-mutations-{}.jsonl",
+            std::process::id()
+        )));
+    }
     dirs_home().map(|h| h.join(".config").join("stackroost").join("mutations.jsonl"))
 }
 
@@ -220,7 +240,7 @@ pub fn mutation(app: &tauri::AppHandle, mut spec: MutationSpec) -> AppResult<Mut
         spec.destructive = true;
     }
 
-    crate::commands::confirm_action(
+    crate::commands::native_confirm(
         app,
         &spec.title,
         &spec.message,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Search, X, MessageSquare, Terminal } from 'lucide-react';
+import { Search, MessageSquare, Terminal } from 'lucide-react';
+import { Dialog } from '@/shared/ui/Dialog';
 import { useClaudeSearch } from '../api/useArchiverUpgrades';
 
 interface TranscriptSearchModalProps {
@@ -12,32 +13,28 @@ export function TranscriptSearchModal({ onClose, onResume }: TranscriptSearchMod
   const { data: results = [], isLoading } = useClaudeSearch(query);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-xl border border-border bg-card p-5 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-info" />
-            <h3 className="text-sm font-semibold">Search Claude Chat Transcripts</h3>
-          </div>
-          <button type="button" onClick={onClose} className="text-fg-muted hover:text-fg">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Search chat transcripts"
+      description="Full-text search across every Claude Code session on this Mac."
+      size="lg"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {/* Search input */}
         <div className="relative">
-          <Search className="absolute top-3 left-3 h-4 w-4 text-fg-muted" />
+          <Search className="absolute top-2.5 left-3 h-4 w-4 text-fg-muted" />
           <input
             type="text"
             placeholder="Search keywords across all chat transcripts..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-lg border border-border bg-muted py-2 pr-3 pl-9 font-mono text-xs text-fg focus:outline-none"
+            className="h-9 w-full rounded-lg border border-border bg-canvas pr-3 pl-9 text-sm text-fg focus:border-ember focus:outline-none"
           />
         </div>
 
         {/* Search Results List */}
-        <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-2">
           {isLoading ? (
             <div className="py-8 text-center text-xs text-fg-muted">Searching transcripts...</div>
           ) : query.trim().length < 2 ? (
@@ -81,6 +78,6 @@ export function TranscriptSearchModal({ onClose, onResume }: TranscriptSearchMod
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

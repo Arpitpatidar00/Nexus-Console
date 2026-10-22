@@ -128,8 +128,8 @@ export const BlueprintCard = () => {
       {/* Import & Visual Diff Dialog */}
       <Dialog.Root open={importModalOpen} onOpenChange={setImportModalOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[var(--z-dialog-overlay)] bg-black/50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-dialog)] max-h-[85vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-paper p-6 shadow-xl">
+          <Dialog.Overlay className="fixed inset-0 z-[var(--z-backdrop)] bg-black/50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-modal)] max-h-[85vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-xl">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <Cpu className="h-5 w-5 text-ember-text" />

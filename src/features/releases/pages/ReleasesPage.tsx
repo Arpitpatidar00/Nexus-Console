@@ -5,13 +5,20 @@ import { Badge } from '@/shared/ui/Badge';
 import { useProjectReleaseConfig } from '../api/useReleases';
 import { useProjects } from '@/features/projects/api/useProjects';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
+import { Input } from '@/shared/ui/Field';
+import { useModuleEnabled } from '@/shared/modules';
 
 export const ReleasesPage = () => {
-  const { data: projects } = useProjects();
-  const [projectPath, setProjectPath] = useState('');
+  // Projects off → no discovery call (the module gate answered it with a red
+  // Forbidden toast); the path field still works by hand.
+  const projectsOn = useModuleEnabled('projects');
+  const { data: projects } = useProjects([], { enabled: projectsOn });
+  // null = not edited yet → follow the first discovered project. Once edited
+  // (even to ''), the field is the user's — it used to snap back when cleared.
+  const [projectPath, setProjectPath] = useState<string | null>(null);
   const [copiedLane, setCopiedLane] = useState<string | null>(null);
 
-  const activePath = projectPath || (projects && projects.length > 0 ? projects[0].path : '');
+  const activePath = projectPath ?? projects?.[0]?.path ?? '';
   const { data: releaseConfig, isLoading, error, refetch } = useProjectReleaseConfig(activePath);
 
   const handleCopyLaneCommand = (lane: string) => {
@@ -39,14 +46,23 @@ export const ReleasesPage = () => {
           <label htmlFor="releases-project-path" className="text-xs font-semibold text-fg-muted">
             Project:
           </label>
-          <input
+          <Input
             id="releases-project-path"
-            type="text"
+            size="sm"
+            mono
+            list="releases-project-options"
             placeholder="/path/to/project"
-            value={projectPath || activePath}
+            value={activePath}
             onChange={(e) => setProjectPath(e.target.value)}
-            className="w-64 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs text-fg focus:outline-none"
+            className="w-72"
           />
+          <datalist id="releases-project-options">
+            {projects?.map((p) => (
+              <option key={p.path} value={p.path}>
+                {p.name}
+              </option>
+            ))}
+          </datalist>
         </div>
       </div>
 
@@ -109,11 +125,15 @@ export const ReleasesPage = () => {
           </thead>
           <tbody className="divide-y divide-border">
             {error ? (
-              <ErrorPanel
-                error={error}
-                fallback="Couldn't read this project's release config."
-                onRetry={() => void refetch()}
-              />
+              <tr>
+                <td colSpan={3} className="p-4">
+                  <ErrorPanel
+                    error={error}
+                    fallback="Couldn't read this project's release config."
+                    onRetry={() => void refetch()}
+                  />
+                </td>
+              </tr>
             ) : isLoading ? (
               <tr>
                 <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">

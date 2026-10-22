@@ -47,7 +47,7 @@ export function QueryEditor({
             type="button"
             onClick={handleExecute}
             disabled={runQuery.isPending || !query.trim()}
-            className="flex items-center gap-1.5 rounded bg-info px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-info disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             <Play className="h-3 w-3 fill-current" />
             {runQuery.isPending ? 'Running...' : 'Execute'}

@@ -120,21 +120,30 @@ pub async fn db_add_connection(
 
 #[tauri::command]
 pub async fn db_remove_connection(app: AppHandle, id: String) -> AppResult<()> {
-    let _guard = mutation_unattended(
-        MutationSpec::new(
-            "Remove DB Connection",
-            format!("Remove connection {id}"),
-            "remove_connection",
-        )
-        .blast_radius(BlastRadius::LocalIsolated)
-        .target(&id)
-        .destructive(true),
-    );
-
-    let _ = crate::core::keychain::delete_password(&format!("db_conn_{id}"));
-
     blocking(move || {
         let state = app.state::<DatabaseState>();
+        let name = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?
+            .connections
+            .iter()
+            .find(|c| c.id == id)
+            .map(|c| c.name.clone())
+            .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?;
+        // Confirm first — the Keychain password used to be deleted before
+        // anything else, even when the removal then failed.
+        let guard = mutation(
+            &app,
+            MutationSpec::new(
+                format!("Remove “{name}”?"),
+                "Stackroost forgets this connection and deletes its saved password from your Keychain. The database itself is not touched.",
+                "Remove",
+            )
+            .blast_radius(BlastRadius::LocalIsolated)
+            .target(&name)
+            .destructive(true),
+        )?;
         let mut store = state
             .store
             .lock()
@@ -144,6 +153,12 @@ pub async fn db_remove_connection(app: AppHandle, id: String) -> AppResult<()> {
             .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?;
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
+        drop(store);
+        if let Err(e) = crate::core::keychain::delete_password(&format!("db_conn_{id}")) {
+            guard.failure(format!("removed, but Keychain entry not deleted: {e}"));
+        } else {
+            guard.success("removed");
+        }
         Ok(())
     })
     .await
@@ -321,12 +336,12 @@ pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<T
                     "-p",
                     port_str.as_str(),
                 ];
-                if let Some(ref p) = pass {
-                    argv.push("-a");
-                    argv.push(p);
-                }
                 argv.extend(["SCAN", "0", "COUNT", "100"]);
-                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                // REDISCLI_AUTH, not `-a`: argv is visible to every local `ps`.
+                if let Some(ref p) = pass {
+                    opts = opts.with_env("REDISCLI_AUTH", p.as_str());
+                }
                 let out = exec::run("redis-cli", &argv, opts);
                 if let Ok(o) = out {
                     let text = String::from_utf8_lossy(&o.stdout);
@@ -414,7 +429,14 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
         let is_prod = conn.env == "prod" || conn.env == "production";
         let allow_writes = conn.allow_writes && !is_prod;
 
-        let sanitized = classifier::sanitize_and_classify_query(&query, allow_writes)?;
+        // Redis speaks its own command language — the SQL classifier rejected
+        // `GET key` outright — so it gets its own rules below.
+        let is_redis = conn.driver == "redis";
+        let sanitized = if is_redis {
+            String::new()
+        } else {
+            classifier::sanitize_and_classify_query(&query, allow_writes)?
+        };
         let start = std::time::Instant::now();
 
         let (columns, rows) = match conn.driver.as_str() {
@@ -507,33 +529,46 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 crate::services::databases::parse_mysql_tsv(&text)
             }
             "redis" => {
+                let cmd_argv = classifier::classify_redis(&query, allow_writes)?;
                 let port_str = valid_port.as_u16().to_string();
-                let mut argv = vec!["-h", valid_host.as_str(), "-p", port_str.as_str()];
+                let mut argv: Vec<&str> = vec![
+                    "-h",
+                    valid_host.as_str(),
+                    "-p",
+                    port_str.as_str(),
+                    "--no-raw",
+                ];
+                argv.extend(cmd_argv.iter().map(String::as_str));
+                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                // REDISCLI_AUTH, not `-a`: argv is visible to every local `ps`.
                 if let Some(ref p) = pass {
-                    argv.push("-a");
-                    argv.push(p);
+                    opts = opts.with_env("REDISCLI_AUTH", p.as_str());
                 }
-                argv.extend(["SCAN", "0", "COUNT", "100"]);
-                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
                 let out = exec::run("redis-cli", &argv, opts)?;
-
-                if !out.status.success() {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(AppError::Shell(format!("redis error: {stderr}")));
-                }
-
-                let columns = vec!["Cursor".into(), "Key".into()];
-                let mut rows = Vec::new();
                 let text = String::from_utf8_lossy(&out.stdout);
-                for line in text.lines().skip(1) {
-                    let k = line.trim();
-                    if !k.is_empty() {
-                        rows.push(vec![
-                            serde_json::Value::String("0".into()),
-                            serde_json::Value::String(k.into()),
-                        ]);
-                    }
+                if !out.status.success() || text.starts_with("(error)") {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    return Err(AppError::Shell(format!(
+                        "redis: {}",
+                        if stderr.trim().is_empty() {
+                            text.trim()
+                        } else {
+                            stderr.trim()
+                        }
+                    )));
                 }
+                let columns = vec!["#".into(), "Value".into()];
+                let rows = text
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .enumerate()
+                    .map(|(i, l)| {
+                        vec![
+                            serde_json::Value::String((i + 1).to_string()),
+                            serde_json::Value::String(l.to_string()),
+                        ]
+                    })
+                    .collect();
                 (columns, rows)
             }
             "mongo" | "mongodb" => {
@@ -633,7 +668,7 @@ pub async fn db_restore_snapshot(
         MutationSpec::new(
             "Restore DB Snapshot",
             format!("Restore database data directory {data_dir} from snapshot {snapshot_path}"),
-            "restore_snapshot",
+            "Restore",
         )
         .blast_radius(BlastRadius::LocalSystem)
         .target(&snapshot_path)

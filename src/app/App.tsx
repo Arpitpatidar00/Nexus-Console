@@ -6,6 +6,8 @@ import { Bootstrap } from './Bootstrap';
 import { HomebrewBackground } from './HomebrewBackground';
 import { MainView } from './MainView';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useGlobalHotkey } from './useGlobalHotkey';
+import { useWorkspaceTerminals } from './useWorkspaceTerminals';
 
 // xterm (+addon+css) loads only when a terminal session actually exists.
 const TerminalDrawer = lazy(() =>
@@ -28,6 +30,8 @@ const TerminalDrawerGate = () => {
 
 export const App = () => {
   useKeyboardShortcuts();
+  useGlobalHotkey();
+  useWorkspaceTerminals();
   // Gated by MOUNT, not by a flag inside the hooks: unmounting is what actually
   // stops the 4s Homebrew poll for someone who doesn't use the module.
   const homebrewOn = useModuleEnabled('homebrew');

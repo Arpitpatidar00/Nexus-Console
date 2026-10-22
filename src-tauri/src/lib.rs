@@ -28,6 +28,7 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    core::exec::ensure_tool_path();
     tauri::Builder::default()
         // single-instance MUST be registered first (focuses the existing window
         // instead of launching a second copy).
@@ -117,6 +118,7 @@ pub fn run() {
             commands::consent::net_get_declared_destinations,
             commands::system::system_disk_free,
             commands::system::system_detect_tools,
+            commands::system::system_set_global_hotkey,
             commands::diag::app_about,
             commands::diag::diag_log_error,
             commands::diag::diag_list_errors,
@@ -150,6 +152,8 @@ pub fn run() {
             commands::services::start_service,
             commands::services::stop_service,
             commands::services::restart_service,
+            commands::services::services_diagnose,
+            commands::services::services_open_config,
             commands::services::set_link_intent,
             commands::services::install_formula,
             commands::services::search_formulae,
@@ -229,6 +233,8 @@ pub fn run() {
             commands::maclean::maclean_ghost_clean,
             commands::maclean::maclean_energy_sample,
             commands::maclean::maclean_pause_service,
+            commands::maclean::maclean_resume_process,
+            commands::maclean::maclean_paused_pids,
             commands::maclean::maclean_trends,
             commands::maclean::maclean_duplicates_scan,
             commands::maclean::maclean_duplicates_delete,
@@ -320,6 +326,8 @@ pub fn run() {
                 app.state::<crate::services::chaos::ChaosManager>()
                     .stop_all_sync();
                 app.state::<pty::PtyManager>().kill_all();
+                app.state::<crate::maclean::MacleanState>()
+                    .resume_all_paused();
                 app.state::<remote::RemoteState>().disconnect_all();
                 quit::stop_session_services(app);
             }

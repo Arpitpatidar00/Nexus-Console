@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Bot,
   Code,
@@ -58,6 +58,7 @@ export const ToolboxPage = () => {
     '{\n  "message": "Hello Stackroost",\n  "features": ["toolbox", "domains", "secrets"]\n}',
   );
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [jsonValid, setJsonValid] = useState(false);
 
   // 2. JWT State
   const [jwtInput, setJwtInput] = useState(
@@ -92,6 +93,20 @@ export const ToolboxPage = () => {
   const [hashInput, setHashInput] = useState('hello world');
   const [sha1Output, setSha1Output] = useState('');
   const [sha256Output, setSha256Output] = useState('');
+  // SubtleCrypto is async — compute from the input itself (initial value
+  // included; SHA-1/256 used to show "…" until the first keystroke), and drop
+  // results for input that has since changed.
+  useEffect(() => {
+    let live = true;
+    void Promise.all([computeSha1(hashInput), computeSha256(hashInput)]).then(([a, b]) => {
+      if (!live) return;
+      setSha1Output(a);
+      setSha256Output(b);
+    });
+    return () => {
+      live = false;
+    };
+  }, [hashInput]);
 
   // 9. Color State
   const [hexInput, setHexInput] = useState('#0ea5e9');
@@ -197,6 +212,7 @@ export const ToolboxPage = () => {
                     size="sm"
                     onClick={() => {
                       const val = validateJson(jsonInput);
+                      setJsonValid(val.valid);
                       if (val.valid) {
                         setJsonError(null);
                       } else {
@@ -220,20 +236,27 @@ export const ToolboxPage = () => {
                 </div>
               </div>
 
-              {jsonError && (
+              {jsonError ? (
                 <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
                   ⚠️ {jsonError}
                 </div>
+              ) : (
+                jsonValid && (
+                  <div className="rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-xs text-success">
+                    ✓ Valid JSON
+                  </div>
+                )
               )}
 
               <textarea
                 value={jsonInput}
                 onChange={(e) => {
                   setJsonInput(e.target.value);
+                  setJsonValid(false);
                   setJsonError(null);
                 }}
                 rows={16}
-                className="w-full rounded-lg border border-border bg-black/10 p-3 font-mono text-xs text-fg focus:border-ember focus:outline-none dark:bg-black/30"
+                className="w-full rounded-lg border border-border bg-muted p-3 font-mono text-xs text-fg focus:border-ember focus:outline-none"
                 placeholder="Paste JSON here..."
               />
             </div>
@@ -247,7 +270,7 @@ export const ToolboxPage = () => {
                 value={jwtInput}
                 onChange={(e) => setJwtInput(e.target.value)}
                 rows={4}
-                className="w-full rounded-lg border border-border bg-black/10 p-2.5 font-mono text-xs text-fg focus:border-ember focus:outline-none"
+                className="w-full rounded-lg border border-border bg-muted p-2.5 font-mono text-xs text-fg focus:border-ember focus:outline-none"
                 placeholder="eyJhbGciOiJIUzI1NiIsInR5..."
               />
 
@@ -275,7 +298,7 @@ export const ToolboxPage = () => {
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <pre className="max-h-60 overflow-auto rounded bg-black/10 p-2 font-mono text-xs text-fg">
+                      <pre className="max-h-60 overflow-auto rounded bg-muted p-2 font-mono text-xs text-fg">
                         {JSON.stringify(dec.header, null, 2)}
                       </pre>
                     </div>
@@ -300,7 +323,7 @@ export const ToolboxPage = () => {
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <pre className="max-h-60 overflow-auto rounded bg-black/10 p-2 font-mono text-xs text-fg">
+                      <pre className="max-h-60 overflow-auto rounded bg-muted p-2 font-mono text-xs text-fg">
                         {JSON.stringify(dec.payload, null, 2)}
                       </pre>
                       {dec.expiresAtFormatted && (
@@ -324,7 +347,7 @@ export const ToolboxPage = () => {
                   value={b64Input}
                   onChange={(e) => setB64Input(e.target.value)}
                   rows={3}
-                  className="mt-1 w-full rounded-lg border border-border bg-black/10 p-2.5 font-mono text-xs text-fg"
+                  className="mt-1 w-full rounded-lg border border-border bg-muted p-2.5 font-mono text-xs text-fg"
                 />
               </div>
 
@@ -380,7 +403,7 @@ export const ToolboxPage = () => {
                   readOnly
                   value={b64Output}
                   rows={4}
-                  className="mt-1 w-full rounded-lg border border-border bg-black/20 p-2.5 font-mono text-xs text-fg"
+                  className="mt-1 w-full rounded-lg border border-border bg-muted p-2.5 font-mono text-xs text-fg"
                 />
               </div>
             </div>
@@ -398,7 +421,7 @@ export const ToolboxPage = () => {
                     type="text"
                     value={tsInput}
                     onChange={(e) => setTsInput(e.target.value)}
-                    className="mt-2 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                    className="mt-2 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                   />
                   {(() => {
                     const res = timestampToDate(tsInput, tsInput.length > 10 ? 'ms' : 's');
@@ -424,7 +447,7 @@ export const ToolboxPage = () => {
                     type="text"
                     value={dateInput}
                     onChange={(e) => setDateInput(e.target.value)}
-                    className="mt-2 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                    className="mt-2 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                   />
                   {(() => {
                     const res = dateToTimestamp(dateInput);
@@ -457,7 +480,7 @@ export const ToolboxPage = () => {
               </div>
 
               {uuidOutput && (
-                <div className="flex items-center justify-between rounded-lg border border-border bg-black/10 p-3">
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted p-3">
                   <span className="font-mono text-sm text-fg">{uuidOutput}</span>
                   <Button
                     variant="ghost"
@@ -480,7 +503,7 @@ export const ToolboxPage = () => {
                   placeholder="Paste UUID here..."
                   value={uuidInspectInput}
                   onChange={(e) => setUuidInspectInput(e.target.value)}
-                  className="mt-2 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                  className="mt-2 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                 />
                 {uuidInspectInput &&
                   (() => {
@@ -510,7 +533,7 @@ export const ToolboxPage = () => {
                     type="text"
                     value={regexPattern}
                     onChange={(e) => setRegexPattern(e.target.value)}
-                    className="mt-1 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                    className="mt-1 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                   />
                 </div>
                 <div>
@@ -519,7 +542,7 @@ export const ToolboxPage = () => {
                     type="text"
                     value={regexFlags}
                     onChange={(e) => setRegexFlags(e.target.value)}
-                    className="mt-1 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                    className="mt-1 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                   />
                 </div>
               </div>
@@ -530,7 +553,7 @@ export const ToolboxPage = () => {
                   value={regexText}
                   onChange={(e) => setRegexText(e.target.value)}
                   rows={4}
-                  className="mt-1 w-full rounded border border-border bg-black/10 p-2.5 font-mono text-xs text-fg"
+                  className="mt-1 w-full rounded border border-border bg-muted p-2.5 font-mono text-xs text-fg"
                 />
               </div>
 
@@ -567,7 +590,7 @@ export const ToolboxPage = () => {
                   type="text"
                   value={cronInput}
                   onChange={(e) => setCronInput(e.target.value)}
-                  className="mt-1 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                  className="mt-1 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                 />
               </div>
 
@@ -606,12 +629,9 @@ export const ToolboxPage = () => {
                   type="text"
                   value={hashInput}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setHashInput(val);
-                    void computeSha1(val).then(setSha1Output);
-                    void computeSha256(val).then(setSha256Output);
+                    setHashInput(e.target.value);
                   }}
-                  className="mt-1 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                  className="mt-1 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                 />
               </div>
 
@@ -653,7 +673,7 @@ export const ToolboxPage = () => {
                     type="text"
                     value={hexInput}
                     onChange={(e) => setHexInput(e.target.value)}
-                    className="mt-1 w-full rounded border border-border bg-black/10 px-2.5 py-1.5 font-mono text-xs text-fg"
+                    className="mt-1 w-full rounded border border-border bg-muted px-2.5 py-1.5 font-mono text-xs text-fg"
                   />
                 </div>
               </div>

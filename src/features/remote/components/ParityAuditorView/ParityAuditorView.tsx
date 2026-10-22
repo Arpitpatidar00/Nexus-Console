@@ -119,7 +119,7 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
                 const remoteVer: string | null = v.remoteVersions[host.id] ?? null;
                 const matches =
                   v.localVersion && remoteVer
-                    ? v.localVersion.split('.')[0] === remoteVer.split('.')[0]
+                    ? majorMinor(v.localVersion) === majorMinor(remoteVer)
                     : false;
 
                 return (
@@ -218,3 +218,10 @@ export const ParityAuditorView = ({ host, connected }: Props) => {
     </div>
   );
 };
+
+/** "Python 3.13.1" / "v20.11.0" → "3.13" / "20.11". Comparing the raw text
+ * before the first dot read "Python 3" vs "3" and never matched. */
+function majorMinor(v: string): string {
+  const m = /(\d+)(?:\.(\d+))?/.exec(v);
+  return m ? `${m[1]}.${m[2] ?? '0'}` : v;
+}

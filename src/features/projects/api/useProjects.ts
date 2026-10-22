@@ -14,11 +14,12 @@ import {
   type SavedCommand,
 } from './projects.schema';
 
-export function useProjects(roots: string[] = []) {
+export function useProjects(roots: string[] = [], { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery<DiscoveredProject[]>({
     queryKey: projectKeys.discover(),
     queryFn: () => ipc(CMD.PROJECTS_DISCOVER, { roots }, z.array(discoveredProjectSchema)),
     staleTime: 10_000,
+    enabled,
   });
 }
 

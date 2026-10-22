@@ -31,7 +31,7 @@ export const TerminalTabs = () => {
             type="button"
             aria-label={`Close ${s.title}`}
             onClick={() => dispatch(closeTerminal(s.id))}
-            className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-black/20 dark:hover:bg-white/20"
+            className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-muted dark:hover:bg-white/20"
           >
             <X className="size-3" />
           </button>

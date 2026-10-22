@@ -88,7 +88,11 @@ pub fn start(app: AppHandle) {
                 continue;
             }
 
-            if due(&mut uptime_at, UPTIME_EVERY) {
+            // Uptime pings reach the network: only when Domains is explicitly
+            // on (fail closed, like Servers) — it used to run regardless.
+            if crate::settings::module_opted_in(settings.as_ref(), "domains")
+                && due(&mut uptime_at, UPTIME_EVERY)
+            {
                 crate::services::domains::uptime::tick(&app);
             }
             if remote_on && due(&mut remote_at, REMOTE_EVERY) {

@@ -62,7 +62,7 @@ export const BackupsPage = () => {
             When backing up remote servers, database dumps are streamed directly through the
             encrypted SSH pipeline into local storage. Dump files are never written to the remote
             filesystem, preventing leakage on shared servers. Locally created archives are locked to
-            permissions <code className="rounded bg-black/20 px-1 py-0.5 font-mono">0600</code>{' '}
+            permissions <code className="rounded bg-muted px-1 py-0.5 font-mono">0600</code>{' '}
             (read/write by owner only).
           </p>
         </div>
@@ -102,7 +102,7 @@ export const BackupsPage = () => {
             ) : backups.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
-                  No backup archives created yet. Use the buttons above to create your first backup.
+                  No backup archives yet.
                 </td>
               </tr>
             ) : (
@@ -129,7 +129,11 @@ export const BackupsPage = () => {
                   </td>
                   <td className="px-4 py-3">
                     <Badge
-                      variant={bk.status === 'success' ? 'default' : 'destructive'}
+                      variant={
+                        bk.status === 'completed' || bk.status === 'success'
+                          ? 'success'
+                          : 'destructive'
+                      }
                       className="text-[10px]"
                     >
                       {bk.status}

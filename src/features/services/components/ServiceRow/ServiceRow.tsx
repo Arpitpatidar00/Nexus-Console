@@ -3,6 +3,7 @@ import { ServiceStatsInline } from '@/features/services/components/ServiceStatsI
 import { LinkChip } from '@/features/services/components/LinkChip';
 import { ServiceActions } from '@/features/services/components/ServiceActions';
 import { ServiceMenu } from '@/features/services/components/ServiceMenu';
+import { StartFailureNotice } from '@/features/services/components/StartFailureNotice';
 import { iconFor } from '@/features/services/components/ServiceCard';
 import type { ReconciledService } from '@/shared/brew';
 
@@ -28,6 +29,7 @@ export const ServiceRow = ({ service }: { service: ReconciledService }) => {
 
       <StatusChip status={service.status} />
       {service.status !== 'notInstalled' && <LinkChip linkState={service.linkState} />}
+      <StartFailureNotice service={service} />
 
       {isRunning && (
         <div className="hidden shrink-0 font-mono text-xs text-muted-foreground xl:block">

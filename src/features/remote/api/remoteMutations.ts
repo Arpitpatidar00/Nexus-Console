@@ -114,8 +114,13 @@ export function useConnectHost(id: string) {
 export function useDisconnectHost() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ipcVoid(CMD.REMOTE_DISCONNECT, { id }),
-    meta: { quiet: true },
+    // Stop the snapshot poll first: a probe in flight would otherwise re-open
+    // the SSH master (ControlMaster=auto) right after we closed it.
+    mutationFn: async (id: string) => {
+      await qc.cancelQueries({ queryKey: remoteKeys.snapshot(id) });
+      await ipcVoid(CMD.REMOTE_DISCONNECT, { id });
+    },
+    meta: { label: 'Disconnecting', quiet: true },
     onSuccess: (_d, id) => {
       qc.removeQueries({ queryKey: remoteKeys.snapshot(id) });
       qc.setQueryData<{ id: string; connected: boolean }[]>(remoteKeys.status(), (rows) =>

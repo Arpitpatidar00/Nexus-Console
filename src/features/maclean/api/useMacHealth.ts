@@ -39,14 +39,35 @@ export function useEnergyReport(polling = true) {
   });
 }
 
+/** Pause by PID: a Homebrew service is stopped via brew, anything else gets
+ * SIGSTOP (resumable). Rust shows the native confirm. */
 export function usePauseService() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (serviceName: string) => ipcVoid(CMD.MACLEAN_PAUSE_SERVICE, { serviceName }),
-    onSuccess: () => {
+    mutationFn: (pid: number) => ipcVoid(CMD.MACLEAN_PAUSE_SERVICE, { pid }),
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: macleanKeys.energy() });
+      void qc.invalidateQueries({ queryKey: macleanKeys.paused() });
     },
     meta: { quiet: true },
+  });
+}
+
+export function useResumeProcess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (pid: number) => ipcVoid(CMD.MACLEAN_RESUME_PROCESS, { pid }),
+    onSettled: () => void qc.invalidateQueries({ queryKey: macleanKeys.paused() }),
+    meta: { quiet: true },
+  });
+}
+
+export function usePausedPids() {
+  return useQuery({
+    queryKey: macleanKeys.paused(),
+    queryFn: () => ipc(CMD.MACLEAN_PAUSED_PIDS, undefined, z.array(z.number())),
+    select: (pids) => new Set(pids),
+    refetchInterval: 10_000,
   });
 }
 

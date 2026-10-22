@@ -1,6 +1,7 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CMD, IpcError, ipcVoid, logError } from '@/shared/tauri';
+import { pushNotification } from '@/shared/lib/notifications';
 
 // Types the two `meta` flags the app actually uses, so neither the toast
 // suppression below nor the ActivityBar has to cast `unknown`.
@@ -31,6 +32,7 @@ const describe = (e: unknown) =>
 // to act on, so it gets a calm info toast rather than an alarming red one.
 const notify = (e: unknown) => {
   if (e instanceof IpcError && e.kind === 'cancelled') return;
+  pushNotification(e instanceof IpcError && e.kind === 'busy' ? 'info' : 'error', describe(e));
   // Homebrew 6 refuses to load anything from a tap the user hasn't trusted, and
   // it fails the whole command — one untrusted tap breaks installs, versions and
   // the package list. A red toast is a dead end, so offer the one-click fix
@@ -76,6 +78,15 @@ export const queryClient = new QueryClient({
   // Bulk mutations mark themselves `meta.silent` and report one aggregated
   // toast, so skip the per-item auto-toast for those.
   mutationCache: new MutationCache({
+    onSuccess: (_data, vars, _ctx, mutation) => {
+      const verb = mutation.meta?.label;
+      if (!verb || mutation.meta?.silent) return;
+      const name =
+        vars && typeof vars === 'object' && 'name' in vars && typeof vars.name === 'string'
+          ? ` ${vars.name}`
+          : '';
+      pushNotification('success', `${verb}${name} — done`);
+    },
     onError: (e, _vars, _ctx, mutation) => {
       if (mutation.meta?.silent) return;
       if (!(e instanceof IpcError && e.kind === 'cancelled')) {

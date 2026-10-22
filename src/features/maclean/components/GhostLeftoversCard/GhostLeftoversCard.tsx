@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { useState } from 'react';
 import {
   Ghost,
@@ -50,7 +51,9 @@ export const GhostLeftoversCard = () => {
   };
 
   const handleReveal = (path: string) => {
-    void ipcVoid(CMD.MACLEAN_REVEAL, { path });
+    ipcVoid(CMD.MACLEAN_REVEAL, { path }).catch((e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'Could not reveal in Finder'),
+    );
   };
 
   const totalSelectedBytes = safeItems

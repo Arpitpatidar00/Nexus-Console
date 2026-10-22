@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { useCallback, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ExternalLink, Star, Trash2 } from 'lucide-react';
@@ -122,10 +123,10 @@ function buildColumns(
                   if (isHttp) {
                     await ipcVoid(CMD.OPEN_IN_BROWSER, { url: `http://127.0.0.1:${port}` });
                   } else {
-                    console.info(`Port :${port} did not respond to HTTP probe`);
+                    toast.info(`:${port} didn't answer HTTP — it's probably not a web server.`);
                   }
-                } catch {
-                  /* ignore probe failure */
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : `Couldn't open :${port}`);
                 }
               }}
             >

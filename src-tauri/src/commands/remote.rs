@@ -274,7 +274,7 @@ pub async fn remote_remove_host(app: AppHandle, id: String) -> AppResult<()> {
         confirm_action(
             &app,
             &format!("Remove “{}” from Servers?", host.label),
-            "Nexus forgets this server and closes its connection. Nothing on the server \
+            "Stackroost forgets this server and closes its connection. Nothing on the server \
              changes, and your SSH config is left as it is.",
             "Remove",
             false,
@@ -321,7 +321,17 @@ pub async fn remote_disconnect(app: AppHandle, id: String) -> AppResult<()> {
     blocking(move || {
         let state = app.state::<RemoteState>();
         let host = state.read()?.host(&id)?.clone();
-        ssh::control_exit(&ssh::SshTarget::from_host(&host)?);
+        let target = ssh::SshTarget::from_host(&host)?;
+        // `-O exit` is best-effort and used to be fire-and-forget: if the master
+        // survived, the UI flipped to "disconnected" and the next status poll
+        // flipped it straight back — "Disconnect does nothing". Verify instead.
+        ssh::control_exit(&target);
+        if ssh::control_check(&target) {
+            return Err(AppError::Shell(format!(
+                "{} is still connected — an open terminal or tunnel may be holding the SSH session. Close it and try again.",
+                host.label
+            )));
+        }
         Ok(())
     })
     .await
@@ -679,12 +689,11 @@ pub async fn remote_download_file(
     app: AppHandle,
     id: String,
     remote_path: String,
-    local_destination: String,
-) -> AppResult<()> {
+) -> AppResult<String> {
     let _guard = crate::core::mutation::mutation_unattended(
         crate::core::mutation::MutationSpec::new(
             "Download Remote File",
-            format!("Download {remote_path} to {local_destination}"),
+            format!("Download {remote_path} to ~/Downloads"),
             "remote_download_file",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated)
@@ -697,8 +706,10 @@ pub async fn remote_download_file(
             let s = state.read()?;
             s.host(&id)?.clone()
         };
-        let local_path = std::path::Path::new(&local_destination);
-        let res = files::download_file(&target, &remote_path, local_path);
+        // Always ~/Downloads/<name>, never a path the webview names: that was
+        // a write-anywhere primitive, and /tmp hid the file from the user.
+        let local_path = download_destination(&remote_path)?;
+        let res = files::download_file(&target, &remote_path, &local_path);
         let now = std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
@@ -723,9 +734,32 @@ pub async fn remote_download_file(
             Ok(())
         });
 
-        res
+        res.map(|()| local_path.to_string_lossy().into_owned())
     })
     .await
+}
+
+/// `~/Downloads/<basename>`, suffixed ` (2)`, ` (3)`… instead of overwriting.
+fn download_destination(remote_path: &str) -> AppResult<std::path::PathBuf> {
+    let name = std::path::Path::new(remote_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|n| !n.is_empty() && *n != "." && *n != "..")
+        .ok_or_else(|| AppError::InvalidName(format!("not a file: {remote_path}")))?;
+    let dir = crate::doctor::paths::home()
+        .ok_or_else(|| AppError::NotFound("HOME not set".into()))?
+        .join("Downloads");
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) if !s.is_empty() => (s.to_string(), format!(".{e}")),
+        _ => (name.to_string(), String::new()),
+    };
+    let mut candidate = dir.join(name);
+    let mut n = 2;
+    while candidate.exists() {
+        candidate = dir.join(format!("{stem} ({n}){ext}"));
+        n += 1;
+    }
+    Ok(candidate)
 }
 
 #[tauri::command]
@@ -764,7 +798,7 @@ pub async fn remote_upload_file(
             crate::core::mutation::MutationSpec::new(
                 "Upload Remote File",
                 format!("Upload {local_source} to {remote_path} on {}", host.label),
-                "remote_upload_file",
+                "Upload",
             )
             .blast_radius(radius)
             .prod(is_prod)
@@ -993,6 +1027,14 @@ pub async fn remote_audit_parity(
             hosts_info.push((id.as_str(), &targets[i], env_str, app_dir));
         }
 
+        // The local side reads the project's .env — same consent as Secrets.
+        if input
+            .local_project_path
+            .as_deref()
+            .is_some_and(|p| !p.is_empty())
+        {
+            crate::core::consent::require_consent(crate::core::consent::DataSource::ProjectEnv)?;
+        }
         parity::run_parity_audit(input.local_project_path.as_deref(), &hosts_info)
     })
     .await
@@ -1022,15 +1064,24 @@ pub async fn remote_execute_deploy(
     blocking(move || {
         let state = app.state::<RemoteState>();
         let host = state.read()?.host(&id)?.clone();
-        if host.env == Env::Prod {
-            confirm_action(
-                &app,
-                &format!("Deploy Compose Stack on {}?", host.label),
-                &format!("This will pull updated image tags and restart services for '{project}' on production server {}.", host.label),
-                "Deploy to Production",
-                true,
-            )?;
-        }
+        // Every deploy restarts services — confirm on every environment, not
+        // only prod (non-prod used to deploy with no sheet at all).
+        let prod = host.env == Env::Prod;
+        confirm_action(
+            &app,
+            &format!("Deploy {project} on {}?", host.label),
+            &format!(
+                "This pulls updated image tags and restarts services for '{project}' on {}{}.",
+                if prod { "production server " } else { "" },
+                host.label
+            ),
+            if prod {
+                "Deploy to Production"
+            } else {
+                "Deploy"
+            },
+            prod,
+        )?;
         let target = state.target(&id)?;
         let res = deploys::execute_deploy(&target, &id, &project, services)?;
 
@@ -1149,10 +1200,35 @@ pub async fn remote_push_image(
     image: String,
 ) -> AppResult<TeleportResult> {
     blocking(move || {
+        crate::core::validate::ImageRef::try_from(image.as_str())?;
         let state = app.state::<RemoteState>();
         let host = state.read()?.host(&id)?.clone();
         let target = state.target(&id)?;
-        teleport::teleport_image(&host, &target, &image)
+        // Loads an image into the server's Docker — a remote mutation that
+        // used to run with no confirmation and no journal entry.
+        let guard = crate::core::mutation::mutation(
+            &app,
+            crate::core::mutation::MutationSpec::new(
+                format!("Push {image} to {}?", host.label),
+                format!(
+                    "Stackroost will `docker save` {image} locally and load it into Docker on {} over SSH. An existing image with the same tag there is replaced.",
+                    host.label
+                ),
+                "Push image",
+            )
+            .blast_radius(crate::core::mutation::BlastRadius::RemoteNonProd)
+            .target(format!("{}:{image}", host.label)),
+        )?;
+        match teleport::teleport_image(&host, &target, &image) {
+            Ok(r) => {
+                guard.success("image loaded");
+                Ok(r)
+            }
+            Err(e) => {
+                guard.failure(e.to_string());
+                Err(e)
+            }
+        }
     })
     .await
 }

@@ -44,6 +44,13 @@
     cursor: auto;
   }
 
+  /* A scrolling flex column must not shrink its children: anything with
+     overflow-hidden (cards, tables) has min-height 0 and gets squashed to a
+     clipped sliver instead of scrolling. Layered, so `flex-1`/`shrink` win. */
+  :where(.flex-col.overflow-y-auto, .flex-col.overflow-auto) > * {
+    flex-shrink: 0;
+  }
+
   /* Visible focus ring everywhere (a11y). */
   :focus-visible {
     outline: 2px solid var(--color-accent);

@@ -83,8 +83,8 @@ export const AiExplainModal = ({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-card p-6 text-fg shadow-2xl">
+        <Dialog.Overlay className="fixed inset-0 z-[var(--z-backdrop)] bg-black/60 backdrop-blur-sm" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-modal)] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-popover p-6 text-fg text-popover-foreground shadow-2xl">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <Dialog.Title className="flex items-center gap-2 text-base font-bold text-fg">
               <Bot className="h-5 w-5 text-info" />
@@ -118,7 +118,7 @@ export const AiExplainModal = ({
             <div className="mt-3 rounded border border-warning-soft bg-warning-soft p-3 text-xs text-warning">
               Ollama server was not detected on <code className="font-mono">127.0.0.1:11434</code>.
               Start Ollama in your terminal using:
-              <pre className="mt-1 rounded bg-black/20 p-1.5 font-mono text-[11px]">
+              <pre className="mt-1 rounded bg-muted p-1.5 font-mono text-[11px]">
                 ollama run llama3.2
               </pre>
             </div>
@@ -183,7 +183,7 @@ export const AiExplainModal = ({
                     {previewNotice}
                   </Badge>
                 </div>
-                <pre className="max-h-28 overflow-y-auto rounded bg-black/20 p-2 font-mono text-[11px] whitespace-pre-wrap text-fg-muted/90">
+                <pre className="max-h-28 overflow-y-auto rounded bg-muted p-2 font-mono text-[11px] whitespace-pre-wrap text-fg-muted/90">
                   {previewText}
                 </pre>
               </div>
@@ -198,7 +198,7 @@ export const AiExplainModal = ({
                     <Loader2 className="ml-1 h-3 w-3 animate-spin text-fg-muted" />
                   )}
                 </span>
-                <div className="mt-1 max-h-48 overflow-y-auto rounded border border-border bg-black/20 p-3 font-sans text-xs leading-relaxed whitespace-pre-wrap text-fg">
+                <div className="mt-1 max-h-48 overflow-y-auto rounded border border-border bg-muted p-3 font-sans text-xs leading-relaxed whitespace-pre-wrap text-fg">
                   {streamedText || 'Thinking...'}
                 </div>
               </div>

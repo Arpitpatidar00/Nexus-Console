@@ -224,41 +224,41 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
   ];
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-paper">
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="truncate text-sm font-semibold text-fg">{row.displayName}</h2>
-        <p className="truncate text-xs text-fg-subtle">{row.subtitle}</p>
-        <p className="mt-0.5 text-xs text-fg-muted tabular-nums">
-          {row.live?.sessions ?? 0} live · {archChats.length} archived ·{' '}
-          {formatBytes((row.live?.totalBytes ?? 0) + (row.archived?.totalBytes ?? 0))}
-          {row.live?.cacheBytes != null && ` · ${formatBytes(row.live.cacheBytes)} VSCode cache`}
-        </p>
-      </div>
-
-      {usage.data && (
-        <div className="mx-6 mb-2 flex items-center justify-between rounded-lg border border-border bg-muted p-2.5 text-xs">
-          <div className="flex items-center gap-3">
-            <span className="text-fg-muted">Estimated Spend:</span>
-            <span className="font-mono font-semibold text-success">
-              ${usage.data.estimatedCostUsd.toFixed(2)}
-            </span>
-            <span className="text-fg-muted">·</span>
-            <span className="font-mono text-fg-muted">
-              {((usage.data.inputTokens + usage.data.outputTokens) / 1000).toFixed(0)}k tokens
-            </span>
-          </div>
-          <span className="text-[10px] text-fg-muted">
-            Estimated spend (model price table estimate, editable in Settings)
-          </span>
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl shadow-edge glass">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b border-hairline px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-lg font-semibold text-fg">{row.displayName}</h2>
+          <p className="selectable truncate font-mono text-xs text-fg-subtle">{row.subtitle}</p>
         </div>
-      )}
+        <dl className="flex shrink-0 flex-wrap gap-x-6 gap-y-2 text-right">
+          <Stat label="Live" value={String(row.live?.sessions ?? 0)} />
+          <Stat label="Archived" value={String(archChats.length)} />
+          <Stat
+            label="On disk"
+            value={formatBytes((row.live?.totalBytes ?? 0) + (row.archived?.totalBytes ?? 0))}
+            hint={
+              row.live?.cacheBytes != null
+                ? `+ ${formatBytes(row.live.cacheBytes)} VS Code cache`
+                : undefined
+            }
+          />
+          {usage.data && (
+            <Stat
+              label="Est. spend"
+              value={`$${usage.data.estimatedCostUsd.toFixed(2)}`}
+              hint={`${Math.round((usage.data.inputTokens + usage.data.outputTokens) / 1000)}k tokens (estimated from list prices)`}
+              tone="success"
+            />
+          )}
+        </dl>
+      </header>
 
       {/* Live chats — filter by age, select, archive. */}
       {row.live && (
         <div className={cn('flex flex-col', shownLive.length > 0 && 'min-h-0 flex-1')}>
           {/* Fixed height: the right side swaps between the filter and the
               selection toolbar — the header must never change size. */}
-          <div className="flex h-12 shrink-0 items-center gap-2 overflow-hidden border-b border-border bg-list px-4">
+          <div className="flex h-14 shrink-0 items-center gap-2 overflow-hidden border-b border-hairline bg-list px-5">
             <Checkbox
               checked={allLiveSelected}
               onChange={toggleAllLive}
@@ -324,7 +324,7 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
               ))}
             </div>
           ) : shownLive.length === 0 ? (
-            <p className="p-4 text-sm text-fg-muted">
+            <p className="px-5 py-4 text-sm text-fg-muted">
               {liveChats.length === 0 ? 'No live chats.' : `No chats older than ${filter} days.`}
             </p>
           ) : (
@@ -343,11 +343,11 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
       {/* Archived — restore or permanently delete. */}
       <div
         className={cn(
-          'flex flex-col border-t border-border',
+          'flex flex-col border-t border-hairline',
           archChats.length > 0 && 'min-h-0 flex-1',
         )}
       >
-        <div className="flex h-12 shrink-0 items-center gap-2 overflow-hidden border-b border-border bg-list px-4">
+        <div className="flex h-14 shrink-0 items-center gap-2 overflow-hidden border-b border-hairline bg-list px-5">
           <Checkbox
             checked={allArchSelected}
             onChange={toggleAllArch}
@@ -385,7 +385,7 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
           )}
         </div>
         {archChats.length === 0 ? (
-          <p className="p-4 text-sm text-fg-muted">
+          <p className="px-5 py-4 text-sm text-fg-muted">
             Nothing archived yet
             {row.live && liveChats.length > 0 ? ' — select live chats above to archive them.' : '.'}
           </p>
@@ -411,3 +411,27 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
     </section>
   );
 };
+
+const Stat = ({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'success';
+}) => (
+  <div className="flex flex-col items-end" title={hint}>
+    <dt className="text-[11px] font-medium tracking-wide text-fg-subtle uppercase">{label}</dt>
+    <dd
+      className={cn(
+        'font-mono text-sm font-semibold tabular-nums',
+        tone === 'success' ? 'text-success' : 'text-fg',
+      )}
+    >
+      {value}
+    </dd>
+  </div>
+);

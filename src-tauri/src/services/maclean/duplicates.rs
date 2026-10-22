@@ -193,8 +193,87 @@ pub fn delete_duplicates(home: &Path, paths: &[String]) -> Result<u64, String> {
     Ok(freed)
 }
 
+/// Pure: may these paths be trashed, given the scan that produced them? Every
+/// path must come from `report`, and each group must keep at least one copy —
+/// selecting all copies used to trash the file entirely.
+pub fn check_deletion(report: &DuplicateReport, paths: &[String]) -> Result<(), String> {
+    if paths.is_empty() {
+        return Err("Nothing selected.".into());
+    }
+    for p in paths {
+        if !report
+            .groups
+            .iter()
+            .any(|g| g.files.iter().any(|f| &f.path == p))
+        {
+            return Err(format!(
+                "{p} is not in the latest duplicate scan — scan again."
+            ));
+        }
+    }
+    for g in &report.groups {
+        let picked = g.files.iter().filter(|f| paths.contains(&f.path)).count();
+        if picked > 0 && picked >= g.files.len() {
+            return Err(format!(
+                "All {} copies of {} are selected — keep at least one.",
+                g.files.len(),
+                g.files.first().map_or("a file", |f| f.path.as_str())
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Drop trashed paths from the stored scan so a second delete can't target
+/// them, and drop groups that are no longer duplicates.
+pub fn forget_paths(report: &mut DuplicateReport, paths: &[String]) {
+    for g in &mut report.groups {
+        g.files.retain(|f| !paths.contains(&f.path));
+    }
+    report.groups.retain(|g| g.files.len() > 1);
+}
+
 #[cfg(test)]
 mod tests {
+    fn report_of(groups: &[&[&str]]) -> DuplicateReport {
+        DuplicateReport {
+            groups: groups
+                .iter()
+                .map(|files| DuplicateGroup {
+                    hash: "h".into(),
+                    size_bytes: 1,
+                    files: files
+                        .iter()
+                        .map(|p| DuplicateFile {
+                            path: (*p).into(),
+                            size_bytes: 1,
+                            modified_at: 0,
+                        })
+                        .collect(),
+                })
+                .collect(),
+            total_reclaimable_bytes: 0,
+            scanned_files_count: 0,
+        }
+    }
+
+    #[test]
+    fn deletion_keeps_one_copy_and_rejects_unknown_paths() {
+        let r = report_of(&[&["/a/1", "/a/2", "/a/3"]]);
+        assert!(check_deletion(&r, &["/a/2".into(), "/a/3".into()]).is_ok());
+        assert!(check_deletion(&r, &["/a/1".into(), "/a/2".into(), "/a/3".into()]).is_err());
+        assert!(check_deletion(&r, &["/Users/me/Documents/thesis.pdf".into()]).is_err());
+        assert!(check_deletion(&r, &[]).is_err());
+    }
+
+    #[test]
+    fn forget_paths_drops_groups_that_stop_being_duplicates() {
+        let mut r = report_of(&[&["/a/1", "/a/2"], &["/b/1", "/b/2", "/b/3"]]);
+        forget_paths(&mut r, &["/a/2".into(), "/b/3".into()]);
+        assert_eq!(r.groups.len(), 1);
+        assert_eq!(r.groups[0].files.len(), 2);
+    }
+
     use super::*;
 
     #[test]

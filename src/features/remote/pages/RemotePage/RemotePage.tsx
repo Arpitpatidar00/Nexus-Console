@@ -150,7 +150,7 @@ export const RemotePage = () => {
           </div>
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 md:grid-cols-[340px_1fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] gap-5 md:grid-cols-[340px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
           {/* Left: Master Host list inside glass panel */}
           <Panel
             title="Hosts"

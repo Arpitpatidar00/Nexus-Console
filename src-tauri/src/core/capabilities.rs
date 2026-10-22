@@ -48,6 +48,10 @@ pub fn command_module(cmd: &str) -> Option<&'static str> {
                 | "formula_versions"
                 | "uninstall_formula"
                 | "list_packages"
+                | "upgrade_package"
+                | "upgrade_all"
+                | "update_homebrew"
+                | "trust_tap"
         )
     {
         Some("homebrew")
@@ -108,6 +112,9 @@ mod tests {
         assert_eq!(command_module("blueprint_export"), None);
         assert_eq!(command_module("chaos_simulate"), Some("network"));
         assert_eq!(command_module("uptime_ping_now"), Some("domains"));
+        assert_eq!(command_module("upgrade_all"), Some("homebrew"));
+        assert_eq!(command_module("update_homebrew"), Some("homebrew"));
+        assert_eq!(command_module("trust_tap"), Some("homebrew"));
         assert_eq!(command_module("secrets_scan_projects"), Some("secrets"));
         assert_eq!(command_module("network_get_interfaces"), Some("network"));
         assert_eq!(command_module("releases_detect_config"), Some("releases"));

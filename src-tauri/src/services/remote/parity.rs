@@ -160,6 +160,23 @@ pub fn clean_version_output(out: &str) -> Option<String> {
     }
 }
 
+/// Prints `KEY:hmac_sha256(salt, value)` per .env line — run both remotely
+/// and locally so the two sides hash identically.
+const REMOTE_HMAC_SCRIPT: &str = r##"
+import hmac, hashlib, sys
+try:
+    salt = sys.argv[1].encode()
+    with open(sys.argv[2]) as f:
+        for line in f:
+            t = line.strip()
+            if t and not t.startswith("#") and "=" in t:
+                k, v = t.split("=", 1)
+                h = hmac.new(salt, v.strip().encode(), hashlib.sha256).hexdigest()
+                print(f"{k.strip()}:{h}")
+except Exception:
+    pass
+"##;
+
 pub fn run_parity_audit(
     local_project_path: Option<&str>,
     hosts: &[(&str, &SshTarget, &str, &str)],
@@ -184,18 +201,23 @@ pub fn run_parity_audit(
         local_versions.insert(name.to_string(), out.and_then(|o| clean_version_output(&o)));
     }
 
+    // Local values are hashed with the same session salt and the same script
+    // as the remote side, so "same secret as prod" can actually be detected —
+    // the local side used to insert a "local_present" placeholder instead.
     let mut local_keys = HashMap::new();
     if let Some(proj) = local_project_path {
         let env_file = Path::new(proj).join(".env");
         if env_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(env_file) {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.is_empty() || line.starts_with('#') || !line.contains('=') {
-                        continue;
-                    }
-                    if let Some((k, _)) = line.split_once('=') {
-                        local_keys.insert(k.trim().to_string(), "local_present".to_string());
+            let opts = crate::core::exec::ExecOpts::default().with_timeout(Duration::from_secs(10));
+            let env_str = env_file.to_string_lossy().into_owned();
+            if let Ok(out) = crate::core::exec::run(
+                "python3",
+                &["-c", REMOTE_HMAC_SCRIPT, salt.as_str(), env_str.as_str()],
+                opts,
+            ) {
+                for line in out.stdout_str.lines() {
+                    if let Some((k, h)) = line.rsplit_once(':') {
+                        local_keys.insert(k.trim().to_string(), h.trim().to_string());
                     }
                 }
             }
@@ -225,21 +247,6 @@ for label, cmd in tools:
     except Exception:
         pass
 "#;
-
-    const REMOTE_HMAC_SCRIPT: &str = r##"
-import hmac, hashlib, sys
-try:
-    salt = sys.argv[1].encode()
-    with open(sys.argv[2]) as f:
-        for line in f:
-            t = line.strip()
-            if t and not t.startswith("#") and "=" in t:
-                k, v = t.split("=", 1)
-                h = hmac.new(salt, v.strip().encode(), hashlib.sha256).hexdigest()
-                print(f"{k.strip()}:{h}")
-except Exception:
-    pass
-"##;
 
     for &(id, target, env, app_dir) in hosts {
         host_envs.insert(id.to_string(), env.to_string());

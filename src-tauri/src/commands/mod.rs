@@ -46,11 +46,63 @@ pub(crate) fn confirm_action(
     action: &str,
     destructive: bool,
 ) -> AppResult<()> {
-    let spec =
-        crate::core::mutation::MutationSpec::new(title, message, action).destructive(destructive);
-    let guard = crate::core::mutation::mutation(app, spec)?;
-    guard.success("user confirmed in native dialog");
+    // Journal the approval with a real target (the sheet title names it), and
+    // as `confirmed` — the action hasn't run yet, so `success` was a lie.
+    let spec = crate::core::mutation::MutationSpec::new(title, message, action)
+        .destructive(destructive)
+        .target(title);
+    crate::core::mutation::mutation(app, spec)?.confirmed();
     Ok(())
+}
+
+/// `blocking_show` parks its thread until the user answers. Many async commands
+/// confirm before entering `blocking(..)`, i.e. on a tokio worker — tell the
+/// runtime so it moves that worker's other tasks elsewhere instead of stalling
+/// them for as long as the sheet stays open. Off-runtime (inside `blocking`)
+/// it just runs `f`.
+fn park_safely<T>(f: impl FnOnce() -> T) -> T {
+    use tokio::runtime::{Handle, RuntimeFlavor};
+    match Handle::try_current() {
+        Ok(h) if h.runtime_flavor() == RuntimeFlavor::MultiThread => tokio::task::block_in_place(f),
+        _ => f(),
+    }
+}
+
+/// The bare NSAlert sheet behind `core::mutation::mutation`. Must not call back
+/// into `mutation`/`confirm_action` — that recursion overflowed the stack and
+/// aborted the app on every confirm.
+pub(crate) fn native_confirm(
+    app: &tauri::AppHandle,
+    title: &str,
+    message: &str,
+    action: &str,
+    destructive: bool,
+) -> AppResult<()> {
+    use tauri::Manager;
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    let mut dialog = app
+        .dialog()
+        .message(message)
+        .title(title)
+        .kind(if destructive {
+            MessageDialogKind::Warning
+        } else {
+            MessageDialogKind::Info
+        })
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            action.into(),
+            "Cancel".into(),
+        ));
+    // Parent to the main window → a window-modal SHEET: native macOS, but bound
+    // to the Stackroost window so it never floats over another app / Space.
+    if let Some(win) = app.get_webview_window("main") {
+        dialog = dialog.parent(&win);
+    }
+    if park_safely(|| dialog.blocking_show()) {
+        Ok(())
+    } else {
+        Err(AppError::Cancelled("Cancelled — nothing changed.".into()))
+    }
 }
 
 /// Grant Homebrew permission to load formulae/casks from a third-party tap —

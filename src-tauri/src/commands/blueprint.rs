@@ -40,9 +40,9 @@ pub async fn blueprint_apply_homebrew(app: AppHandle, brewfile: String) -> AppRe
     let _guard = crate::core::mutation::mutation(
         &app,
         crate::core::mutation::MutationSpec::new(
-            "Apply Homebrew bundle",
-            "This will install packages and casks defined in the blueprint Brewfile.",
-            "blueprint_apply_homebrew",
+            "Install the blueprint's Homebrew packages?",
+            "Runs `brew bundle install` on the blueprint's Brewfile. A Brewfile is Ruby and can run code on this Mac — only apply a blueprint you made or trust.",
+            "Install packages",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalSystem),
     )?;
@@ -53,9 +53,19 @@ pub async fn blueprint_apply_homebrew(app: AppHandle, brewfile: String) -> AppRe
         .unwrap_or("/opt/homebrew/bin/brew")
         .to_string();
 
-    blocking(move || blueprint::apply_homebrew_bundle(&brewfile, &brew_bin))
-        .await
-        .map_err(|e| AppError::Shell(format!("brew bundle task: {e}")))?
+    blocking(move || {
+        let lock = app.state::<crate::brew::BrewLock>();
+        let _g = lock
+            .0
+            .lock()
+            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+        let res = blueprint::apply_homebrew_bundle(&brewfile, &brew_bin);
+        app.state::<crate::commands::services::ServicesCache>()
+            .invalidate();
+        res
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("brew bundle task: {e}")))?
 }
 
 #[tauri::command]
@@ -69,7 +79,7 @@ pub async fn blueprint_apply_hosts(app: AppHandle, hosts: Vec<BlueprintHost>) ->
                 hosts.len(),
                 if hosts.len() == 1 { "" } else { "s" }
             ),
-            "blueprint_apply_hosts",
+            "Import hosts",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;
@@ -92,7 +102,7 @@ pub async fn blueprint_apply_workspaces(
                 workspaces.len(),
                 if workspaces.len() == 1 { "" } else { "s" }
             ),
-            "blueprint_apply_workspaces",
+            "Import workspaces",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;
@@ -111,7 +121,7 @@ pub async fn blueprint_apply_extensions(
         crate::core::mutation::MutationSpec::new(
             "Apply Blueprint Extensions",
             format!("Install {} VSCode extension(s)", extensions.len()),
-            "blueprint_apply_extensions",
+            "Install extensions",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalSystem),
     )?;

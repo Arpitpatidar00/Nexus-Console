@@ -312,7 +312,7 @@ fn fetch_services_list(
     Ok(entries)
 }
 
-fn run_launchctl() -> String {
+pub(crate) fn run_launchctl() -> String {
     Command::new("launchctl")
         .arg("list")
         .output()
@@ -419,6 +419,51 @@ pub async fn start_service(
     })
     .await
     .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+}
+
+/// Read-only "why won't it start?" — self-check + log tail + classified cause.
+#[tauri::command]
+pub async fn services_diagnose(
+    name: String,
+    ctx: State<'_, AppContext>,
+) -> AppResult<crate::brew::diagnose::ServiceDiagnosis> {
+    validate::validate_formula(&name)?;
+    let prefix = ctx
+        .brew_prefix
+        .clone()
+        .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))?;
+    let formula = validate::bare_formula(&name).to_string();
+    tauri::async_runtime::spawn_blocking(move || crate::brew::diagnose::diagnose(&prefix, &formula))
+        .await
+        .map_err(|e| AppError::Shell(format!("diagnose task failed: {e}")))
+}
+
+/// Open the config file a diagnosis blamed in the default text editor. The path
+/// is re-derived here from a fresh diagnosis — JS never names a file to open.
+#[tauri::command]
+pub async fn services_open_config(name: String, ctx: State<'_, AppContext>) -> AppResult<()> {
+    validate::validate_formula(&name)?;
+    let prefix = ctx
+        .brew_prefix
+        .clone()
+        .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))?;
+    let formula = validate::bare_formula(&name).to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = crate::brew::diagnose::diagnose(&prefix, &formula)
+            .fix
+            .and_then(|f| f.path)
+            .ok_or_else(|| {
+                AppError::NotFound("No config file to open — re-run the check.".into())
+            })?;
+        crate::core::exec::run(
+            "/usr/bin/open",
+            &["-t", "--", path.as_str()],
+            Default::default(),
+        )?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::Shell(format!("open task failed: {e}")))?
 }
 
 #[tauri::command]

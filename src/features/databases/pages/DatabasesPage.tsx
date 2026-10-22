@@ -9,6 +9,7 @@ import {
 import { SnapshotsPanel } from '../components/SnapshotsPanel/SnapshotsPanel';
 import { SchemaBrowser } from '../components/SchemaBrowser/SchemaBrowser';
 import { QueryEditor } from '../components/QueryEditor/QueryEditor';
+import { AddConnectionDialog } from '../components/AddConnectionDialog';
 import type { DbConnection } from '../api/databases.schema';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
@@ -23,16 +24,6 @@ export function DatabasesPage() {
   const [activeTab, setActiveTab] = useState<'query' | 'branching'>('query');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editorQuery, setEditorQuery] = useState('SELECT 1;');
-
-  // New connection form state
-  const [newName, setNewName] = useState('');
-  const [newDriver, setNewDriver] = useState('postgres');
-  const [newHost, setNewHost] = useState('127.0.0.1');
-  const [newPort, setNewPort] = useState(5432);
-  const [newUser, setNewUser] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newDb, setNewDb] = useState('');
-  const [newDataDir, setNewDataDir] = useState('');
 
   const activeConnection: DbConnection | undefined =
     connections.find((c) => c.id === selectedId) || connections[0];
@@ -54,32 +45,6 @@ export function DatabasesPage() {
       env: 'dev',
       dataDir: disc.dataDir,
     });
-  };
-
-  const handleManualAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    addConn.mutate(
-      {
-        name: newName.trim(),
-        driver: newDriver,
-        host: newHost.trim(),
-        port: Number(newPort),
-        user: newUser.trim() || null,
-        password: newPassword.trim() || undefined,
-        database: newDb.trim() || null,
-        allowWrites: false,
-        env: 'dev',
-        dataDir: newDataDir.trim() || null,
-      },
-      {
-        onSuccess: () => {
-          setIsAddOpen(false);
-          setNewName('');
-          setNewPassword('');
-        },
-      },
-    );
   };
 
   return (
@@ -278,163 +243,7 @@ export function DatabasesPage() {
         )}
       </div>
 
-      {/* Add Connection Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <form
-            onSubmit={handleManualAdd}
-            className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-5 shadow-xl"
-          >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-sm font-semibold">Add Database Connection</h3>
-              <button
-                type="button"
-                onClick={() => setIsAddOpen(false)}
-                className="text-xs text-fg-muted hover:text-fg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label htmlFor="conn-name" className="mb-1 block text-fg-muted">
-                  Connection Name
-                </label>
-                <input
-                  id="conn-name"
-                  type="text"
-                  required
-                  placeholder="e.g. Local App DB"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="conn-driver" className="mb-1 block text-fg-muted">
-                    Driver
-                  </label>
-                  <select
-                    id="conn-driver"
-                    value={newDriver}
-                    onChange={(e) => setNewDriver(e.target.value)}
-                    className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                  >
-                    <option value="postgres">PostgreSQL</option>
-                    <option value="mysql">MySQL</option>
-                    <option value="redis">Redis</option>
-                    <option value="mongodb">MongoDB</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="conn-port" className="mb-1 block text-fg-muted">
-                    Port
-                  </label>
-                  <input
-                    id="conn-port"
-                    type="number"
-                    required
-                    value={newPort}
-                    onChange={(e) => setNewPort(Number(e.target.value))}
-                    className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="conn-host" className="mb-1 block text-fg-muted">
-                    Host
-                  </label>
-                  <input
-                    id="conn-host"
-                    type="text"
-                    required
-                    value={newHost}
-                    onChange={(e) => setNewHost(e.target.value)}
-                    className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="conn-user" className="mb-1 block text-fg-muted">
-                    User
-                  </label>
-                  <input
-                    id="conn-user"
-                    type="text"
-                    placeholder="e.g. postgres"
-                    value={newUser}
-                    onChange={(e) => setNewUser(e.target.value)}
-                    className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="conn-db" className="mb-1 block text-fg-muted">
-                  Database Name
-                </label>
-                <input
-                  id="conn-db"
-                  type="text"
-                  placeholder="e.g. app_development"
-                  value={newDb}
-                  onChange={(e) => setNewDb(e.target.value)}
-                  className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="conn-password" className="mb-1 block text-fg-muted">
-                  Password (stored securely in Keychain)
-                </label>
-                <input
-                  id="conn-password"
-                  type="password"
-                  placeholder="Optional password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full rounded border border-border bg-muted px-3 py-1.5 text-fg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="conn-datadir" className="mb-1 block text-fg-muted">
-                  Data Directory (for APFS branching)
-                </label>
-                <input
-                  id="conn-datadir"
-                  type="text"
-                  placeholder="e.g. /opt/homebrew/var/postgresql@16"
-                  value={newDataDir}
-                  onChange={(e) => setNewDataDir(e.target.value)}
-                  className="w-full rounded border border-border bg-muted px-3 py-1.5 font-mono text-[11px] text-fg focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 border-t border-border pt-2">
-              <button
-                type="button"
-                onClick={() => setIsAddOpen(false)}
-                className="rounded px-3 py-1.5 text-xs text-fg-muted hover:text-fg"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={addConn.isPending}
-                className="rounded bg-info px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-info"
-              >
-                Save Connection
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <AddConnectionDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ export * from './DataTable';
 export * from './Dialog';
 export * from './EmptyState';
 export * from './ErrorPanel';
+export * from './Field';
 export * from './ListRow';
 export * from './Logo';
 export * from './Metric';

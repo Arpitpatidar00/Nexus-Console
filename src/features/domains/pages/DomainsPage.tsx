@@ -96,10 +96,11 @@ export const DomainsPage = () => {
               <Search className="absolute top-2.5 left-3 h-4 w-4 text-fg-muted" />
               <input
                 type="text"
+                data-nx-page-search
                 placeholder="Domain name (e.g. example.com or api.stripe.com)"
                 value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
-                className="w-full rounded-lg border border-border bg-black/10 py-1.5 pr-3 pl-9 text-xs text-fg focus:border-ember focus:outline-none"
+                className="w-full rounded-lg border border-border bg-muted py-1.5 pr-3 pl-9 text-xs text-fg focus:border-ember focus:outline-none"
               />
             </div>
 
@@ -286,10 +287,7 @@ export const DomainsPage = () => {
 
               <div className="mt-3 grid grid-cols-3 gap-3">
                 {prop?.answers.map((ans) => (
-                  <div
-                    key={ans.resolver}
-                    className="rounded-lg border border-border bg-black/10 p-3"
-                  >
+                  <div key={ans.resolver} className="rounded-lg border border-border bg-muted p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-fg">{ans.resolverName}</span>
                       <span className="font-mono text-[11px] text-fg-muted">{ans.latencyMs}ms</span>

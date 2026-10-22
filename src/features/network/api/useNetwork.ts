@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { ipc, CMD } from '@/shared/tauri';
+import { ipc, ipcVoid, CMD } from '@/shared/tauri';
 import {
   networkInfoSchema,
   processBandwidthSchema,
@@ -55,7 +55,7 @@ export function useHostsEntries() {
 export function useSaveHosts() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (entries: HostEntry[]) => ipc(CMD.NETWORK_SAVE_HOSTS, { entries }, z.void()),
+    mutationFn: (entries: HostEntry[]) => ipcVoid(CMD.NETWORK_SAVE_HOSTS, { entries }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: networkKeys.hosts() });
     },
@@ -84,7 +84,7 @@ export function useStartChaosProxy() {
 export function useStopChaosProxy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ipc(CMD.CHAOS_STOP_PROXY, { id }, z.void()),
+    mutationFn: (id: string) => ipcVoid(CMD.CHAOS_STOP_PROXY, { id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['network', 'chaos', 'proxies'] });
     },

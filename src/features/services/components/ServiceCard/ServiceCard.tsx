@@ -3,6 +3,7 @@ import { ServiceStatsInline } from '@/features/services/components/ServiceStatsI
 import { LinkChip } from '@/features/services/components/LinkChip';
 import { ServiceActions } from '@/features/services/components/ServiceActions';
 import { ServiceMenu } from '@/features/services/components/ServiceMenu';
+import { StartFailureNotice } from '@/features/services/components/StartFailureNotice';
 import { cn } from '@/shared/lib/cn';
 import { cardStyles } from './ServiceCard.styles';
 import { iconFor } from './ServiceCard.config';
@@ -45,6 +46,7 @@ export const ServiceCard = ({ service }: ServiceCardProps) => {
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           <StatusChip status={service.status} />
           {service.status !== 'notInstalled' && <LinkChip linkState={service.linkState} />}
+          <StartFailureNotice service={service} />
         </div>
 
         {/* Live metrics — always shown for installed services; a stopped

@@ -35,18 +35,10 @@ export function useRemoteFileContent(
   });
 }
 
+/** Saves into ~/Downloads (Rust picks the path) and resolves to where it landed. */
 export function useRemoteDownloadFile() {
-  return async (hostId: string, remotePath: string, localDestination: string) => {
-    return ipc(
-      CMD.REMOTE_DOWNLOAD_FILE,
-      {
-        id: hostId,
-        remotePath,
-        localDestination,
-      },
-      z.string(),
-    );
-  };
+  return async (hostId: string, remotePath: string) =>
+    ipc(CMD.REMOTE_DOWNLOAD_FILE, { id: hostId, remotePath }, z.string());
 }
 
 export function useRemoteUploadFile() {

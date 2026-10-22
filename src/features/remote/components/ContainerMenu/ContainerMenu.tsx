@@ -63,7 +63,7 @@ export const ContainerMenu = ({
           <DropdownMenu.Content
             align="end"
             sideOffset={4}
-            className="nx-pop z-[var(--z-dropdown)] min-w-48 rounded-lg border border-border bg-paper p-1 shadow-md"
+            className="nx-pop z-[var(--z-dropdown)] min-w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
           >
             <DropdownMenu.Item
               className={`${itemCls} text-fg`}

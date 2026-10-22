@@ -200,6 +200,8 @@ pub async fn upgrade_package(
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
         run_brew(&bin, &["upgrade", &name])?;
+        app.state::<crate::commands::services::ServicesCache>()
+            .invalidate();
         Ok(())
     })
     .await
@@ -223,6 +225,8 @@ pub async fn upgrade_all(ctx: State<'_, AppContext>, app: AppHandle) -> AppResul
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
         run_brew(&bin, &["upgrade"])?;
+        app.state::<crate::commands::services::ServicesCache>()
+            .invalidate();
         Ok(())
     })
     .await
@@ -353,6 +357,8 @@ pub async fn package_pin(
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
         run_brew(&bin, &["pin", &name])?;
+        app.state::<crate::commands::services::ServicesCache>()
+            .invalidate();
         Ok(())
     })
     .await
@@ -383,6 +389,8 @@ pub async fn package_unpin(
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
         run_brew(&bin, &["unpin", &name])?;
+        app.state::<crate::commands::services::ServicesCache>()
+            .invalidate();
         Ok(())
     })
     .await
@@ -432,6 +440,14 @@ pub async fn package_rollback(
     app: AppHandle,
 ) -> AppResult<()> {
     validate::validate_formula(&name)?;
+    // `version` becomes a Cellar path below — a keg name, never a path.
+    if version.is_empty()
+        || version.contains('/')
+        || version.contains("..")
+        || version.chars().any(char::is_control)
+    {
+        return Err(AppError::InvalidName(format!("invalid version: {version}")));
+    }
     let _guard = mutation_unattended(
         MutationSpec::new(
             "Rollback package",
@@ -514,6 +530,7 @@ pub async fn package_rollback(
                 "Verification failed: brew list --versions did not reflect {version} after rollback. Got: {verify}"
             )));
         }
+        app.state::<crate::commands::services::ServicesCache>().invalidate();
         Ok(())
     })
     .await

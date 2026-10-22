@@ -106,6 +106,7 @@ const DevicesView = () => {
           <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
           <input
             type="text"
+            data-nx-page-search
             placeholder={`Search ${activeTab === 'ios' ? 'simulators' : 'AVDs'}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -128,11 +129,15 @@ const DevicesView = () => {
             </thead>
             <tbody className="divide-y divide-border">
               {iosError ? (
-                <ErrorPanel
-                  error={iosError}
-                  fallback="Couldn't list iOS simulators."
-                  onRetry={() => void refetchIos()}
-                />
+                <tr>
+                  <td colSpan={4} className="p-4">
+                    <ErrorPanel
+                      error={iosError}
+                      fallback="Couldn't list iOS simulators."
+                      onRetry={() => void refetchIos()}
+                    />
+                  </td>
+                </tr>
               ) : iosLoading ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-fg-muted">
@@ -219,11 +224,15 @@ const DevicesView = () => {
             </thead>
             <tbody className="divide-y divide-border">
               {androidError ? (
-                <ErrorPanel
-                  error={androidError}
-                  fallback="Couldn't list Android emulators."
-                  onRetry={() => void refetchAndroid()}
-                />
+                <tr>
+                  <td colSpan={3} className="p-4">
+                    <ErrorPanel
+                      error={androidError}
+                      fallback="Couldn't list Android emulators."
+                      onRetry={() => void refetchAndroid()}
+                    />
+                  </td>
+                </tr>
               ) : androidLoading ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">

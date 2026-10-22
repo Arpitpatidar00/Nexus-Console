@@ -114,6 +114,7 @@ function DockerView() {
         <div className="flex items-center justify-between">
           <input
             type="text"
+            data-nx-page-search
             placeholder="Search containers by name, image, or stack..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}

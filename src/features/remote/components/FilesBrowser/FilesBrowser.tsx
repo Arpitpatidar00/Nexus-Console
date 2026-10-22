@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { useState } from 'react';
 import {
   Folder,
@@ -92,12 +93,12 @@ export const FilesBrowser = ({ host, connected }: Props) => {
   const handleDownload = async (file: RemoteFileEntry) => {
     try {
       setIsDownloading(true);
-      const dest = `/tmp/${file.name}`;
-      await downloadFile(host.id, file.path, dest);
+      const saved = await downloadFile(host.id, file.path);
+      toast.success(`Saved to ${saved.replace(/^\/Users\/[^/]+/, '~')}`);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (e) {
-      console.error('Download failed:', e);
+      toast.error(e instanceof Error ? e.message : 'Download failed');
     } finally {
       setIsDownloading(false);
     }

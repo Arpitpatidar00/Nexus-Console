@@ -4,12 +4,15 @@ import { setMacleanAutoCleanDays, setMacleanLowDiskGb } from '@/shared/state/set
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Button } from '@/shared/ui/Button';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
+import { Input } from '@/shared/ui/Field';
 // Deep imports: the maclean barrel would chain StoragePage into Settings' chunk.
 import { useCleanRules, useSetCleanRules } from '@/features/maclean/api/macleanMutations';
 import type { CleanRules } from '@/features/maclean/api/maclean.schema';
 
-const inputCls =
-  'h-9 rounded-md border border-input bg-muted px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+// One row shape for every setting: copy grows and wraps, the control keeps its
+// size and right edge — the old mix let segmented controls squeeze the text.
+const rowCls = 'flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3.5';
+const copyCls = 'min-w-0 flex-1 basis-64';
 
 const list = (s: string) =>
   s
@@ -39,41 +42,46 @@ const Form = ({ rules }: { rules: CleanRules }) => {
   // A render function, not a component: a component declared in here would be
   // a new type every render and the input would lose focus on each keystroke.
   const day = (k: keyof typeof days, label: string) => (
-    <label key={k} className="flex items-center justify-between gap-4 py-2.5 text-sm">
-      <span className="text-foreground">{label}</span>
-      <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-        <input
+    <label key={k} className={rowCls}>
+      <span className={`${copyCls} text-sm text-foreground`}>{label}</span>
+      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+        <Input
+          size="sm"
+          mono
           inputMode="numeric"
           aria-label={label}
           value={days[k]}
-          onChange={(e) => setDays((d) => ({ ...d, [k]: e.target.value }))}
-          className={`${inputCls} w-16 text-right tabular-nums`}
+          onChange={(e) => setDays((d) => ({ ...d, [k]: e.target.value.replace(/\D/g, '') }))}
+          className="w-20 text-right tabular-nums"
         />
         days
       </span>
     </label>
   );
   return (
-    <div className="mt-2 divide-y divide-hairline">
-      <label className="block space-y-1 py-3">
+    <div className="divide-y divide-hairline">
+      <label htmlFor="maclean-protected" className="flex flex-col gap-1.5 py-3.5">
         <span className="text-sm font-medium text-foreground">Never touch paths containing</span>
-        <input
+        <Input
+          id="maclean-protected"
+          size="sm"
           aria-label="Protected names"
           value={names}
           onChange={(e) => setNames(e.target.value)}
-          className={`${inputCls} w-full`}
         />
         <span className="block text-xs text-fg-muted">
           Comma-separated folder names, e.g. Fameo, ClientX.
         </span>
       </label>
-      <label className="block space-y-1 py-3">
+      <label htmlFor="maclean-roots" className="flex flex-col gap-1.5 py-3.5">
         <span className="text-sm font-medium text-fg">Project folders</span>
-        <input
+        <Input
+          id="maclean-roots"
+          size="sm"
+          mono
           aria-label="Project folders"
           value={roots}
           onChange={(e) => setRoots(e.target.value)}
-          className={`${inputCls} w-full`}
         />
         <span className="block text-xs text-fg-muted">
           Where idle .next builds and old node_modules are looked for.
@@ -82,7 +90,7 @@ const Form = ({ rules }: { rules: CleanRules }) => {
       {day('nextIdleDays', 'A .next build is idle after')}
       {day('logAgeDays', 'Remove app logs older than')}
       {day('staleNodeModulesDays', 'Report node_modules untouched for')}
-      <div className="space-y-2 pt-3">
+      <div className="space-y-2 pt-3.5">
         {save.isError && <ErrorPanel error={save.error} fallback="Couldn't save" />}
         <div className="flex justify-end">
           <Button size="sm" disabled={!dirty || save.isPending} onClick={() => save.mutate(next)}>
@@ -113,9 +121,9 @@ const Automation = () => {
   const days = useAppSelector((s) => s.settings.macleanAutoCleanDays);
   const gb = useAppSelector((s) => s.settings.macleanLowDiskGb);
   return (
-    <div className="mt-2 divide-y divide-border border-t border-border">
-      <div className="flex items-center justify-between gap-4 py-3.5">
-        <div>
+    <div className="divide-y divide-hairline">
+      <div className={rowCls}>
+        <div className={copyCls}>
           <p className="text-sm font-medium text-fg">Scheduled cleanup</p>
           <p className="text-xs text-fg-muted">
             From the menu bar: the default items only (never unused Docker images), skipping
@@ -130,8 +138,8 @@ const Automation = () => {
           onChange={(v) => dispatch(setMacleanAutoCleanDays(Number(v)))}
         />
       </div>
-      <div className="flex items-center justify-between gap-4 py-3.5">
-        <div>
+      <div className={rowCls}>
+        <div className={copyCls}>
           <p className="text-sm font-medium text-fg">Low-disk warning</p>
           <p className="text-xs text-fg-muted">
             One notification when free space drops below this, not one every few minutes.
@@ -156,11 +164,13 @@ export const MacCleanSettingsCard = () => {
       <p className="mt-1 text-xs text-muted-foreground">
         The same rules as mac-clean.sh. Checked again in Rust on every clean.
       </p>
+      <p className="sr-caption mt-5">Automation</p>
       <Automation />
+      <p className="sr-caption mt-5 border-t border-hairline pt-5">Cleanup rules</p>
       {rules.data ? (
         <Form rules={rules.data} />
       ) : (
-        <div aria-hidden className="mt-4 h-40 animate-pulse rounded bg-list" />
+        <div aria-hidden className="mt-3 h-40 animate-pulse rounded bg-list" />
       )}
     </section>
   );

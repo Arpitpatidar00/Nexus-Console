@@ -37,7 +37,7 @@ pub async fn ai_save_model_pricing(
         crate::core::mutation::MutationSpec::new(
             "Update AI Model Pricing",
             "Update token estimation price table in settings",
-            "ai_save_model_pricing",
+            "Save prices",
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;

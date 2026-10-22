@@ -18,11 +18,14 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
 
   const availableVersions = versions ?? [];
   const canRollback = availableVersions.length > 1;
+  // Default to the newest older keg. The radio used to *look* checked while
+  // the state stayed '' — the button was disabled and clicking did nothing.
+  const chosen = selectedVersion || availableVersions[1] || '';
 
   const handleRollback = () => {
-    if (!selectedVersion) return;
+    if (!chosen) return;
     rollbackMutation.mutate(
-      { name: pkgName, version: selectedVersion },
+      { name: pkgName, version: chosen },
       {
         onSuccess: () => {
           onClose();
@@ -34,8 +37,8 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[var(--z-dialog-overlay)] bg-black/50 backdrop-blur-sm" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-dialog)] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-paper p-6 shadow-xl">
+        <Dialog.Overlay className="fixed inset-0 z-[var(--z-backdrop)] bg-black/50 backdrop-blur-sm" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-[var(--z-modal)] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-xl">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <RotateCcw className="h-5 w-5 text-ember-text" />
@@ -85,7 +88,9 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
                     <label
                       key={v}
                       htmlFor={`version-${v}`}
-                      className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3 hover:bg-accent"
+                      className={`flex items-center justify-between rounded-lg border border-border p-3 ${
+                        idx === 0 ? 'cursor-default opacity-60' : 'cursor-pointer hover:bg-accent'
+                      }`}
                     >
                       <div className="flex items-center gap-2.5">
                         <input
@@ -93,7 +98,8 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
                           id={`version-${v}`}
                           name="rollback-version"
                           value={v}
-                          checked={selectedVersion === v || (selectedVersion === '' && idx === 1)}
+                          checked={chosen === v}
+                          disabled={idx === 0}
                           onChange={() => setSelectedVersion(v)}
                           className="h-4 w-4 border-border text-ember-text"
                         />
@@ -125,7 +131,7 @@ export const RollbackModal = ({ pkgName, isOpen, onClose }: Props) => {
                 variant="primary"
                 size="sm"
                 onClick={handleRollback}
-                disabled={!selectedVersion || rollbackMutation.isPending}
+                disabled={!chosen || rollbackMutation.isPending}
               >
                 <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                 {rollbackMutation.isPending ? 'Switching…' : 'Switch Version'}

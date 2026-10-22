@@ -6,6 +6,17 @@ export const blueprintHostSchema = z.object({
   label: z.string(),
   project: z.string(),
   env: z.string(),
+  // Mirrors Rust `ManualTarget` — without it a hand-added host round-trips
+  // through import with no address and can never connect.
+  manual: z
+    .object({
+      hostname: z.string(),
+      user: z.string(),
+      port: z.number(),
+      identityFile: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 export type BlueprintHost = z.infer<typeof blueprintHostSchema>;
 

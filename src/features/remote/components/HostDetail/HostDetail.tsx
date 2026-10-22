@@ -54,6 +54,37 @@ type View =
   | 'tunnels'
   | 'issues';
 
+const VIEW_LABELS: Record<View, string> = {
+  overview: 'Overview',
+  issues: 'Issues',
+  timeline: 'Timeline',
+  stacks: 'Stacks',
+  containers: 'Containers',
+  services: 'Services',
+  ports: 'Ports',
+  deploy: 'Deploy & Ship',
+  parity: 'Parity',
+  runbooks: 'Runbooks',
+  logs: 'Logs',
+  files: 'Files',
+  nginx: 'Nginx & Cron',
+  disk: 'Disk & Cleanup',
+  tunnels: 'Tunnels',
+  notes: 'Notes',
+};
+
+type Group = 'monitor' | 'workloads' | 'ship' | 'inspect' | 'connect';
+
+/** 16 views never fit one strip (it scrolled sideways with a scrollbar and
+ * mis-aligned) — two levels: a group switch, then that group's views. */
+const VIEW_GROUPS: { id: Group; label: string; views: View[] }[] = [
+  { id: 'monitor', label: 'Monitor', views: ['overview', 'issues', 'timeline'] },
+  { id: 'workloads', label: 'Workloads', views: ['stacks', 'containers', 'services', 'ports'] },
+  { id: 'ship', label: 'Ship', views: ['deploy', 'parity', 'runbooks'] },
+  { id: 'inspect', label: 'Inspect', views: ['logs', 'files', 'nginx', 'disk'] },
+  { id: 'connect', label: 'Connect', views: ['tunnels', 'notes'] },
+];
+
 const BodySkeleton = () => (
   <div aria-hidden className="space-y-5 p-5">
     {Array.from({ length: 4 }, (_, i) => (
@@ -90,24 +121,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
       : null;
 
   const issues = s?.findings.length ?? 0;
-  const views = [
-    { value: 'overview' as const, label: 'Overview' },
-    { value: 'stacks' as const, label: 'Stacks' },
-    { value: 'deploy' as const, label: 'Deploy & Ship' },
-    { value: 'parity' as const, label: 'Parity' },
-    { value: 'containers' as const, label: 'Containers' },
-    { value: 'services' as const, label: 'Services' },
-    { value: 'nginx' as const, label: 'Nginx & Cron' },
-    { value: 'ports' as const, label: 'Ports' },
-    { value: 'disk' as const, label: 'Disk & Cleanup' },
-    { value: 'files' as const, label: 'Files' },
-    { value: 'logs' as const, label: 'Logs' },
-    { value: 'timeline' as const, label: 'Timeline' },
-    { value: 'notes' as const, label: 'Notes' },
-    { value: 'runbooks' as const, label: 'Runbooks' },
-    { value: 'tunnels' as const, label: 'Tunnels' },
-    { value: 'issues' as const, label: issues > 0 ? `Issues (${issues})` : 'Issues' },
-  ];
+  const label = (v: View) => (v === 'issues' && issues > 0 ? `Issues (${issues})` : VIEW_LABELS[v]);
+  const group = VIEW_GROUPS.find((g) => g.views.includes(view)) ?? VIEW_GROUPS[0];
 
   const statusTone: 'neutral' | 'danger' | 'success' = !connected
     ? 'neutral'
@@ -210,8 +225,12 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
               disabled={disconnect.isPending}
               onClick={() => disconnect.mutate(host.id)}
             >
-              <Unplug className="size-3.5" />
-              Disconnect
+              {disconnect.isPending ? (
+                <Spinner className="text-current" />
+              ) : (
+                <Unplug className="size-3.5" />
+              )}
+              {disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}
             </Button>
           ) : (
             <Button
@@ -259,13 +278,41 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center overflow-x-auto border-b border-hairline px-6 py-2.5">
-            <SegmentedControl
-              ariaLabel="Server view"
-              value={view}
-              options={views}
-              onChange={setView}
+          <div className="flex shrink-0 flex-col gap-2 border-b border-hairline px-6 pt-3">
+            <SegmentedControl<Group>
+              ariaLabel="Server section"
+              value={group.id}
+              options={VIEW_GROUPS.map((g) => ({
+                value: g.id,
+                label: g.id === 'monitor' && issues > 0 ? `${g.label} · ${issues}` : g.label,
+              }))}
+              onChange={(id) =>
+                setView(VIEW_GROUPS.find((g) => g.id === id)?.views[0] ?? 'overview')
+              }
             />
+            <div
+              role="tablist"
+              aria-label={`${group.label} views`}
+              className="flex flex-wrap gap-1"
+            >
+              {group.views.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="tab"
+                  aria-selected={v === view}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    '-mb-px cursor-pointer border-b-2 px-3 pt-1 pb-2 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    v === view
+                      ? 'border-ember text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label(v)}
+                </button>
+              ))}
+            </div>
           </div>
           {probeError && (
             <div className="shrink-0 px-6 pt-4">
@@ -276,43 +323,45 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
               />
             </div>
           )}
-          {!s ? (
-            snap.isError ? null : (
-              <BodySkeleton />
-            )
-          ) : view === 'overview' ? (
-            <OverviewPanel snapshot={s} history={history} />
-          ) : view === 'stacks' ? (
-            <ComposeStacksView host={host} snapshot={s} />
-          ) : view === 'deploy' ? (
-            <DeployCenterView host={host} snapshot={s} connected={connected} />
-          ) : view === 'parity' ? (
-            <ParityAuditorView host={host} connected={connected} />
-          ) : view === 'containers' ? (
-            <ContainersTable host={host} snapshot={s} />
-          ) : view === 'services' ? (
-            <ServicesPanel snapshot={s} />
-          ) : view === 'nginx' ? (
-            <InspectionPanel host={host} connected={connected} />
-          ) : view === 'ports' ? (
-            <PortsPanel snapshot={s} />
-          ) : view === 'disk' ? (
-            <ServerDiskPanel host={host} connected={connected} />
-          ) : view === 'files' ? (
-            <FilesBrowser host={host} connected={connected} />
-          ) : view === 'logs' ? (
-            <LogsViewer host={host} snapshot={s} />
-          ) : view === 'timeline' ? (
-            <TimelineTab host={host} connected={connected} />
-          ) : view === 'notes' ? (
-            <NotesTab host={host} />
-          ) : view === 'runbooks' ? (
-            <RunbooksPanel host={host} />
-          ) : view === 'tunnels' ? (
-            <TunnelsPanel host={host} />
-          ) : (
-            <IssuesPanel snapshot={s} />
-          )}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {!s ? (
+              snap.isError ? null : (
+                <BodySkeleton />
+              )
+            ) : view === 'overview' ? (
+              <OverviewPanel snapshot={s} history={history} />
+            ) : view === 'stacks' ? (
+              <ComposeStacksView host={host} snapshot={s} />
+            ) : view === 'deploy' ? (
+              <DeployCenterView host={host} snapshot={s} connected={connected} />
+            ) : view === 'parity' ? (
+              <ParityAuditorView host={host} connected={connected} />
+            ) : view === 'containers' ? (
+              <ContainersTable host={host} snapshot={s} />
+            ) : view === 'services' ? (
+              <ServicesPanel snapshot={s} />
+            ) : view === 'nginx' ? (
+              <InspectionPanel host={host} connected={connected} />
+            ) : view === 'ports' ? (
+              <PortsPanel snapshot={s} />
+            ) : view === 'disk' ? (
+              <ServerDiskPanel host={host} connected={connected} />
+            ) : view === 'files' ? (
+              <FilesBrowser host={host} connected={connected} />
+            ) : view === 'logs' ? (
+              <LogsViewer host={host} snapshot={s} />
+            ) : view === 'timeline' ? (
+              <TimelineTab host={host} connected={connected} />
+            ) : view === 'notes' ? (
+              <NotesTab host={host} />
+            ) : view === 'runbooks' ? (
+              <RunbooksPanel host={host} />
+            ) : view === 'tunnels' ? (
+              <TunnelsPanel host={host} />
+            ) : (
+              <IssuesPanel snapshot={s} />
+            )}
+          </div>
         </div>
       )}
 

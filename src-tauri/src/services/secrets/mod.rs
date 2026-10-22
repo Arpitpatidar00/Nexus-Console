@@ -91,6 +91,33 @@ pub fn redact_secrets_in_text(text: &str) -> String {
             .to_string();
     }
 
+    // 7. Credentials inside URLs: postgres://user:pass@host → user:***@host
+    if let Ok(re) = regex::Regex::new(r"(?i)\b([a-z][a-z0-9+.-]*://)([^:/\s@]+):([^@/\s]+)@") {
+        out = re.replace_all(&out, "${1}${2}:***@").to_string();
+    }
+
+    // 8. Bearer tokens and JWTs
+    if let Ok(re) = regex::Regex::new(r"(?i)\bbearer\s+[a-z0-9._~+/=-]{8,}") {
+        out = re.replace_all(&out, "Bearer [REDACTED]").to_string();
+    }
+    if let Ok(re) =
+        regex::Regex::new(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
+    {
+        out = re.replace_all(&out, "[REDACTED JWT]").to_string();
+    }
+
+    // 9. AI provider keys (Anthropic sk-ant-…, OpenAI sk-proj-… / sk-…)
+    if let Ok(re) = regex::Regex::new(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{20,}") {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| mask_secret(&caps[0]))
+            .to_string();
+    }
+
+    // 10. ssh-style user@host targets — hostnames identify private infra.
+    if let Ok(re) = regex::Regex::new(r"\b([A-Za-z0-9._-]+)@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)") {
+        out = re.replace_all(&out, "${1}@[host]").to_string();
+    }
+
     out
 }
 
@@ -366,6 +393,25 @@ pub fn scan_shell_history() -> AppResult<Vec<SecretFinding>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn redacts_uris_bearer_jwt_ai_keys_and_hosts() {
+        let raw = "postgres://admin:s3cr3tPass@db.example.com:5432/prod \
+                   Authorization: Bearer abcdefghijklmnop \
+                   eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U \
+                   sk-ant-api03-abcdefghijklmnopqrstuvwxyz \
+                   ubuntu@prod-db.internal.corp";
+        let out = redact_secrets_in_text(raw);
+        for leaked in [
+            "s3cr3tPass",
+            "abcdefghijklmnop",
+            "eyJzdWIi",
+            "abcdefghijklmnopqrstuvwxyz",
+            "prod-db.internal.corp",
+        ] {
+            assert!(!out.contains(leaked), "{leaked} leaked: {out}");
+        }
+    }
+
     use super::*;
 
     #[test]

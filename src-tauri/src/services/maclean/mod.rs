@@ -36,9 +36,27 @@ pub struct MacleanState {
     /// The latest storage report: deep scan subtracts its rows, and Reveal
     /// only accepts a large file this report listed.
     pub last_report: Mutex<Option<scan::StorageReport>>,
+    /// The latest duplicate scan: deletion only accepts paths it listed, and
+    /// never every copy of a group.
+    pub last_duplicates: Mutex<Option<duplicates::DuplicateReport>>,
+    /// Paths from the latest ghost-leftovers scan — Reveal accepts these too.
+    pub last_ghost_paths: Mutex<Vec<String>>,
+    /// PIDs Energy paused with SIGSTOP — resumable, and all resumed on quit.
+    pub paused: Mutex<std::collections::BTreeSet<i32>>,
 }
 
 impl MacleanState {
+    /// SIGCONT everything Energy paused — called on quit so nothing is left
+    /// frozen after Stackroost is gone.
+    pub fn resume_all_paused(&self) {
+        if let Ok(mut paused) = self.paused.lock() {
+            for pid in std::mem::take(&mut *paused) {
+                // SAFETY: kill(2) with a plain signal has no memory preconditions.
+                unsafe { libc::kill(pid, libc::SIGCONT) };
+            }
+        }
+    }
+
     pub fn load(path: PathBuf) -> MacleanState {
         MacleanState {
             store: Mutex::new(Store::load(&path)),
@@ -47,6 +65,9 @@ impl MacleanState {
             scanning: Mutex::new(()),
             memory: memory::Sampler::default(),
             last_report: Mutex::new(None),
+            last_duplicates: Mutex::new(None),
+            last_ghost_paths: Mutex::new(Vec::new()),
+            paused: Mutex::new(std::collections::BTreeSet::new()),
         }
     }
 

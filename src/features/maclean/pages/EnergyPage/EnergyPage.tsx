@@ -5,6 +5,7 @@ import {
   BatteryCharging,
   Plug,
   Pause,
+  Play,
   AlertCircle,
   Activity,
   Layers,
@@ -13,11 +14,19 @@ import {
 import { formatBytes } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import { useEnergyReport, usePauseService } from '@/features/maclean/api/useMacHealth';
+import {
+  useEnergyReport,
+  usePausedPids,
+  usePauseService,
+  useResumeProcess,
+} from '@/features/maclean/api/useMacHealth';
+import { IpcError } from '@/shared/tauri';
 
 export const EnergyPage = () => {
   const { data: energy, isLoading } = useEnergyReport(true);
   const pauseMutation = usePauseService();
+  const resumeMutation = useResumeProcess();
+  const paused = usePausedPids().data ?? new Set<number>();
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -33,19 +42,19 @@ export const EnergyPage = () => {
     return true;
   });
 
-  const handlePauseService = (name: string) => {
-    pauseMutation.mutate(name);
-  };
-
-  const handlePauseAllUnplugged = () => {
-    if (!energy?.unpluggedSuggestion) return;
-    for (const name of energy.unpluggedSuggestion.candidateNames) {
-      pauseMutation.mutate(name);
+  // One native sheet at a time; Cancel stops the rest of the batch.
+  const handlePauseAllUnplugged = async () => {
+    for (const pid of energy?.unpluggedSuggestion?.candidatePids ?? []) {
+      try {
+        await pauseMutation.mutateAsync(pid);
+      } catch (e) {
+        if (e instanceof IpcError && e.kind === 'cancelled') return;
+      }
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -99,7 +108,7 @@ export const EnergyPage = () => {
             type="button"
             variant="outline"
             size="sm"
-            onClick={handlePauseAllUnplugged}
+            onClick={() => void handlePauseAllUnplugged()}
             disabled={pauseMutation.isPending}
             className="border-warning-soft text-warning hover:bg-warning-soft"
           >
@@ -163,7 +172,7 @@ export const EnergyPage = () => {
               onClick={() => setFilterCategory(cat)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                 filterCategory === cat
-                  ? 'bg-ember text-white'
+                  ? 'bg-ember text-ember-foreground'
                   : 'border border-border bg-paper text-fg-muted hover:bg-accent hover:text-fg'
               }`}
             >
@@ -176,6 +185,7 @@ export const EnergyPage = () => {
           <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
           <input
             type="text"
+            data-nx-page-search
             placeholder="Search process or PID…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -239,17 +249,33 @@ export const EnergyPage = () => {
                     {proc.energyImpactScore.toFixed(1)}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    {proc.category === 'service' && (
+                    {paused.has(proc.pid) ? (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => handlePauseService(proc.name)}
-                        className="h-6 px-2 text-[10px] text-fg-muted hover:text-destructive"
+                        disabled={resumeMutation.isPending}
+                        onClick={() => resumeMutation.mutate(proc.pid)}
+                        className="h-6 px-2 text-[10px] text-ember-text"
                       >
-                        <Pause className="mr-1 h-3 w-3" />
-                        Pause
+                        <Play className="mr-1 h-3 w-3" />
+                        Resume
                       </Button>
+                    ) : (
+                      (proc.category === 'service' || proc.category === 'watcher') && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Pause ${proc.name}`}
+                          disabled={pauseMutation.isPending}
+                          onClick={() => pauseMutation.mutate(proc.pid)}
+                          className="h-6 px-2 text-[10px] text-fg-muted hover:text-destructive"
+                        >
+                          <Pause className="mr-1 h-3 w-3" />
+                          Pause
+                        </Button>
+                      )
                     )}
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { MoreVertical, RotateCw, Package, Check, Trash2, ListX } from 'lucide-react';
+import { MoreVertical, RotateCw, Package, Check, Trash2, ListX, Stethoscope } from 'lucide-react';
 import { useFormulaVersions, useRestartService, useInstallFormula } from '@/shared/brew';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { removeManaged, renameManaged } from '@/shared/state/serviceIntentSlice';
@@ -10,6 +10,7 @@ import { Spinner } from '@/shared/ui/Spinner';
 // Deep import — the packages barrel re-exports PackagesPage and would chain the
 // whole packages chunk into the default services tab.
 import { UninstallDialog } from '@/features/packages/components/UninstallDialog';
+import { ServiceDiagnosisDialog } from '@/features/services/components/ServiceDiagnosisDialog';
 import type { ReconciledService } from '@/shared/brew';
 
 const itemCls =
@@ -21,6 +22,7 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
   // Warm the versions query on hover so the list is ready by the time it opens.
   const [prime, setPrime] = useState(false);
   const [uninstallOpen, setUninstallOpen] = useState(false);
+  const [diagnoseOpen, setDiagnoseOpen] = useState(false);
   const dispatch = useAppDispatch();
   const restart = useRestartService();
   const install = useInstallFormula();
@@ -50,7 +52,7 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
           <DropdownMenu.Content
             align="end"
             sideOffset={4}
-            className="nx-pop z-[var(--z-dropdown)] min-w-60 rounded-lg border border-border bg-paper p-1 shadow-md"
+            className="nx-pop z-[var(--z-dropdown)] min-w-60 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
           >
             {isRunning && (
               <DropdownMenu.Item
@@ -109,6 +111,15 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
             )}
 
             <DropdownMenu.Separator className="my-1 h-px bg-border" />
+            {installed && (
+              <DropdownMenu.Item
+                className={`${itemCls} text-fg`}
+                onSelect={() => setDiagnoseOpen(true)}
+              >
+                <Stethoscope className="h-4 w-4 text-fg-muted" />
+                Diagnose…
+              </DropdownMenu.Item>
+            )}
             <DropdownMenu.Item
               className={`${itemCls} text-fg`}
               onSelect={() => dispatch(removeManaged(service.formula))}
@@ -128,6 +139,12 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      <ServiceDiagnosisDialog
+        formula={service.formula}
+        displayName={service.displayName}
+        open={diagnoseOpen}
+        onOpenChange={setDiagnoseOpen}
+      />
       {uninstallOpen && (
         <UninstallDialog name={service.formula} onClose={() => setUninstallOpen(false)} />
       )}

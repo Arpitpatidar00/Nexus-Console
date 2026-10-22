@@ -114,6 +114,8 @@ pub async fn backup_delete(app: AppHandle, id: String) -> AppResult<Vec<BackupRe
 
 #[tauri::command]
 pub async fn backup_env_files(app: AppHandle, project_path: String) -> AppResult<BackupRecord> {
+    // Reading project .env files needs the user's consent, checked in Rust.
+    crate::core::consent::require_consent(crate::core::consent::DataSource::ProjectEnv)?;
     let spec = MutationSpec::new(
         "Archive Project .env Files?",
         format!("Create compressed archive of .env files from {project_path}?"),

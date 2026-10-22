@@ -4,6 +4,7 @@ export const macleanKeys = {
   journal: () => ['maclean', 'journal'] as const,
   ghosts: () => ['maclean', 'ghosts'] as const,
   energy: () => ['maclean', 'energy'] as const,
+  paused: () => ['maclean', 'paused'] as const,
   trends: () => ['maclean', 'trends'] as const,
   duplicates: (dirs?: string[]) => ['maclean', 'duplicates', dirs] as const,
 };

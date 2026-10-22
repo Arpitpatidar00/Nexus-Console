@@ -113,7 +113,15 @@ pub fn control_ios_simulator(udid: &str, action: &str) -> AppResult<String> {
             }
         }
         "open" => {
-            let _ = Command::new("open").args(["-a", "Simulator"]).spawn();
+            let status = Command::new("/usr/bin/open")
+                .args(["-a", "Simulator"])
+                .status()
+                .map_err(|e| AppError::Io(format!("open Simulator failed: {e}")))?;
+            if !status.success() {
+                return Err(AppError::NotFound(
+                    "Simulator.app isn't installed — install Xcode first.".into(),
+                ));
+            }
             Ok("Simulator opened".into())
         }
         "erase" => {

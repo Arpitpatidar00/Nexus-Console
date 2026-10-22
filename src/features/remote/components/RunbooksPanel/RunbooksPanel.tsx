@@ -3,6 +3,8 @@ import { Terminal, Plus, Trash2, Play, Copy, Check, BookOpen } from 'lucide-reac
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { Dialog } from '@/shared/ui/Dialog';
+import { Field, Input, Textarea } from '@/shared/ui/Field';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { openTerminal } from '@/shared/state/terminalsSlice';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
@@ -145,77 +147,56 @@ export const RunbooksPanel = ({ host }: Props) => {
         </div>
       )}
 
-      {/* Add Runbook Modal */}
-      {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-hairline bg-card p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-semibold text-fg">Create Server Runbook</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="runbook-name-input"
-                  className="mb-1 block text-xs font-medium text-fg-muted"
-                >
-                  Runbook Title
-                </label>
-                <input
-                  id="runbook-name-input"
-                  type="text"
-                  required
-                  placeholder="e.g. Restart Production Nginx"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-fg focus:ring-1 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="runbook-cmd-input"
-                  className="mb-1 block text-xs font-medium text-fg-muted"
-                >
-                  Shell Command
-                </label>
-                <textarea
-                  id="runbook-cmd-input"
-                  required
-                  rows={3}
-                  placeholder="e.g. sudo nginx -t && sudo systemctl restart nginx"
-                  value={command}
-                  onChange={(e) => setCommand(e.target.value)}
-                  className="w-full rounded-xl border border-hairline bg-canvas px-3 py-2 font-mono text-xs text-fg focus:ring-1 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="runbook-desc-input"
-                  className="mb-1 block text-xs font-medium text-fg-muted"
-                >
-                  Description (Optional)
-                </label>
-                <input
-                  id="runbook-desc-input"
-                  type="text"
-                  placeholder="Brief note on what this command does"
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  className="w-full rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-fg focus:ring-1 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={addRunbook.isPending}>
-                  {addRunbook.isPending ? 'Saving...' : 'Save Runbook'}
-                </Button>
-              </div>
-            </form>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title="Create server runbook"
+        description="A saved command you can run on this server with one click."
+        size="md"
+      >
+        <form onSubmit={handleCreate} className="flex flex-col gap-4">
+          <Field label="Title" htmlFor="runbook-name-input">
+            <Input
+              id="runbook-name-input"
+              required
+              placeholder="e.g. Restart production nginx"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field label="Shell command" htmlFor="runbook-cmd-input">
+            <Textarea
+              id="runbook-cmd-input"
+              required
+              mono
+              rows={3}
+              placeholder="e.g. sudo nginx -t && sudo systemctl restart nginx"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Description"
+            hint="Optional — what this command does."
+            htmlFor="runbook-desc-input"
+          >
+            <Input
+              id="runbook-desc-input"
+              placeholder="Brief note"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addRunbook.isPending}>
+              {addRunbook.isPending ? 'Saving…' : 'Save runbook'}
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
     </div>
   );
 };

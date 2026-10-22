@@ -13,11 +13,14 @@ export const HostList = ({ hosts, activeId, isLoading, onSelect }: HostListProps
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
+    <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1">
       {groupHosts(hosts).map((g) => (
         <section key={g.project} aria-label={g.project} className="space-y-1">
-          <p className="sr-eyebrow px-2 pt-1 pb-1 text-muted-foreground">{g.project}</p>
-          <div className="space-y-1">
+          <p className="flex items-center justify-between px-3 pb-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <span className="truncate">{g.project}</span>
+            <span className="shrink-0 font-normal tabular-nums">{g.hosts.length}</span>
+          </p>
+          <div className="space-y-0.5">
             {g.hosts.map((h) => (
               <HostRow
                 key={h.id}

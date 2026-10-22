@@ -1,3 +1,5 @@
+pub mod diagnose;
+
 use crate::error::{AppError, AppResult};
 use std::process::Command;
 use std::sync::Mutex;

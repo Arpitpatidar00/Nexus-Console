@@ -41,7 +41,7 @@ export function DataTable<T>({
   });
 
   return (
-    <div ref={parentRef} className="h-full overflow-auto">
+    <div ref={parentRef} className="h-full min-h-0 flex-1 overflow-auto">
       <div className="sticky top-0 z-[1] flex border-b border-hairline bg-popover/80 backdrop-blur-md">
         {table.getFlatHeaders().map((h) => {
           const sorted = h.column.getIsSorted();

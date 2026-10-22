@@ -3,7 +3,6 @@ import { Boxes, Check } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   DEFAULT_MODULES,
-  MODULES,
   availableModules,
   useClaudeInstalled,
   visibleTabs,
@@ -47,23 +46,13 @@ export const WelcomeScreen = () => {
     dispatch(setActiveTab(selected.includes('remote') ? 'servers' : visibleTabs(selected)[0]));
   };
 
-  // Plain digits toggle, Enter continues. No modifier, so this can't collide with
-  // the app's Cmd+N shortcuts (which aren't mounted yet anyway).
+  // Enter continues. (Digit toggles were dropped: they indexed MODULES while the
+  // picker shows modules grouped, so "3" toggled a different card than the
+  // third one on screen, and 10+ couldn't be typed at all.)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === 'Enter') {
-        handleContinue();
-        return;
-      }
-      const nth = Number(e.key);
-      if (!Number.isInteger(nth) || nth < 1 || nth > MODULES.length) return;
-      const id = MODULES[nth - 1].id;
-      if (!availableModules([id], { claudeInstalled }).length) return;
-      setSelected((prev) => {
-        const next = prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id];
-        return next.length > 0 ? next : prev; // last one can't go
-      });
+      if (e.key === 'Enter') handleContinue();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -132,56 +121,17 @@ export const WelcomeScreen = () => {
           <FeaturePicker value={selected} onChange={setSelected} />
         </motion.div>
 
-        {/* Opt-in modules row */}
-        {MODULES.some((m) => m.optIn) && (
-          <motion.div
-            {...rise(0.15)}
-            className="flex flex-col gap-2 rounded-xl border border-border bg-paper/60 p-3.5"
-          >
-            <span className="text-xs font-medium text-fg-muted">
-              Also available, turn on when you need them
-            </span>
-            {selected.includes('remote') && (
-              <span className="text-xs text-fg-subtle">
-                Servers next: you&rsquo;ll be asked before ~/.ssh/config is read, then pick which
-                hosts to import.
-              </span>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {MODULES.filter((m) => m.optIn).map((m) => {
-                const checked = selected.includes(m.id);
-                const Icon = m.icon;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() =>
-                      setSelected((prev) =>
-                        prev.includes(m.id) ? prev.filter((id) => id !== m.id) : [...prev, m.id],
-                      )
-                    }
-                    className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      checked
-                        ? 'border-ember bg-ember-soft text-ember-text'
-                        : 'border-border bg-paper text-fg-muted hover:bg-list hover:text-fg'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{m.label}</span>
-                    <span className="rounded bg-canvas/60 px-1 py-0.5 text-[10px] text-fg-subtle">
-                      {checked ? 'On' : 'Off'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
+        {/* FeaturePicker already lists every module, opt-in ones included — the
+            second opt-in row here showed each of them twice. */}
+        {selected.includes('remote') && (
+          <p className="text-xs text-fg-subtle">
+            Servers next: you&rsquo;ll be asked before ~/.ssh/config is read, then pick which hosts
+            to import.
+          </p>
         )}
 
         <motion.footer {...rise(0.18)} className="flex items-center justify-between gap-4">
-          <p className="text-xs text-fg-subtle">
-            {MODULES.length > 0 && `1–${MODULES.length} to toggle · Enter to continue`}
-          </p>
+          <p className="text-xs text-fg-subtle">Enter to continue</p>
           <Button onClick={handleContinue}>Continue</Button>
         </motion.footer>
       </div>

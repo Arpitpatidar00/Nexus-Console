@@ -148,45 +148,54 @@ export const DuplicateFilesCard = () => {
                 </div>
 
                 <div className="divide-y divide-border/40">
-                  {group.files.map((file, idx) => (
-                    <div
-                      key={file.path}
-                      className="flex items-center justify-between rounded px-1 py-2 text-xs transition-colors hover:bg-accent"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          id={`dup-${file.path}`}
-                          checked={selectedPaths.has(file.path)}
-                          onChange={() => toggleSelectPath(file.path)}
-                          className="h-3.5 w-3.5 rounded border-border text-ember-text focus:ring-ember"
-                        />
-                        <div>
-                          <label
-                            htmlFor={`dup-${file.path}`}
-                            className="cursor-pointer font-medium text-fg"
-                          >
-                            {file.path.split('/').pop()}
-                          </label>
-                          <p className="max-w-lg truncate font-mono text-[11px] text-fg-muted">
-                            {file.path}
-                          </p>
+                  {group.files.map((file, idx) => {
+                    // The last unselected copy can't be selected — one copy
+                    // of every file always stays (Rust enforces it too).
+                    const picked = group.files.filter((f) => selectedPaths.has(f.path)).length;
+                    const lastCopy =
+                      !selectedPaths.has(file.path) && picked === group.files.length - 1;
+                    return (
+                      <div
+                        key={file.path}
+                        className="flex items-center justify-between rounded px-1 py-2 text-xs transition-colors hover:bg-accent"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            id={`dup-${file.path}`}
+                            checked={selectedPaths.has(file.path)}
+                            disabled={lastCopy}
+                            title={lastCopy ? 'Keep at least one copy' : undefined}
+                            onChange={() => toggleSelectPath(file.path)}
+                            className="h-3.5 w-3.5 rounded border-border text-ember-text focus:ring-ember"
+                          />
+                          <div>
+                            <label
+                              htmlFor={`dup-${file.path}`}
+                              className="cursor-pointer font-medium text-fg"
+                            >
+                              {file.path.split('/').pop()}
+                            </label>
+                            <p className="max-w-lg truncate font-mono text-[11px] text-fg-muted">
+                              {file.path}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-fg-muted">
+                            {file.modifiedAt > 0
+                              ? new Date(file.modifiedAt * 1000).toLocaleDateString()
+                              : ''}
+                          </span>
+                          {idx === 0 && (
+                            <Badge variant="neutral" className="ml-2 text-[9px]">
+                              Copy 1
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-fg-muted">
-                          {file.modifiedAt > 0
-                            ? new Date(file.modifiedAt * 1000).toLocaleDateString()
-                            : ''}
-                        </span>
-                        {idx === 0 && (
-                          <Badge variant="neutral" className="ml-2 text-[9px]">
-                            Copy 1
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}

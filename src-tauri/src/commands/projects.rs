@@ -1,6 +1,6 @@
 use super::blocking;
 use crate::core::exec::{self, ExecOpts};
-use crate::core::mutation::{mutation_unattended, BlastRadius, MutationSpec};
+use crate::core::mutation::{mutation, mutation_unattended, BlastRadius, MutationSpec};
 use crate::error::{AppError, AppResult};
 use crate::services::projects::discovery::{self, DiscoveredProject};
 use crate::services::projects::git;
@@ -29,21 +29,36 @@ pub async fn projects_git_fetch(_app: AppHandle, path: String) -> AppResult<()> 
 
 #[tauri::command]
 pub async fn projects_delete_merged_branches(
-    _app: AppHandle,
+    app: AppHandle,
     path: String,
     branches: Vec<String>,
 ) -> AppResult<Vec<String>> {
-    let _guard = mutation_unattended(
-        MutationSpec::new(
-            "Delete merged branches",
-            format!("Delete {} merged branch(es) in {}", branches.len(), path),
-            "delete_merged_branches",
-        )
-        .blast_radius(BlastRadius::LocalIsolated)
-        .target(&path)
-        .destructive(true),
-    );
-    blocking(move || git::delete_merged_branches(Path::new(&path), &branches)).await
+    // `git branch -d` is irreversible from the UI — it was one click on
+    // "Prune" with no confirmation. Name the branches in a native sheet.
+    blocking(move || {
+        let shown: Vec<&str> = branches.iter().take(12).map(String::as_str).collect();
+        let more = branches.len().saturating_sub(shown.len());
+        let list = format!(
+            "{}{}",
+            shown.join("\n"),
+            if more > 0 { format!("\n…and {more} more") } else { String::new() }
+        );
+        let guard = mutation(
+            &app,
+            MutationSpec::new(
+                format!("Delete {} merged branch(es)?", branches.len()),
+                format!("These local branches are already merged and will be deleted in {path}:\n\n{list}"),
+                "Delete branches",
+            )
+            .blast_radius(BlastRadius::LocalIsolated)
+            .target(&path)
+            .destructive(true),
+        )?;
+        let deleted = git::delete_merged_branches(Path::new(&path), &branches)?;
+        guard.success(format!("deleted {} branch(es)", deleted.len()));
+        Ok(deleted)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -101,27 +116,36 @@ pub async fn projects_save_workspace(
 
 #[tauri::command]
 pub async fn projects_delete_workspace(app: AppHandle, id: String) -> AppResult<()> {
-    let _guard = mutation_unattended(
-        MutationSpec::new(
-            "Delete workspace",
-            format!("Delete workspace {id}"),
-            "delete_workspace",
-        )
-        .blast_radius(BlastRadius::LocalIsolated)
-        .target(&id)
-        .destructive(true),
-    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
+        let name = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("projects store poisoned".into()))?
+            .workspaces
+            .iter()
+            .find(|x| x.id == id)
+            .map(|x| x.name.clone())
+            .ok_or_else(|| AppError::NotFound(format!("workspace {id}")))?;
+        let guard = mutation(
+            &app,
+            MutationSpec::new(
+                format!("Delete “{name}”?"),
+                "This removes it from Stackroost. Nothing in your project folder is touched.",
+                "Delete workspace",
+            )
+            .blast_radius(BlastRadius::LocalIsolated)
+            .target(&name)
+            .destructive(true),
+        )?;
         let mut store = state
             .store
             .lock()
             .map_err(|_| AppError::Io("projects store poisoned".into()))?;
-
-        store.workspaces.retain(|w| w.id != id);
-
+        store.workspaces.retain(|x| x.id != id);
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
+        guard.success("removed");
         Ok(())
     })
     .await
@@ -548,27 +572,36 @@ pub async fn projects_save_command(
 
 #[tauri::command]
 pub async fn projects_delete_command(app: AppHandle, id: String) -> AppResult<()> {
-    let _guard = mutation_unattended(
-        MutationSpec::new(
-            "Delete command",
-            format!("Delete command {id}"),
-            "delete_command",
-        )
-        .blast_radius(BlastRadius::LocalIsolated)
-        .target(&id)
-        .destructive(true),
-    );
     blocking(move || {
         let state = app.state::<ProjectsState>();
+        let name = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("projects store poisoned".into()))?
+            .commands
+            .iter()
+            .find(|x| x.id == id)
+            .map(|x| x.name.clone())
+            .ok_or_else(|| AppError::NotFound(format!("saved command {id}")))?;
+        let guard = mutation(
+            &app,
+            MutationSpec::new(
+                format!("Delete “{name}”?"),
+                "This removes it from Stackroost. Nothing in your project folder is touched.",
+                "Delete command",
+            )
+            .blast_radius(BlastRadius::LocalIsolated)
+            .target(&name)
+            .destructive(true),
+        )?;
         let mut store = state
             .store
             .lock()
             .map_err(|_| AppError::Io("projects store poisoned".into()))?;
-
-        store.commands.retain(|c| c.id != id);
-
+        store.commands.retain(|x| x.id != id);
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
+        guard.success("removed");
         Ok(())
     })
     .await

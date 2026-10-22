@@ -46,7 +46,7 @@ const RowMenu = ({ actions, file }: { actions: RowAction[]; file: string }) => (
       <DropdownMenu.Content
         align="end"
         sideOffset={4}
-        className="nx-pop z-[var(--z-dropdown)] min-w-40 rounded-lg border border-border bg-paper p-1 shadow-md"
+        className="nx-pop z-[var(--z-dropdown)] min-w-40 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
       >
         {actions.map((a) => (
           <DropdownMenu.Item
@@ -74,9 +74,12 @@ export const ChatRows = ({ chats, selected, onToggle, actions }: ChatRowsProps) 
 
   return (
     <>
-      <ul className="divide-y divide-border">
+      <ul className="divide-y divide-hairline">
         {shown.map((chat) => (
-          <li key={chat.file} className="flex items-center gap-3 px-4 py-2.5">
+          <li
+            key={chat.file}
+            className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-list"
+          >
             <Checkbox
               checked={selected.has(chat.file)}
               onChange={() => onToggle(chat.file)}

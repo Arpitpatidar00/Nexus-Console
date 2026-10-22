@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Cloud, Server, Database, DollarSign, RefreshCw, Search } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
+import { Input, Select } from '@/shared/ui/Field';
 import { useAwsProfiles, useEc2Instances, useS3Buckets, useAwsCosts } from '../api/useCloud';
 import { ConsentGate } from '@/shared/privacy';
 import { RequiresTool } from '@/shared/tools';
@@ -66,29 +67,31 @@ const CloudView = () => {
             <label htmlFor="aws-profile-select" className="text-xs font-semibold text-fg-muted">
               Profile:
             </label>
-            <select
+            <Select
               id="aws-profile-select"
               value={selectedProfile}
               onChange={(e) => setSelectedProfile(e.target.value)}
-              className="rounded border border-border bg-card px-2.5 py-1 text-xs font-medium text-fg shadow-sm focus:outline-none"
+              size="sm"
+              className="w-48"
             >
               {profiles.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="flex items-center gap-2">
             <label htmlFor="aws-region-select" className="text-xs font-semibold text-fg-muted">
               Region:
             </label>
-            <select
+            <Select
               id="aws-region-select"
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value)}
-              className="rounded border border-border bg-card px-2.5 py-1 text-xs font-medium text-fg shadow-sm focus:outline-none"
+              size="sm"
+              className="w-48"
             >
               <option value="">All Regions</option>
               <option value="us-east-1">us-east-1 (N. Virginia)</option>
@@ -96,7 +99,7 @@ const CloudView = () => {
               <option value="eu-west-1">eu-west-1 (Ireland)</option>
               <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
               <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
-            </select>
+            </Select>
           </div>
         </div>
       </div>
@@ -181,11 +184,11 @@ const CloudView = () => {
 
       {/* Tabs & Search */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div className="flex rounded-lg border border-border bg-card/40 p-1">
+        <div className="flex h-9 items-center rounded-full border border-hairline bg-muted p-0.5">
           <button
             type="button"
             onClick={() => setActiveTab('instances')}
-            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex h-8 items-center gap-2 rounded-full px-3 text-xs font-medium transition-colors ${
               activeTab === 'instances'
                 ? 'bg-ember text-ember-foreground shadow-sm'
                 : 'text-fg-muted hover:text-fg'
@@ -197,7 +200,7 @@ const CloudView = () => {
           <button
             type="button"
             onClick={() => setActiveTab('buckets')}
-            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex h-8 items-center gap-2 rounded-full px-3 text-xs font-medium transition-colors ${
               activeTab === 'buckets'
                 ? 'bg-ember text-ember-foreground shadow-sm'
                 : 'text-fg-muted hover:text-fg'
@@ -209,19 +212,24 @@ const CloudView = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-fg-muted" />
-            <input
-              type="text"
-              placeholder={`Filter ${activeTab}...`}
+          <div className="relative w-56">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-fg-muted" />
+            <Input
+              type="search"
+              size="sm"
+              aria-label={`Filter ${activeTab}`}
+              data-nx-page-search
+              placeholder={`Filter ${activeTab === 'instances' ? 'instances' : 'buckets'}…`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="rounded-md border border-border bg-card/60 py-1.5 pr-3 pl-8 text-xs text-fg placeholder:text-fg-muted focus:outline-none"
+              className="pl-8"
             />
           </div>
           <Button
-            variant="ghost"
-            size="sm"
+            variant="glass"
+            size="iconSm"
+            aria-label="Refresh"
+            className="size-9"
             onClick={() => (activeTab === 'instances' ? refetchInstances() : refetchBuckets())}
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -246,11 +254,15 @@ const CloudView = () => {
             </thead>
             <tbody className="divide-y divide-border">
               {instancesError ? (
-                <ErrorPanel
-                  error={instancesError}
-                  fallback="Couldn't list EC2 instances."
-                  onRetry={() => void refetchInstances()}
-                />
+                <tr>
+                  <td colSpan={7} className="p-4">
+                    <ErrorPanel
+                      error={instancesError}
+                      fallback="Couldn't list EC2 instances."
+                      onRetry={() => void refetchInstances()}
+                    />
+                  </td>
+                </tr>
               ) : instancesLoading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
@@ -319,11 +331,15 @@ const CloudView = () => {
             </thead>
             <tbody className="divide-y divide-border">
               {bucketsError ? (
-                <ErrorPanel
-                  error={bucketsError}
-                  fallback="Couldn't list S3 buckets."
-                  onRetry={() => void refetchBuckets()}
-                />
+                <tr>
+                  <td colSpan={3} className="p-4">
+                    <ErrorPanel
+                      error={bucketsError}
+                      fallback="Couldn't list S3 buckets."
+                      onRetry={() => void refetchBuckets()}
+                    />
+                  </td>
+                </tr>
               ) : bucketsLoading ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-fg-muted">

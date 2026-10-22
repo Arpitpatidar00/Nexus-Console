@@ -1,9 +1,9 @@
 import React from 'react';
-import { Bell, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useAppSelector } from '@/shared/state/hooks';
 import { useVisibleNav } from '@/shared/modules';
 import { ThemeToggle } from '@/shared/layout/ThemeToggle';
-import { Button } from '@/shared/ui/Button';
+import { NotificationsMenu } from '@/shared/layout/NotificationsMenu';
 
 interface HeaderProps {
   onOpenCommand: () => void;
@@ -52,15 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand }) => {
 
         <ThemeToggle />
 
-        <Button
-          variant="glass"
-          size="icon"
-          aria-label="Notifications"
-          onClick={onOpenCommand}
-          className="size-11 cursor-pointer rounded-full"
-        >
-          <Bell className="size-5" />
-        </Button>
+        <NotificationsMenu />
       </div>
     </header>
   );

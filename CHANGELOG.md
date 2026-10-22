@@ -6,6 +6,7 @@ Generated from commit history by `npm run changelog` — do not edit by hand.
 
 ### Added
 
+- **audit:** complete Phase G release readiness (G.1-G.5)
 - **audit:** complete Phase F product improvement (F.1-F.8)
 - **audit:** complete Phase E architecture consolidation (E.1-E.7)
 - **audit:** complete Phase C tests and verification

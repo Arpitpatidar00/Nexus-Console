@@ -1,6 +1,6 @@
 [package]
 name = "stackroost"
-version = "0.1.0"
+version = "0.2.0"
 description = "Stackroost — developer desktop console for Homebrew, Ports, Remote Servers, System Doctor, Mac Clean, and Claude Chats"
 authors = ["Arpit <arpitpatidarappi01@gmail.com>"]
 license = "MIT"

@@ -4,6 +4,34 @@ import { formatBytes } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { useDuplicateFiles, useDeleteDuplicates } from '@/features/maclean/api/useMacHealth';
+import { ShortcutBar } from '@/features/maclean/components/ShortcutBar';
+import {
+  downloadsCopies,
+  duplicateBytes,
+  duplicateSelection,
+  type KeepStrategy,
+} from '@/features/maclean/utils/shortcuts';
+
+const same = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
+  a.size === b.size && [...a].every((x) => b.has(x));
+
+const STRATEGIES: { how: KeepStrategy; label: string; hint: string }[] = [
+  {
+    how: 'smart',
+    label: 'Smart pick',
+    hint: 'Keeps one copy per file: outside Downloads first, then the one not named "(1)" or "copy", then the shortest path, then the oldest.',
+  },
+  {
+    how: 'newest',
+    label: 'Keep newest',
+    hint: 'Keeps the most recently modified copy of each file.',
+  },
+  {
+    how: 'oldest',
+    label: 'Keep oldest',
+    hint: 'Keeps the original — the oldest copy of each file.',
+  },
+];
 
 export const DuplicateFilesCard = () => {
   const [hasScanned, setHasScanned] = useState(false);
@@ -38,11 +66,29 @@ export const DuplicateFilesCard = () => {
     });
   };
 
-  // Calculate selected bytes across chosen copies
-  const selectedBytes = groups.reduce((acc, g) => {
-    const countInGroup = g.files.filter((f) => selectedPaths.has(f.path)).length;
-    return acc + countInGroup * g.sizeBytes;
-  }, 0);
+  const selectedBytes = duplicateBytes(groups, selectedPaths);
+  const shortcuts = [
+    ...STRATEGIES.map((st) => {
+      const sel = duplicateSelection(groups, st.how);
+      return {
+        label: st.label,
+        hint: st.hint,
+        bytes: duplicateBytes(groups, sel),
+        active: selectedPaths.size > 0 && same(selectedPaths, sel),
+        onClick: () => setSelectedPaths(sel),
+      };
+    }),
+    (() => {
+      const sel = downloadsCopies(groups);
+      return {
+        label: 'Only copies in Downloads',
+        hint: 'Selects the copies in ~/Downloads; a file that only exists there keeps one copy.',
+        bytes: duplicateBytes(groups, sel),
+        active: selectedPaths.size > 0 && same(selectedPaths, sel),
+        onClick: () => setSelectedPaths(sel),
+      };
+    })(),
+  ];
 
   return (
     <div className="rounded-xl border border-border bg-paper p-5 shadow-sm">
@@ -126,6 +172,11 @@ export const DuplicateFilesCard = () => {
               Select redundant copies to move to .Trash
             </span>
           </div>
+          <ShortcutBar
+            label="One click:"
+            shortcuts={shortcuts}
+            onClear={selectedPaths.size > 0 ? () => setSelectedPaths(new Set()) : undefined}
+          />
 
           <div className="flex flex-col gap-3">
             {groups.map((group) => (

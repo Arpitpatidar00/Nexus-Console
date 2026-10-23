@@ -1,0 +1,93 @@
+{
+  "appData": {
+    "cleanableBytes": 700,
+    "scannedAt": 1792800000,
+    "spots": [
+      {
+        "app": "Gemini",
+        "bytes": 500,
+        "children": [
+          {
+            "bytes": 500,
+            "label": "Task c_1",
+            "modifiedEpoch": 1792700000,
+            "path": "/Users/me/.gemini/tasks/c_1/backup"
+          }
+        ],
+        "id": "gemini_backups",
+        "kind": "agentBackup",
+        "label": "Gemini agent task backups",
+        "note": "Copies of your files.",
+        "paths": [
+          "~/.gemini/tasks"
+        ],
+        "running": false
+      },
+      {
+        "app": "Slack",
+        "bytes": 200,
+        "children": [],
+        "id": "slack_cache",
+        "kind": "cache",
+        "label": "Slack caches",
+        "note": "Quit Slack first.",
+        "paths": [
+          "~/Library/Application Support/Slack/Cache"
+        ],
+        "running": true
+      }
+    ]
+  },
+  "projects": {
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "blocked": null,
+            "bytes": 600,
+            "name": "node_modules",
+            "path": "/Users/me/Desktop/web/node_modules",
+            "rebuild": "npm install"
+          }
+        ],
+        "bytes": 600,
+        "display": "~/Desktop/web",
+        "git": true,
+        "lastActiveEpoch": 1792000000,
+        "name": "web",
+        "path": "/Users/me/Desktop/web",
+        "protectedBy": null,
+        "stacks": [
+          "Node"
+        ]
+      },
+      {
+        "artifacts": [
+          {
+            "blocked": "protected",
+            "bytes": 300,
+            "name": ".next",
+            "path": "/Users/me/Desktop/Acme/client/.next",
+            "rebuild": "next build / next dev"
+          }
+        ],
+        "bytes": 300,
+        "display": "~/Desktop/Acme/client",
+        "git": false,
+        "lastActiveEpoch": 1792700000,
+        "name": "client",
+        "path": "/Users/me/Desktop/Acme/client",
+        "protectedBy": "Acme",
+        "stacks": [
+          "Node"
+        ]
+      }
+    ],
+    "protectedBytes": 300,
+    "roots": [
+      "~/Desktop"
+    ],
+    "scannedAt": 1792800000,
+    "totalBytes": 900
+  }
+}

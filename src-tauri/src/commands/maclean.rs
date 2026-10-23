@@ -4,8 +4,10 @@
 use super::{blocking, confirm_action};
 use crate::context::AppContext;
 use crate::error::{AppError, AppResult};
+use crate::maclean::appdata::{self, AppDataReport};
 use crate::maclean::catalog::{self, Env};
 use crate::maclean::clean::{self, CleanResult, ItemResult};
+use crate::maclean::projects::{self, ProjectsReport};
 use crate::maclean::scan::{self, ScanInputs, StorageReport};
 use crate::maclean::store::{JournalEntry, Rules};
 use crate::maclean::{disk, MacleanState};
@@ -326,6 +328,11 @@ pub async fn maclean_drill(
 #[tauri::command]
 pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
     blocking(move || {
+        // App-data folders are listed as `~/…`.
+        let path = match (path.strip_prefix("~/"), crate::doctor::paths::home()) {
+            (Some(rest), Some(home)) => home.join(rest).to_string_lossy().into_owned(),
+            _ => path,
+        };
         let listed = app
             .state::<MacleanState>()
             .last_report
@@ -335,7 +342,8 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
             .is_some_and(|r| r.large_files.iter().any(|f| f.path == path))
             // Ghost leftovers are revealable too — they're never in large_files,
             // so their Reveal button always failed with Forbidden.
-            || state_ghost_listed(&app, &path);
+            || state_ghost_listed(&app, &path)
+            || state_scan_listed(&app, &path);
         if !listed {
             return Err(AppError::Forbidden(
                 "Only files from the latest scan can be revealed.".into(),
@@ -348,6 +356,33 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
         Ok(())
     })
     .await
+}
+
+/// Projects, their build folders, app-data folders and agent backups from the
+/// latest Projects / Apps & AI scans.
+fn state_scan_listed(app: &AppHandle, path: &str) -> bool {
+    let state = app.state::<MacleanState>();
+    let in_projects = state.last_projects.lock().is_ok_and(|r| {
+        r.as_ref().is_some_and(|r| {
+            r.projects
+                .iter()
+                .any(|p| p.path == path || p.artifacts.iter().any(|a| a.path == path))
+        })
+    });
+    let home = crate::doctor::paths::home();
+    let in_appdata = state.last_appdata.lock().is_ok_and(|r| {
+        r.as_ref().is_some_and(|r| {
+            r.spots.iter().any(|s| {
+                s.children.iter().any(|c| c.path == path)
+                    || s.paths.iter().any(|p| {
+                        home.as_ref()
+                            .and_then(|h| p.strip_prefix("~/").map(|rest| h.join(rest)))
+                            .is_some_and(|abs| abs.to_string_lossy() == path)
+                    })
+            })
+        })
+    });
+    in_projects || in_appdata
 }
 
 fn state_ghost_listed(app: &AppHandle, path: &str) -> bool {
@@ -610,6 +645,231 @@ pub async fn maclean_duplicates_delete(app: AppHandle, paths: Vec<String>) -> Ap
             }
         }
         Ok(freed)
+    })
+    .await
+}
+
+// --- Projects and Apps & AI ----------------------------------------------------
+
+fn home_dir() -> AppResult<std::path::PathBuf> {
+    crate::doctor::paths::home().ok_or_else(|| AppError::NotFound("HOME not set".into()))
+}
+
+/// Delete each item's folders with `safe_rm`, measure what the disk got back,
+/// and journal it like a cleanup-plan run.
+fn delete_and_journal(
+    state: &MacleanState,
+    items: Vec<(String, Vec<std::path::PathBuf>)>,
+    home: &std::path::Path,
+    rules: &Rules,
+) -> CleanResult {
+    let before = disk::disk_stats().map_or(0, |d| d.free_bytes);
+    let items: Vec<ItemResult> = items
+        .into_iter()
+        .map(|(label, paths)| {
+            let errors: Vec<String> = paths
+                .iter()
+                .filter_map(|p| clean::safe_rm(p, home, rules).err())
+                .collect();
+            ItemResult {
+                id: label.clone(),
+                label,
+                ok: errors.is_empty(),
+                message: if errors.is_empty() {
+                    "deleted".into()
+                } else {
+                    errors.join("; ")
+                },
+            }
+        })
+        .collect();
+    // APFS frees asynchronously.
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    let after = disk::disk_stats().map_or(0, |d| d.free_bytes);
+    let result = CleanResult {
+        at_epoch: crate::doctor::claude::now_epoch(),
+        freed_bytes: after.saturating_sub(before),
+        items,
+    };
+    // Best-effort: the deletions already happened.
+    let _ = state.write(|s| {
+        s.append_journal(JournalEntry {
+            at_epoch: result.at_epoch,
+            items: result
+                .items
+                .iter()
+                .filter(|i| i.ok)
+                .map(|i| i.label.clone())
+                .collect(),
+            freed_bytes: result.freed_bytes,
+            errors: result
+                .items
+                .iter()
+                .filter(|i| !i.ok)
+                .map(|i| format!("{}: {}", i.label, i.message))
+                .collect(),
+            auto: false,
+        });
+        Ok(())
+    });
+    result
+}
+
+/// Projects under the project roots and their rebuildable build output.
+/// Lists folders and sizes only; nothing under ~/Library is read.
+#[tauri::command]
+pub async fn maclean_projects_scan(app: AppHandle) -> AppResult<ProjectsReport> {
+    blocking(move || {
+        let state = app.state::<MacleanState>();
+        let _one = state
+            .projects_busy
+            .try_lock()
+            .map_err(|_| AppError::Busy("Projects are already being scanned or cleaned.".into()))?;
+        // Their own flag: resetting the shared one could undo a Cancel on the main scan.
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let rules = state.read()?.rules.clone();
+        let report = projects::scan(&home_dir()?, &rules, &cancel)
+            .ok_or_else(|| AppError::Cancelled("Scan cancelled — nothing was measured.".into()))?;
+        if let Ok(mut last) = state.last_projects.lock() {
+            *last = Some(report.clone());
+        }
+        Ok(report)
+    })
+    .await
+}
+
+/// Delete build output the latest Projects scan listed — each path re-checked
+/// (listed, unprotected, `refuse_reason`) — after a native confirm.
+#[tauri::command]
+pub async fn maclean_clean_projects(app: AppHandle, paths: Vec<String>) -> AppResult<CleanResult> {
+    blocking(move || {
+        let state = app.state::<MacleanState>();
+        let _one = state
+            .projects_busy
+            .try_lock()
+            .map_err(|_| AppError::Busy("Projects are already being scanned or cleaned.".into()))?;
+        let rules = state.read()?.rules.clone();
+        let home = home_dir()?;
+        let report = state
+            .last_projects
+            .lock()
+            .map_err(|_| AppError::Io("projects lock poisoned".into()))?
+            .clone()
+            .ok_or_else(|| AppError::NotFound("Scan projects first.".into()))?;
+        let selected = projects::resolve_selection(&report, &paths, &home, &rules).map_err(AppError::Forbidden)?;
+        if selected.is_empty() {
+            return Err(AppError::NotFound("Nothing selected.".into()));
+        }
+        let total: u64 = selected.iter().map(|(_, a)| a.bytes).sum();
+        let mut lines: Vec<String> = Vec::new();
+        for (p, a) in &selected {
+            lines.push(format!("• {} — {} ({}) → {}", p.display, a.name, fmt(a.bytes), a.rebuild));
+        }
+        let shown = lines.len().min(14);
+        let more = lines.len() - shown;
+        confirm_action(
+            &app,
+            &format!("Delete {} build folder{} ({})?", selected.len(), if selected.len() == 1 { "" } else { "s" }, fmt(total)),
+            &format!(
+                "{}{}\n\nEach comes back with the command shown. Source code, .git and .env files are never touched.",
+                lines[..shown].join("\n"),
+                if more > 0 { format!("\n…and {more} more") } else { String::new() }
+            ),
+            "Delete",
+            true,
+        )?;
+        let items = selected
+            .iter()
+            .map(|(p, a)| (format!("{} · {}", p.name, a.name), vec![std::path::PathBuf::from(&a.path)]))
+            .collect();
+        let result = delete_and_journal(&state, items, &home, &rules);
+        // What was deleted is gone from the report: a second click can't reuse it.
+        if let Ok(mut last) = state.last_projects.lock() {
+            *last = None;
+        }
+        Ok(result)
+    })
+    .await
+}
+
+/// Big per-app folders (AI tools, chat apps, models, VMs), labelled for what
+/// deleting them costs. Reads sizes under ~/Library, so it needs that consent.
+#[tauri::command]
+pub async fn maclean_appdata_scan(app: AppHandle) -> AppResult<AppDataReport> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::LibraryScan)?;
+    blocking(move || {
+        let state = app.state::<MacleanState>();
+        let _one = state
+            .appdata_busy
+            .try_lock()
+            .map_err(|_| AppError::Busy("App data is already being scanned or cleaned.".into()))?;
+        // Their own flag: resetting the shared one could undo a Cancel on the main scan.
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let report = appdata::scan_live(&home_dir()?, &cancel);
+        if let Ok(mut last) = state.last_appdata.lock() {
+            *last = Some(report.clone());
+        }
+        Ok(report)
+    })
+    .await
+}
+
+/// Clear app caches (app closed) and agent backups the latest scan listed.
+#[tauri::command]
+pub async fn maclean_clean_appdata(app: AppHandle, targets: Vec<String>) -> AppResult<CleanResult> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::LibraryScan)?;
+    blocking(move || {
+        let state = app.state::<MacleanState>();
+        let _one = state
+            .appdata_busy
+            .try_lock()
+            .map_err(|_| AppError::Busy("App data is already being scanned or cleaned.".into()))?;
+        let rules = state.read()?.rules.clone();
+        let home = home_dir()?;
+        let report = state
+            .last_appdata
+            .lock()
+            .map_err(|_| AppError::Io("app data lock poisoned".into()))?
+            .clone()
+            .ok_or_else(|| AppError::NotFound("Scan Apps & AI first.".into()))?;
+        let resolved = appdata::resolve(&report, &targets, &home, &rules, &crate::maclean::tools::app_running)
+            .map_err(AppError::Forbidden)?;
+        if resolved.is_empty() {
+            return Err(AppError::NotFound("Nothing selected.".into()));
+        }
+        let size_of = |t: &String| {
+            report
+                .spots
+                .iter()
+                .find(|s| &s.id == t)
+                .map(|s| s.bytes)
+                .or_else(|| report.spots.iter().flat_map(|s| &s.children).find(|c| &c.path == t).map(|c| c.bytes))
+                .unwrap_or(0)
+        };
+        let total: u64 = targets.iter().map(size_of).sum();
+        let backups = resolved.iter().any(|r| r.label.starts_with("Gemini backup"));
+        let lines: Vec<String> = resolved.iter().zip(&targets).map(|(r, t)| format!("• {} ({})", r.label, fmt(size_of(t)))).collect();
+        confirm_action(
+            &app,
+            &format!("Delete {} item{} ({})?", resolved.len(), if resolved.len() == 1 { "" } else { "s" }, fmt(total)),
+            &format!(
+                "{}\n\n{}",
+                lines.join("\n"),
+                if backups {
+                    "Agent backups are copies of your files from before a task. After this, that task can't be undone from its backup."
+                } else {
+                    "Caches only: each app rebuilds them as you use it."
+                }
+            ),
+            "Delete",
+            true,
+        )?;
+        let items = resolved.into_iter().map(|r| (r.label, r.paths)).collect();
+        let result = delete_and_journal(&state, items, &home, &rules);
+        if let Ok(mut last) = state.last_appdata.lock() {
+            *last = None;
+        }
+        Ok(result)
     })
     .await
 }

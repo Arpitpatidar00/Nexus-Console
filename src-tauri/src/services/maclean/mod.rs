@@ -3,6 +3,7 @@
 // Reading is free; every deletion is a whitelisted item id, confirmed natively
 // and journaled.
 
+pub mod appdata;
 pub mod background;
 pub mod catalog;
 pub mod clean;
@@ -14,6 +15,7 @@ pub mod explore;
 pub mod ghost;
 pub mod measure;
 pub mod memory;
+pub mod projects;
 pub mod scan;
 pub mod store;
 pub mod tools;
@@ -41,6 +43,14 @@ pub struct MacleanState {
     pub last_duplicates: Mutex<Option<duplicates::DuplicateReport>>,
     /// Paths from the latest ghost-leftovers scan — Reveal accepts these too.
     pub last_ghost_paths: Mutex<Vec<String>>,
+    /// The latest Projects scan: cleaning only accepts artifacts it listed.
+    pub last_projects: Mutex<Option<projects::ProjectsReport>>,
+    /// One Projects scan or clean at a time (independent of the main scan).
+    pub projects_busy: Mutex<()>,
+    /// One Apps & AI scan or clean at a time.
+    pub appdata_busy: Mutex<()>,
+    /// The latest Apps & AI scan: cleaning only accepts its caches and backups.
+    pub last_appdata: Mutex<Option<appdata::AppDataReport>>,
     /// PIDs Energy paused with SIGSTOP — resumable, and all resumed on quit.
     pub paused: Mutex<std::collections::BTreeSet<i32>>,
 }
@@ -67,6 +77,10 @@ impl MacleanState {
             last_report: Mutex::new(None),
             last_duplicates: Mutex::new(None),
             last_ghost_paths: Mutex::new(Vec::new()),
+            last_projects: Mutex::new(None),
+            last_appdata: Mutex::new(None),
+            projects_busy: Mutex::new(()),
+            appdata_busy: Mutex::new(()),
             paused: Mutex::new(std::collections::BTreeSet::new()),
         }
     }

@@ -38,6 +38,12 @@ const TOOL_DIRS: &[&str] = &[
     "/usr/local/bin",
     "/usr/local/sbin",
     "/Applications/Docker.app/Contents/Resources/bin",
+    // Homebrew's database clients are keg-only: installed, but not linked
+    // into bin/ unless the user runs `brew link --force`.
+    "/opt/homebrew/opt/libpq/bin",
+    "/opt/homebrew/opt/mysql-client/bin",
+    "/usr/local/opt/libpq/bin",
+    "/usr/local/opt/mysql-client/bin",
 ];
 
 /// Pure: `current` with the tool dirs (and `~/.orbstack/bin`) appended when

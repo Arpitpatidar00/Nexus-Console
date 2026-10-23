@@ -1,3 +1,4 @@
+pub mod downloads;
 pub mod launchctl;
 pub mod lsof;
 pub mod plist;

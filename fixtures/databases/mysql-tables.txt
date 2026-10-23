@@ -1,5 +1,0 @@
-Tables_in_appdb
-accounts
-orders
-products
-migrations

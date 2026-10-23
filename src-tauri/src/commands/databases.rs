@@ -6,9 +6,8 @@ use crate::error::{AppError, AppResult};
 use crate::services::databases::apfs::{self, DbSnapshot};
 use crate::services::databases::classifier;
 use crate::services::databases::discovery::{self, DiscoveredDb};
-use crate::services::databases::store::{
-    new_connection_id, DbConnection, QueryResult, TableSummary,
-};
+use crate::services::databases::explorer::{self, BrowsePage, BrowseRequest, DbSchema, Endpoint};
+use crate::services::databases::store::{new_connection_id, DbConnection, QueryResult};
 use crate::services::databases::DatabaseState;
 use std::path::Path;
 use std::time::Duration;
@@ -183,224 +182,101 @@ fn get_conn_password(conn_id: &str) -> Option<String> {
         .flatten()
 }
 
+/// The saved connection as something the explorer can dial: its tunnel's
+/// local port if it has one, and its Keychain password.
+fn endpoint_of(app: &AppHandle, id: &str) -> AppResult<Endpoint> {
+    let state = app.state::<DatabaseState>();
+    let conn = state
+        .store
+        .lock()
+        .map_err(|_| AppError::Io("db store poisoned".into()))?
+        .get(id)
+        .cloned()
+        .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?;
+    let (host, port) = resolve_endpoint(app, &conn);
+    let host = HostName::try_from(host.as_str())?.as_str().to_string();
+    let port = Port::try_from(port)?.as_u16();
+    if let Some(u) = conn.user.as_deref() {
+        DbUser::try_from(u)?;
+    }
+    if let Some(d) = conn.database.as_deref() {
+        DbName::try_from(d)?;
+    }
+    Ok(Endpoint {
+        password: get_conn_password(&conn.id),
+        driver: conn.driver,
+        host,
+        port,
+        user: conn.user,
+        database: conn.database,
+    })
+}
+
+/// Everything about a database in one read: tables, columns, keys, indexes
+/// and foreign keys. Read-only on every engine.
 #[tauri::command]
-pub async fn db_introspect_schema(app: AppHandle, id: String) -> AppResult<Vec<TableSummary>> {
-    let app_clone = app.clone();
+pub async fn db_schema(app: AppHandle, id: String) -> AppResult<DbSchema> {
+    blocking(move || explorer::schema(&endpoint_of(&app, &id)?)).await
+}
+
+/// One page of rows, filtered and sorted, plus how many match.
+#[tauri::command]
+pub async fn db_browse(
+    app: AppHandle,
+    id: String,
+    request: BrowseRequest,
+) -> AppResult<BrowsePage> {
+    blocking(move || explorer::browse(&endpoint_of(&app, &id)?, &request)).await
+}
+
+const EXPORT_EXTENSIONS: &[&str] = &["svg", "png", "mmd", "md", "json", "csv", "txt"];
+const EXPORT_MAX_BYTES: usize = 64 * 1024 * 1024;
+
+/// Save an export (a diagram, rows) to ~/Downloads under a name the frontend
+/// suggests but Rust checks; `base64` carries binary data such as a PNG.
+#[tauri::command]
+pub async fn db_save_export(file_name: String, data: String, base64: bool) -> AppResult<String> {
+    let guard = mutation_unattended(
+        MutationSpec::new(
+            "Save export",
+            format!("Save {file_name} to ~/Downloads"),
+            "db_save_export",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&file_name),
+    );
     blocking(move || {
-        let state = app_clone.state::<DatabaseState>();
-        let conn = {
-            let store = state
-                .store
-                .lock()
-                .map_err(|_| AppError::Io("db store poisoned".into()))?;
-            store
-                .get(&id)
-                .cloned()
-                .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?
-        };
-
-        let (endpoint_host, endpoint_port) = resolve_endpoint(&app_clone, &conn);
-        let valid_host = HostName::try_from(endpoint_host.as_str())?;
-        let valid_port = Port::try_from(endpoint_port)?;
-        let pass = get_conn_password(&conn.id);
-
-        let mut tables = Vec::new();
-        match conn.driver.as_str() {
-            "postgres" => {
-                let user = conn.user.as_deref().unwrap_or("postgres");
-                let db = conn.database.as_deref().unwrap_or("postgres");
-                let valid_user = DbUser::try_from(user)?;
-                let valid_db = DbName::try_from(db)?;
-
-                let mut opts = ExecOpts::default()
-                    .with_timeout(Duration::from_secs(10))
-                    .with_env(
-                        "PGOPTIONS",
-                        "-c default_transaction_read_only=on -c statement_timeout=10000",
-                    );
-                if let Some(ref p) = pass {
-                    opts = opts.with_env("PGPASSWORD", p);
-                }
-
-                // Query table name, schema, row estimates, and total size
-                let out = exec::run(
-                    "psql",
-                    &[
-                        "-h",
-                        valid_host.as_str(),
-                        "-p",
-                        &valid_port.as_u16().to_string(),
-                        "-U",
-                        valid_user.as_str(),
-                        "-d",
-                        valid_db.as_str(),
-                        "-t",
-                        "-c",
-                        "SELECT c.relname, n.nspname, c.reltuples::bigint, pg_size_pretty(pg_total_relation_size(c.oid)) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname;",
-                    ],
-                    opts.clone(),
-                );
-
-                let out = match out {
-                    Ok(o) if o.status.success() => Ok(o),
-                    _ => exec::run(
-                        "psql",
-                        &[
-                            "-h",
-                            valid_host.as_str(),
-                            "-p",
-                            &valid_port.as_u16().to_string(),
-                            "-U",
-                            valid_user.as_str(),
-                            "-d",
-                            valid_db.as_str(),
-                            "-t",
-                            "-c",
-                            "SELECT table_name FROM information_schema.tables WHERE table_schema='public';",
-                        ],
-                        opts,
-                    ),
-                };
-
-                if let Ok(o) = out {
-                    tables = crate::services::databases::parse_psql_tables(
-                        &String::from_utf8_lossy(&o.stdout),
-                        "public",
-                    );
-                }
-            }
-            "mysql" => {
-                let user = conn.user.as_deref().unwrap_or("root");
-                let db = conn.database.as_deref().unwrap_or("mysql");
-                let valid_user = DbUser::try_from(user)?;
-                let valid_db = DbName::try_from(db)?;
-
-                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
-                if let Some(ref p) = pass {
-                    opts = opts.with_env("MYSQL_PWD", p);
-                }
-
-                let out = exec::run(
-                    "mysql",
-                    &[
-                        "-h",
-                        valid_host.as_str(),
-                        "-P",
-                        &valid_port.as_u16().to_string(),
-                        "-u",
-                        valid_user.as_str(),
-                        "-D",
-                        valid_db.as_str(),
-                        "--batch",
-                        "--raw",
-                        "--init-command=SET SESSION TRANSACTION READ ONLY; SET SESSION max_execution_time=10000;",
-                        "-e",
-                        "SELECT TABLE_NAME, TABLE_SCHEMA, COALESCE(TABLE_ROWS, 0) AS estimated_rows, CONCAT(ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2), ' MB') AS size_pretty FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME;",
-                    ],
-                    opts.clone(),
-                );
-
-                let out = match out {
-                    Ok(o) if o.status.success() => Ok(o),
-                    _ => exec::run(
-                        "mysql",
-                        &[
-                            "-h",
-                            valid_host.as_str(),
-                            "-P",
-                            &valid_port.as_u16().to_string(),
-                            "-u",
-                            valid_user.as_str(),
-                            "-D",
-                            valid_db.as_str(),
-                            "--init-command=SET SESSION TRANSACTION READ ONLY; SET SESSION max_execution_time=10000;",
-                            "-e",
-                            "SHOW TABLES;",
-                        ],
-                        opts,
-                    ),
-                };
-
-                if let Ok(o) = out {
-                    tables = crate::services::databases::parse_mysql_tables(
-                        &String::from_utf8_lossy(&o.stdout),
-                        db,
-                    );
-                }
-            }
-            "redis" => {
-                let port_str = valid_port.as_u16().to_string();
-                let mut argv = vec![
-                    "-h",
-                    valid_host.as_str(),
-                    "-p",
-                    port_str.as_str(),
-                ];
-                argv.extend(["SCAN", "0", "COUNT", "100"]);
-                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
-                // REDISCLI_AUTH, not `-a`: argv is visible to every local `ps`.
-                if let Some(ref p) = pass {
-                    opts = opts.with_env("REDISCLI_AUTH", p.as_str());
-                }
-                let out = exec::run("redis-cli", &argv, opts);
-                if let Ok(o) = out {
-                    let text = String::from_utf8_lossy(&o.stdout);
-                    for line in text.lines().skip(1) {
-                        let k = line.trim();
-                        if !k.is_empty() {
-                            tables.push(TableSummary {
-                                name: k.to_string(),
-                                schema: "redis".into(),
-                                estimated_rows: 1,
-                                size_pretty: "—".into(),
-                            });
-                        }
-                    }
-                }
-            }
-            "mongo" | "mongodb" => {
-                let db = conn.database.as_deref().unwrap_or("admin");
-                let port_str = valid_port.as_u16().to_string();
-                let mut argv = vec![
-                    "--host",
-                    valid_host.as_str(),
-                    "--port",
-                    port_str.as_str(),
-                    "--norc",
-                    "--quiet",
-                ];
-                if let Some(ref u) = conn.user {
-                    argv.push("-u");
-                    argv.push(u);
-                }
-                if let Some(ref p) = pass {
-                    argv.push("-p");
-                    argv.push(p);
-                }
-                argv.extend([
-                    "--eval",
-                    "db.getCollectionNames().forEach(c => print(c))",
-                ]);
-                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
-                let out = exec::run("mongosh", &argv, opts);
-                if let Ok(o) = out {
-                    let text = String::from_utf8_lossy(&o.stdout);
-                    for line in text.lines() {
-                        let name = line.trim();
-                        if !name.is_empty() {
-                            tables.push(TableSummary {
-                                name: name.to_string(),
-                                schema: db.to_string(),
-                                estimated_rows: 0,
-                                size_pretty: "—".into(),
-                            });
-                        }
-                    }
-                }
-            }
-            _ => {}
+        let ext = file_name
+            .rsplit_once('.')
+            .map(|(_, e)| e.to_ascii_lowercase());
+        let ok_name = file_name.chars().count() <= 120
+            && !file_name.starts_with('.')
+            && !file_name
+                .chars()
+                .any(|c| c.is_control() || c == '/' || c == ':')
+            && ext
+                .as_deref()
+                .is_some_and(|e| EXPORT_EXTENSIONS.contains(&e));
+        if !ok_name {
+            return Err(AppError::InvalidName(format!(
+                "can't save as {file_name:?}"
+            )));
         }
-        Ok(tables)
+        let bytes = if base64 {
+            crate::core::util::downloads::decode_base64(&data)?
+        } else {
+            data.into_bytes()
+        };
+        if bytes.len() > EXPORT_MAX_BYTES {
+            return Err(AppError::InvalidName("export is larger than 64 MB".into()));
+        }
+        let path = crate::core::util::downloads::destination(&file_name)?;
+        std::fs::write(&path, bytes).map_err(|e| {
+            guard.failure(e.to_string());
+            AppError::Io(format!("couldn't save {}: {e}", path.display()))
+        })?;
+        guard.success(path.display().to_string());
+        Ok(path.display().to_string())
     })
     .await
 }
@@ -441,9 +317,7 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
 
         let (columns, rows) = match conn.driver.as_str() {
             "postgres" => {
-                let user = conn.user.as_deref().unwrap_or("postgres");
                 let db = conn.database.as_deref().unwrap_or("postgres");
-                let valid_user = DbUser::try_from(user)?;
                 let valid_db = DbName::try_from(db)?;
 
                 let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
@@ -457,23 +331,23 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                     opts = opts.with_env("PGPASSWORD", p);
                 }
 
-                let out = exec::run(
-                    "psql",
-                    &[
-                        "-h",
-                        valid_host.as_str(),
-                        "-p",
-                        &valid_port.as_u16().to_string(),
-                        "-U",
-                        valid_user.as_str(),
-                        "-d",
-                        valid_db.as_str(),
-                        "--csv",
-                        "-c",
-                        &sanitized,
-                    ],
-                    opts,
-                )?;
+                let port = valid_port.as_u16().to_string();
+                let mut argv = vec![
+                    "-X",
+                    "-h",
+                    valid_host.as_str(),
+                    "-p",
+                    &port,
+                    "-d",
+                    valid_db.as_str(),
+                ];
+                // No user: psql's default (the macOS user) — what Homebrew's Postgres has.
+                if let Some(u) = conn.user.as_deref().filter(|u| !u.is_empty()) {
+                    DbUser::try_from(u)?;
+                    argv.extend(["-U", u]);
+                }
+                argv.extend(["--csv", "-c", &sanitized]);
+                let out = exec::run("psql", &argv, opts)?;
 
                 if !out.status.success() {
                     let stderr = String::from_utf8_lossy(&out.stderr);

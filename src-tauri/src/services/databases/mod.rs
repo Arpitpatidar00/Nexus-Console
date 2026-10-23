@@ -1,6 +1,7 @@
 pub mod apfs;
 pub mod classifier;
 pub mod discovery;
+pub mod explorer;
 pub mod store;
 
 use std::path::PathBuf;
@@ -90,90 +91,4 @@ pub fn parse_mysql_tsv(stdout: &str) -> (Vec<String>, Vec<Vec<serde_json::Value>
     }
 
     (columns, rows)
-}
-
-pub fn parse_psql_tables(stdout: &str, schema: &str) -> Vec<store::TableSummary> {
-    let mut tables = Vec::new();
-    for line in stdout.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed.starts_with('(')
-            || trimmed.contains("row")
-            || trimmed.starts_with("---")
-            || trimmed.starts_with("List of")
-            || (trimmed.contains("Schema") && trimmed.contains("Name"))
-        {
-            continue;
-        }
-
-        let mut name = trimmed.to_string();
-        let mut est_rows = 0;
-        let mut size = "—".to_string();
-
-        if trimmed.contains('|') {
-            let parts: Vec<&str> = trimmed.split('|').map(str::trim).collect();
-            if parts.len() >= 4 && parts[2].parse::<u64>().is_ok() {
-                name = parts[0].to_string();
-                est_rows = parts[2].parse().unwrap_or(0);
-                size = parts[3].to_string();
-            } else if parts.len() >= 2 {
-                name = parts[1].to_string();
-            } else {
-                name = parts[0].to_string();
-            }
-        } else if trimmed.contains(',') {
-            let parts = parse_csv_line(trimmed);
-            if parts.len() >= 4 {
-                name = parts[0].clone();
-                est_rows = parts[2].parse().unwrap_or(0);
-                size = parts[3].clone();
-            } else if !parts.is_empty() {
-                name = parts[0].clone();
-            }
-        }
-
-        if !name.is_empty() {
-            tables.push(store::TableSummary {
-                name,
-                schema: schema.to_string(),
-                estimated_rows: est_rows,
-                size_pretty: size,
-            });
-        }
-    }
-    tables
-}
-
-pub fn parse_mysql_tables(stdout: &str, schema: &str) -> Vec<store::TableSummary> {
-    let mut tables = Vec::new();
-    for line in stdout.lines().skip(1) {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let parts: Vec<&str> = trimmed.split('\t').map(str::trim).collect();
-        if parts.len() >= 4 {
-            let name = parts[0];
-            let est_rows = parts[2].parse().unwrap_or(0);
-            let size = parts[3].to_string();
-            tables.push(store::TableSummary {
-                name: name.to_string(),
-                schema: parts[1].to_string(),
-                estimated_rows: est_rows,
-                size_pretty: size,
-            });
-        } else {
-            let name = parts[0];
-            if !name.is_empty() {
-                tables.push(store::TableSummary {
-                    name: name.to_string(),
-                    schema: schema.to_string(),
-                    estimated_rows: 0,
-                    size_pretty: "—".to_string(),
-                });
-            }
-        }
-    }
-    tables
 }

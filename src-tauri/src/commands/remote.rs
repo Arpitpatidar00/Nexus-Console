@@ -760,27 +760,14 @@ pub async fn remote_download_file(
     .await
 }
 
-/// `~/Downloads/<basename>`, suffixed ` (2)`, ` (3)`… instead of overwriting.
+/// `~/Downloads/<basename of the remote file>`, never overwriting.
 fn download_destination(remote_path: &str) -> AppResult<std::path::PathBuf> {
     let name = std::path::Path::new(remote_path)
         .file_name()
         .and_then(|n| n.to_str())
         .filter(|n| !n.is_empty() && *n != "." && *n != "..")
         .ok_or_else(|| AppError::InvalidName(format!("not a file: {remote_path}")))?;
-    let dir = crate::doctor::paths::home()
-        .ok_or_else(|| AppError::NotFound("HOME not set".into()))?
-        .join("Downloads");
-    let (stem, ext) = match name.rsplit_once('.') {
-        Some((s, e)) if !s.is_empty() => (s.to_string(), format!(".{e}")),
-        _ => (name.to_string(), String::new()),
-    };
-    let mut candidate = dir.join(name);
-    let mut n = 2;
-    while candidate.exists() {
-        candidate = dir.join(format!("{stem} ({n}){ext}"));
-        n += 1;
-    }
-    Ok(candidate)
+    crate::core::util::downloads::destination(name)
 }
 
 #[tauri::command]

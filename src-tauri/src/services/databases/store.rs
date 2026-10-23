@@ -20,15 +20,6 @@ pub struct DbConnection {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TableSummary {
-    pub name: String,
-    pub schema: String,
-    pub estimated_rows: u64,
-    pub size_pretty: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub columns: Vec<String>,
     pub rows: Vec<Vec<serde_json::Value>>,

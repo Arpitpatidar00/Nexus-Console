@@ -1,0 +1,963 @@
+{
+  "browsePage": {
+    "durationMs": 0,
+    "rows": [
+      {
+        "body": null,
+        "id": 1,
+        "profile": {
+          "theme": "dark"
+        },
+        "tags": [
+          "a"
+        ]
+      }
+    ],
+    "total": 1,
+    "totalCapped": false
+  },
+  "mysql": {
+    "database": "shop",
+    "engine": "mysql",
+    "relations": [
+      {
+        "fromColumns": [
+          "customer_id"
+        ],
+        "fromSchema": "shop",
+        "fromTable": "orders",
+        "inferred": false,
+        "name": "fk_orders_customer",
+        "onDelete": "cascade",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "shop",
+        "toTable": "customers"
+      }
+    ],
+    "schemas": [
+      "shop"
+    ],
+    "serverVersion": "8.4.3",
+    "sizeBytes": 81920,
+    "tables": [
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "int",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": false,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "varchar(255)",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": true,
+            "name": "email",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": null,
+            "method": "btree",
+            "name": "PRIMARY",
+            "primary": true,
+            "unique": true
+          },
+          {
+            "columns": [
+              "email"
+            ],
+            "definition": null,
+            "method": "btree",
+            "name": "email",
+            "primary": false,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "customers",
+        "rowEstimate": 12,
+        "schema": "shop",
+        "sizeBytes": 32768
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "bigint unsigned",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": false,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": "buyer",
+            "dataType": "int",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "customer_id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "datetime",
+            "default": "CURRENT_TIMESTAMP",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "created_at",
+            "nullable": true,
+            "presence": null
+          }
+        ],
+        "comment": "One row per checkout",
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": null,
+            "method": "btree",
+            "name": "PRIMARY",
+            "primary": true,
+            "unique": true
+          },
+          {
+            "columns": [
+              "customer_id",
+              "created_at"
+            ],
+            "definition": null,
+            "method": "btree",
+            "name": "idx_customer_created",
+            "primary": false,
+            "unique": false
+          }
+        ],
+        "kind": "table",
+        "name": "orders",
+        "rowEstimate": 340,
+        "schema": "shop",
+        "sizeBytes": 49152
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "bigint unsigned",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [],
+        "kind": "view",
+        "name": "recent_orders",
+        "rowEstimate": null,
+        "schema": "shop",
+        "sizeBytes": null
+      }
+    ]
+  },
+  "postgres": {
+    "database": "stackroost_explorer_demo",
+    "engine": "postgres",
+    "relations": [
+      {
+        "fromColumns": [
+          "user_id",
+          "plan_code"
+        ],
+        "fromSchema": "billing",
+        "fromTable": "invoices",
+        "inferred": false,
+        "name": "invoices_user_id_plan_code_fkey",
+        "onDelete": "no action",
+        "onUpdate": "cascade",
+        "toColumns": [
+          "user_id",
+          "plan_code"
+        ],
+        "toSchema": "billing",
+        "toTable": "subscriptions"
+      },
+      {
+        "fromColumns": [
+          "plan_code"
+        ],
+        "fromSchema": "billing",
+        "fromTable": "subscriptions",
+        "inferred": false,
+        "name": "subscriptions_plan_code_fkey",
+        "onDelete": "no action",
+        "onUpdate": "no action",
+        "toColumns": [
+          "code"
+        ],
+        "toSchema": "billing",
+        "toTable": "plans"
+      },
+      {
+        "fromColumns": [
+          "user_id"
+        ],
+        "fromSchema": "billing",
+        "fromTable": "subscriptions",
+        "inferred": false,
+        "name": "subscriptions_user_id_fkey",
+        "onDelete": "no action",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "users"
+      },
+      {
+        "fromColumns": [
+          "parent_id"
+        ],
+        "fromSchema": "public",
+        "fromTable": "categories",
+        "inferred": false,
+        "name": "categories_parent_id_fkey",
+        "onDelete": "no action",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "categories"
+      },
+      {
+        "fromColumns": [
+          "post_id"
+        ],
+        "fromSchema": "public",
+        "fromTable": "comments",
+        "inferred": false,
+        "name": "comments_post_id_fkey",
+        "onDelete": "cascade",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "posts"
+      },
+      {
+        "fromColumns": [
+          "user_id"
+        ],
+        "fromSchema": "public",
+        "fromTable": "comments",
+        "inferred": false,
+        "name": "comments_user_id_fkey",
+        "onDelete": "no action",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "users"
+      },
+      {
+        "fromColumns": [
+          "author_id"
+        ],
+        "fromSchema": "public",
+        "fromTable": "posts",
+        "inferred": false,
+        "name": "posts_author_id_fkey",
+        "onDelete": "cascade",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "users"
+      },
+      {
+        "fromColumns": [
+          "category_id"
+        ],
+        "fromSchema": "public",
+        "fromTable": "posts",
+        "inferred": false,
+        "name": "posts_category_id_fkey",
+        "onDelete": "no action",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "categories"
+      },
+      {
+        "fromColumns": [
+          "invited_by"
+        ],
+        "fromSchema": "public",
+        "fromTable": "users",
+        "inferred": false,
+        "name": "users_invited_by_fkey",
+        "onDelete": "set null",
+        "onUpdate": "no action",
+        "toColumns": [
+          "id"
+        ],
+        "toSchema": "public",
+        "toTable": "users"
+      }
+    ],
+    "schemas": [
+      "billing",
+      "public"
+    ],
+    "serverVersion": "16.15 (Homebrew)",
+    "sizeBytes": 8502295,
+    "tables": [
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "integer",
+            "default": "nextval('billing.invoices_id_seq'::regclass)",
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "user_id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "plan_code",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "integer",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "amount_cents",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": "CREATE UNIQUE INDEX invoices_pkey ON billing.invoices USING btree (id)",
+            "method": "btree",
+            "name": "invoices_pkey",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "invoices",
+        "rowEstimate": 1,
+        "schema": "billing",
+        "sizeBytes": 32768
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "code",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "integer",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "price_cents",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "code"
+            ],
+            "definition": "CREATE UNIQUE INDEX plans_pkey ON billing.plans USING btree (code)",
+            "method": "btree",
+            "name": "plans_pkey",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "plans",
+        "rowEstimate": 2,
+        "schema": "billing",
+        "sizeBytes": 32768
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": false,
+            "name": "user_id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": false,
+            "name": "plan_code",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "date",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "started_at",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "user_id",
+              "plan_code"
+            ],
+            "definition": "CREATE UNIQUE INDEX subscriptions_pkey ON billing.subscriptions USING btree (user_id, plan_code)",
+            "method": "btree",
+            "name": "subscriptions_pkey",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "subscriptions",
+        "rowEstimate": 1,
+        "schema": "billing",
+        "sizeBytes": 32768
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "bigint",
+            "default": "nextval('audit_events_id_seq'::regclass)",
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "actor_id",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "action",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "json",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "payload",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "timestamp with time zone",
+            "default": "now()",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "at",
+            "nullable": true,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": "CREATE UNIQUE INDEX audit_events_pkey ON public.audit_events USING btree (id)",
+            "method": "btree",
+            "name": "audit_events_pkey",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "audit_events",
+        "rowEstimate": 0,
+        "schema": "public",
+        "sizeBytes": 16384
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "integer",
+            "default": "nextval('categories_id_seq'::regclass)",
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "name",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "integer",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "parent_id",
+            "nullable": true,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": "CREATE UNIQUE INDEX categories_pkey ON public.categories USING btree (id)",
+            "method": "btree",
+            "name": "categories_pkey",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "categories",
+        "rowEstimate": 3,
+        "schema": "public",
+        "sizeBytes": 32768
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "bigint",
+            "default": "nextval('comments_id_seq'::regclass)",
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "bigint",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "post_id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "user_id",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "body",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "timestamp with time zone",
+            "default": "now()",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "created_at",
+            "nullable": true,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": "CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)",
+            "method": "btree",
+            "name": "comments_pkey",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "comments",
+        "rowEstimate": 24,
+        "schema": "public",
+        "sizeBytes": 32768
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "bigint",
+            "default": "nextval('posts_id_seq'::regclass)",
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "author_id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "integer",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "category_id",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "title",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "body",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text[]",
+            "default": "'{}'::text[]",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "tags",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "boolean",
+            "default": "false",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "published",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "timestamp with time zone",
+            "default": "now()",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "created_at",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": "CREATE UNIQUE INDEX posts_pkey ON public.posts USING btree (id)",
+            "method": "btree",
+            "name": "posts_pkey",
+            "primary": true,
+            "unique": true
+          },
+          {
+            "columns": [
+              "author_id",
+              "created_at"
+            ],
+            "definition": "CREATE INDEX posts_author_created_idx ON public.posts USING btree (author_id, created_at DESC)",
+            "method": "btree",
+            "name": "posts_author_created_idx",
+            "primary": false,
+            "unique": false
+          },
+          {
+            "columns": [
+              "lower(title)"
+            ],
+            "definition": "CREATE INDEX posts_title_lower_idx ON public.posts USING btree (lower(title))",
+            "method": "btree",
+            "name": "posts_title_lower_idx",
+            "primary": false,
+            "unique": false
+          }
+        ],
+        "kind": "table",
+        "name": "posts",
+        "rowEstimate": 120,
+        "schema": "public",
+        "sizeBytes": 106496
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "bigint",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "id",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "author_id",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "title",
+            "nullable": true,
+            "presence": null
+          }
+        ],
+        "comment": null,
+        "indexes": [],
+        "kind": "view",
+        "name": "published_posts",
+        "rowEstimate": null,
+        "schema": "public",
+        "sizeBytes": null
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": "gen_random_uuid()",
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "id",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": true,
+            "name": "email",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "text",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "name",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": "member | admin",
+            "dataType": "text",
+            "default": "'member'::text",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "role",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "jsonb",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "profile",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "uuid",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "invited_by",
+            "nullable": true,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "timestamp with time zone",
+            "default": "now()",
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "created_at",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": "People who can sign in",
+        "indexes": [
+          {
+            "columns": [
+              "id"
+            ],
+            "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+            "method": "btree",
+            "name": "users_pkey",
+            "primary": true,
+            "unique": true
+          },
+          {
+            "columns": [
+              "email"
+            ],
+            "definition": "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)",
+            "method": "btree",
+            "name": "users_email_key",
+            "primary": false,
+            "unique": true
+          }
+        ],
+        "kind": "table",
+        "name": "users",
+        "rowEstimate": 3,
+        "schema": "public",
+        "sizeBytes": 49152
+      }
+    ]
+  }
+}

@@ -5,6 +5,7 @@ import { Field, Input } from '@/shared/ui/Field';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Switch } from '@/shared/ui/Switch';
 import { useAddDbConnection } from '@/features/databases/api/useDatabases';
+import { parseConnectionUrl } from '@/features/databases/utils/connectionUrl';
 import { ENGINES, type Engine } from './AddConnectionDialog.config';
 
 type Env = 'dev' | 'staging' | 'prod';
@@ -26,6 +27,8 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
   const [dataDir, setDataDir] = useState('');
   const [env, setEnv] = useState<Env>('dev');
   const [allowWrites, setAllowWrites] = useState(false);
+  const [url, setUrl] = useState('');
+  const [urlNote, setUrlNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const cfg = ENGINES[engine];
 
@@ -39,7 +42,33 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
     setDataDir('');
   };
 
+  // A pasted DATABASE_URL fills every field; only the fields are saved (the
+  // password goes to the Keychain like a typed one).
+  const fillFromUrl = (text: string) => {
+    setUrl(text);
+    if (!text.trim()) return setUrlNote(null);
+    const p = parseConnectionUrl(text);
+    if ('error' in p) return setUrlNote({ ok: false, text: p.error });
+    setEngine(p.engine);
+    setPort(String(p.port));
+    setHost(p.host);
+    setUser(p.user);
+    setPassword(p.password);
+    setDatabase(p.database);
+    setDataDir('');
+    if (!name.trim()) setName(p.database ? `${p.database} · ${p.host.split('.')[0]}` : p.host);
+    const extra = Object.entries(p.params)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(', ');
+    setUrlNote({
+      ok: true,
+      text: `Filled in below${extra ? ` (${extra})` : ''}. Check the environment before saving.`,
+    });
+  };
+
   const reset = () => {
+    setUrl('');
+    setUrlNote(null);
     pickEngine('postgres');
     setName('');
     setHost('127.0.0.1');
@@ -81,6 +110,22 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
       size="md"
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
+        <Field
+          label="Paste a connection URL"
+          hint={urlNote?.text ?? 'Optional — e.g. a DATABASE_URL. Fills the fields below.'}
+          htmlFor="conn-url"
+        >
+          <Input
+            id="conn-url"
+            mono
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="postgresql://user:password@host:5432/db"
+            value={url}
+            onChange={(e) => fillFromUrl(e.target.value)}
+            aria-invalid={urlNote?.ok === false || undefined}
+          />
+        </Field>
         <SegmentedControl<Engine>
           ariaLabel="Database engine"
           value={engine}

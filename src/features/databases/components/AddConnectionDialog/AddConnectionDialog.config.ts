@@ -14,7 +14,8 @@ export const ENGINES: Record<Engine, EngineConfig> = {
   postgres: {
     label: 'PostgreSQL',
     port: 5432,
-    user: { placeholder: 'postgres', default: 'postgres' },
+    // Blank = psql's default, the macOS user: Homebrew's Postgres has no `postgres` role.
+    user: { placeholder: 'Your macOS user', default: '' },
     database: { label: 'Database', placeholder: 'postgres' },
     dataDir: '/opt/homebrew/var/postgresql@16',
   },

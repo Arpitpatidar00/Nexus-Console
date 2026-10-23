@@ -2,9 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use stackroost_lib::services::cloud::{parse_cost_explorer_json, parse_ec2_instances_json};
-use stackroost_lib::services::databases::{
-    parse_csv_line, parse_mysql_tables, parse_mysql_tsv, parse_psql_csv, parse_psql_tables,
-};
+use stackroost_lib::services::databases::{parse_csv_line, parse_mysql_tsv, parse_psql_csv};
 use stackroost_lib::services::devices::{parse_emulator_avds, parse_simctl_json};
 use stackroost_lib::services::doctor::system::{parse_ioreg_num, parse_low_power};
 use stackroost_lib::services::domains::{
@@ -252,74 +250,6 @@ fn test_docker_containers_unicode() {
 // ============================================================================
 // 3. DATABASES PARSER TESTS (PSQL & MYSQL)
 // ============================================================================
-
-#[test]
-fn test_databases_psql_fixture_happy() {
-    let content = read_fixture("databases/psql-tables.txt");
-    let tables = parse_psql_tables(&content, "public");
-    assert_eq!(tables.len(), 4);
-    assert_eq!(tables[0].name, "users");
-    assert_eq!(tables[0].schema, "public");
-    assert_eq!(tables[1].name, "sessions");
-    assert_eq!(tables[2].name, "audit_logs");
-    assert_eq!(tables[3].name, "projects");
-}
-
-#[test]
-fn test_databases_psql_empty() {
-    let tables = parse_psql_tables("", "public");
-    assert!(tables.is_empty());
-}
-
-#[test]
-fn test_databases_psql_malformed() {
-    let text = " (0 rows)\n\n(12 rows)\n   \n";
-    let tables = parse_psql_tables(text, "public");
-    assert!(tables.is_empty());
-}
-
-#[test]
-fn test_databases_psql_unicode() {
-    let text = " пользователи_таблица \n заказы_2026_🚀 \n table_with_special$ \n";
-    let tables = parse_psql_tables(text, "public");
-    assert_eq!(tables.len(), 3);
-    assert_eq!(tables[0].name, "пользователи_таблица");
-    assert_eq!(tables[1].name, "заказы_2026_🚀");
-}
-
-#[test]
-fn test_databases_mysql_fixture_happy() {
-    let content = read_fixture("databases/mysql-tables.txt");
-    let tables = parse_mysql_tables(&content, "appdb");
-    assert_eq!(tables.len(), 4);
-    assert_eq!(tables[0].name, "accounts");
-    assert_eq!(tables[0].schema, "appdb");
-    assert_eq!(tables[1].name, "orders");
-    assert_eq!(tables[2].name, "products");
-    assert_eq!(tables[3].name, "migrations");
-}
-
-#[test]
-fn test_databases_mysql_empty() {
-    let tables = parse_mysql_tables("", "test_db");
-    assert!(tables.is_empty());
-}
-
-#[test]
-fn test_databases_mysql_malformed() {
-    let text = "Tables_in_app_production\n"; // Only header, no rows
-    let tables = parse_mysql_tables(text, "app_production");
-    assert!(tables.is_empty());
-}
-
-#[test]
-fn test_databases_mysql_unicode() {
-    let text = "Tables_in_app\nтаблица_клиентов\nproduct_catalog_🛍️\n";
-    let tables = parse_mysql_tables(text, "app");
-    assert_eq!(tables.len(), 2);
-    assert_eq!(tables[0].name, "таблица_клиентов");
-    assert_eq!(tables[1].name, "product_catalog_🛍️");
-}
 
 #[test]
 fn test_databases_parse_csv_line_quoted() {

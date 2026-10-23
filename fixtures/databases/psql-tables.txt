@@ -1,8 +1,0 @@
-              List of relations
- Schema |       Name        | Type  |  Owner   
---------+-------------------+-------+----------
- public | users             | table | postgres
- public | sessions          | table | postgres
- public | audit_logs        | table | postgres
- public | projects          | table | postgres
-(4 rows)

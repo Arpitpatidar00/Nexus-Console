@@ -5,12 +5,10 @@ import { dbKeys } from './keys';
 import {
   discoveredDbSchema,
   dbConnectionSchema,
-  tableSummarySchema,
   queryResultSchema,
   dbSnapshotSchema,
   type DiscoveredDb,
   type DbConnection,
-  type TableSummary,
   type QueryResult,
   type DbSnapshot,
 } from './databases.schema';
@@ -60,14 +58,6 @@ export function useRemoveDbConnection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dbKeys.connections() });
     },
-  });
-}
-
-export function useDbSchema(id: string | null) {
-  return useQuery<TableSummary[]>({
-    queryKey: dbKeys.schema(id ?? ''),
-    queryFn: () => ipc(CMD.DB_INTROSPECT_SCHEMA, { id: id! }, z.array(tableSummarySchema)),
-    enabled: Boolean(id),
   });
 }
 

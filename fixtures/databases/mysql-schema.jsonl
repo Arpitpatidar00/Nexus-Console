@@ -1,0 +1,16 @@
+{"k": "meta", "database": "shop", "sizeBytes": 81920, "serverVersion": "8.4.3"}
+{"k": "table", "kind": "table", "name": "customers", "comment": null, "sizeBytes": 32768, "rowEstimate": 12}
+{"k": "table", "kind": "table", "name": "orders", "comment": "One row per checkout", "sizeBytes": 49152, "rowEstimate": 340}
+{"k": "table", "kind": "view", "name": "recent_orders", "comment": null, "sizeBytes": null, "rowEstimate": null}
+{"k": "column", "name": "id", "table": "customers", "comment": null, "default": null, "isUnique": 0, "nullable": 0, "dataType": "int", "isPrimary": 1}
+{"k": "column", "name": "email", "table": "customers", "comment": null, "default": null, "isUnique": 1, "nullable": 0, "dataType": "varchar(255)", "isPrimary": 0}
+{"k": "column", "name": "id", "table": "orders", "comment": null, "default": null, "isUnique": 0, "nullable": 0, "dataType": "bigint unsigned", "isPrimary": 1}
+{"k": "column", "name": "customer_id", "table": "orders", "comment": "buyer", "default": null, "isUnique": 0, "nullable": 0, "dataType": "int", "isPrimary": 0}
+{"k": "column", "name": "created_at", "table": "orders", "comment": null, "default": "CURRENT_TIMESTAMP", "isUnique": 0, "nullable": 1, "dataType": "datetime", "isPrimary": 0}
+{"k": "column", "name": "id", "table": "recent_orders", "comment": null, "default": null, "isUnique": 0, "nullable": 0, "dataType": "bigint unsigned", "isPrimary": 0}
+{"k": "index", "name": "PRIMARY", "table": "customers", "column": "id", "method": "BTREE", "unique": 1}
+{"k": "index", "name": "email", "table": "customers", "column": "email", "method": "BTREE", "unique": 1}
+{"k": "index", "name": "PRIMARY", "table": "orders", "column": "id", "method": "BTREE", "unique": 1}
+{"k": "index", "name": "idx_customer_created", "table": "orders", "column": "customer_id", "method": "BTREE", "unique": 0}
+{"k": "index", "name": "idx_customer_created", "table": "orders", "column": "created_at", "method": "BTREE", "unique": 0}
+{"k": "fk", "name": "fk_orders_customer", "table": "orders", "column": "customer_id", "toSchema": "shop", "toTable": "customers", "toColumn": "id", "onDelete": "cascade", "onUpdate": "no action"}

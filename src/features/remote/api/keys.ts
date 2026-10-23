@@ -11,6 +11,8 @@ export const remoteKeys = {
   note: (id: string) => ['remote', 'note', id] as const,
   inspection: (id: string) => ['remote', 'inspection', id] as const,
   diskReport: (id: string) => ['remote', 'diskReport', id] as const,
+  containerLogs: (id: string, container: string, tail: number) =>
+    ['remote', 'containerLogs', id, container, tail] as const,
   files: (id: string, path: string) => ['remote', 'files', id, path] as const,
   fileContent: (id: string, path: string, reveal: boolean) =>
     ['remote', 'fileContent', id, path, reveal] as const,

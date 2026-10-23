@@ -9,6 +9,7 @@ use crate::remote::docker::{self, ComposeAction, DockerAction};
 use crate::remote::files::{self, RemoteFileContent, RemoteFileEntry};
 use crate::remote::history::{Incident, SnapshotDiff, SnapshotSummary};
 use crate::remote::inspection::{self, InspectionData};
+use crate::remote::logs::{self, ContainerLogs};
 use crate::remote::notes::HostNote;
 use crate::remote::probe::{self, HostSnapshot};
 use crate::remote::runbooks::{new_runbook_id, RunbookItem};
@@ -80,8 +81,10 @@ pub struct ScannedHost {
     imported: bool,
 }
 
-/// Concrete aliases from ssh_config, each resolved through `ssh -G`.
-/// An alias ssh can't resolve is left out rather than failing the scan.
+/// Concrete aliases from ssh_config, each resolved through `ssh -G`, one row per
+/// server: aliases reaching the same target collapse into the first, and the
+/// row counts as imported if any of them is. An alias ssh can't resolve is left
+/// out rather than failing the scan.
 #[tauri::command]
 pub async fn remote_scan_config(app: AppHandle) -> AppResult<Vec<ScannedHost>> {
     blocking(move || {
@@ -94,21 +97,21 @@ pub async fn remote_scan_config(app: AppHandle) -> AppResult<Vec<ScannedHost>> {
                 .iter()
                 .map(|a| s.spawn(move || (a.clone(), config::resolve(a))))
                 .collect();
-            hs.into_iter().filter_map(|h| h.join().ok()).collect()
+            hs.into_iter()
+                .filter_map(|h| h.join().ok())
+                .filter_map(|(a, r)| Some((a, r.ok()?)))
+                .collect()
         });
         let store = state.read()?;
-        Ok(resolved
+        Ok(config::group_by_target(resolved)
             .into_iter()
-            .filter_map(|(alias, r)| {
-                let r = r.ok()?;
-                Some(ScannedHost {
-                    imported: store.has_alias(&alias),
-                    alias,
-                    hostname: r.hostname,
-                    user: r.user,
-                    port: r.port,
-                    proxy_jump: r.proxy_jump,
-                })
+            .map(|(aliases, r)| ScannedHost {
+                imported: aliases.iter().any(|a| store.has_alias(a)),
+                alias: aliases.into_iter().next().unwrap_or_default(),
+                hostname: r.hostname,
+                user: r.user,
+                port: r.port,
+                proxy_jump: r.proxy_jump,
             })
             .collect())
     })
@@ -373,7 +376,7 @@ pub async fn remote_status(app: AppHandle) -> AppResult<Vec<HostStatus>> {
 pub async fn remote_snapshot(app: AppHandle, id: String) -> AppResult<HostSnapshot> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         let snap = with_host_lock(&state, &id, || probe::run(&target))?;
         state.remember_snapshot(&id, &snap);
         Ok(snap)
@@ -435,7 +438,7 @@ pub struct AddTunnelInput {
 pub async fn remote_add_tunnel(app: AppHandle, input: AddTunnelInput) -> AppResult<TunnelConfig> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        validate_display_text(&input.name, "tunnel name")?;
+        let name = validate_display_text("tunnel name", &input.name)?;
         validate_port(input.local_port as u32)?;
         validate_port(input.remote_port as u32)?;
         let remote_host = input.remote_host.unwrap_or_else(|| "127.0.0.1".to_string());
@@ -444,7 +447,7 @@ pub async fn remote_add_tunnel(app: AppHandle, input: AddTunnelInput) -> AppResu
         let config = TunnelConfig {
             id: new_tunnel_id(),
             host_id: input.host_id,
-            name: input.name,
+            name,
             local_port: input.local_port,
             remote_host,
             remote_port: input.remote_port,
@@ -485,7 +488,7 @@ pub async fn remote_update_tunnel(
     blocking(move || {
         let state = app.state::<RemoteState>();
         if let Some(ref name) = patch.name {
-            validate_display_text(name, "tunnel name")?;
+            validate_display_text("tunnel name", name)?;
         }
         if let Some(port) = patch.local_port {
             validate_port(port as u32)?;
@@ -605,8 +608,26 @@ pub async fn remote_compose_action(
 pub async fn remote_inspect_services(app: AppHandle, id: String) -> AppResult<InspectionData> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         inspection::inspect_host(&target)
+    })
+    .await
+}
+
+/// Recent lines of one container's log, oldest first. Read-only; the name must
+/// be in the host's latest snapshot (same check as container actions).
+#[tauri::command]
+pub async fn remote_container_logs(
+    app: AppHandle,
+    id: String,
+    container: String,
+    tail: u32,
+) -> AppResult<ContainerLogs> {
+    blocking(move || {
+        let state = app.state::<RemoteState>();
+        let c = state.known_container(&id, &container)?;
+        let target = state.connected_target(&id)?;
+        logs::container_logs(&target, &c.name, tail)
     })
     .await
 }
@@ -615,7 +636,7 @@ pub async fn remote_inspect_services(app: AppHandle, id: String) -> AppResult<In
 pub async fn remote_disk_report(app: AppHandle, id: String) -> AppResult<ServerDiskReport> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         cleanup::get_disk_report(&target)
     })
     .await
@@ -663,7 +684,7 @@ pub async fn remote_list_files(
 ) -> AppResult<Vec<RemoteFileEntry>> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         files::list_directory(&target, &path)
     })
     .await
@@ -678,7 +699,7 @@ pub async fn remote_read_file(
 ) -> AppResult<RemoteFileContent> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         files::read_file(&target, &path, reveal)
     })
     .await
@@ -701,7 +722,7 @@ pub async fn remote_download_file(
     );
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         let host = {
             let s = state.read()?;
             s.host(&id)?.clone()
@@ -776,7 +797,7 @@ pub async fn remote_upload_file(
         let (host, target) = {
             let s = state.read()?;
             let h = s.host(&id)?.clone();
-            let t = state.target(&id)?;
+            let t = state.connected_target(&id)?;
             (h, t)
         };
 
@@ -933,7 +954,7 @@ pub struct AddRunbookInput {
 pub async fn remote_add_runbook(app: AppHandle, input: AddRunbookInput) -> AppResult<RunbookItem> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        validate_display_text(&input.name, "runbook name")?;
+        validate_display_text("runbook name", &input.name)?;
         if input.command.trim().is_empty() {
             return Err(AppError::InvalidName("command cannot be empty".into()));
         }
@@ -1048,7 +1069,7 @@ pub async fn remote_preview_deploy(
 ) -> AppResult<DeployPreview> {
     blocking(move || {
         let state = app.state::<RemoteState>();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         deploys::preview_deploy(&target, &project)
     })
     .await
@@ -1082,7 +1103,7 @@ pub async fn remote_execute_deploy(
             },
             prod,
         )?;
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         let res = deploys::execute_deploy(&target, &id, &project, services)?;
 
         let mut d = state
@@ -1128,7 +1149,7 @@ pub async fn remote_rollback_deploy(
             host.env == Env::Prod,
         )?;
 
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         let res = deploys::rollback_deploy(&target, &record)?;
 
         let mut d = state
@@ -1177,7 +1198,7 @@ pub async fn remote_promote_env(
             target_host.env == Env::Prod,
         )?;
 
-        let target_ssh = state.target(&target_id)?;
+        let target_ssh = state.connected_target(&target_id)?;
         let res = deploys::execute_deploy(&target_ssh, &target_id, &project, vec![])?;
 
         let mut d = state
@@ -1203,7 +1224,7 @@ pub async fn remote_push_image(
         crate::core::validate::ImageRef::try_from(image.as_str())?;
         let state = app.state::<RemoteState>();
         let host = state.read()?.host(&id)?.clone();
-        let target = state.target(&id)?;
+        let target = state.connected_target(&id)?;
         // Loads an image into the server's Docker — a remote mutation that
         // used to run with no confirmation and no journal entry.
         let guard = crate::core::mutation::mutation(
@@ -1231,4 +1252,110 @@ pub async fn remote_push_image(
         }
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::remote::history::{diff_summaries, SnapshotSummary};
+    use crate::remote::notes::HostNote;
+    use crate::remote::{cleanup, files, inspection};
+    use std::collections::HashMap;
+
+    /// The wire format of the Servers detail DTOs, built with the real parsers.
+    /// `src/features/remote/api/contracts.test.ts` parses this file with the zod
+    /// schemas, so a field renamed on either side fails a test. Regenerate with
+    /// `UPDATE_GOLDEN=1 cargo test golden`.
+    #[test]
+    fn dto_contracts_golden() {
+        let prev = SnapshotSummary {
+            at_epoch: 100,
+            container_names: vec!["api".into(), "web".into()],
+            container_images: HashMap::from([("web".into(), "app:v1".into())]),
+            container_restarts: HashMap::from([("web".into(), 0)]),
+            disk_usage_pct: 40,
+            failed_units: vec![],
+            critical_finding_ids: vec![],
+        };
+        let curr = SnapshotSummary {
+            at_epoch: 200,
+            container_names: vec!["web".into(), "worker".into()],
+            container_images: HashMap::from([("web".into(), "app:v2".into())]),
+            container_restarts: HashMap::from([("web".into(), 1)]),
+            disk_usage_pct: 47,
+            failed_units: vec!["nginx.service".into()],
+            critical_finding_ids: vec!["disk_full".into()],
+        };
+        let history = HostHistoryDto {
+            latest_diff: Some(diff_summaries(&prev, &curr)),
+            summaries: vec![prev, curr],
+            incidents: vec![crate::remote::history::Incident {
+                id: "inc_h_1_200".into(),
+                host_id: "h_1".into(),
+                title: "disk_full".into(),
+                opened_at_epoch: 200,
+                resolved_at_epoch: None,
+            }],
+        };
+        let inspection = inspection::parse_inspection(
+            "===NGINX_STATUS===\ninstalled\nactive\n===NGINX_SITES===\n\
+             @@FILE:/etc/nginx/conf.d/app.conf\n\
+             upstream web_dev { server 127.0.0.1:3101; }\n\
+             server {\n listen 443 ssl;\n server_name dev.example.com;\n\
+             location /api/ { proxy_pass http://127.0.0.1:4101/; } # backend\n\
+             location / { proxy_pass http://web_dev; }\n}\n\
+             ===CRON_USER===\n0 * * * * /app/cleanup.sh\n\
+             ===CRON_SYSTEM===\nCROND:certbot\n0 12 * * * root certbot renew -q\n",
+        );
+        let disk = cleanup::parse_disk_report(
+            "===DOCKER_DF===\nTYPE TOTAL ACTIVE SIZE RECLAIMABLE\n\
+             Images 12 4 4.5GB 2.8GB (62%)\n===JOURNAL_USAGE===\n\
+             Archived and active journals take up 144.0M in the file system.\n\
+             ===LOG_SIZES===\n50M\t/var/log/journal\n",
+        );
+        let entries = files::parse_ls_output(
+            "-rw-r--r-- 1 ubuntu ubuntu 123 1700000100 .env.prod\n",
+            "/app",
+        );
+        let json = serde_json::to_string_pretty(&serde_json::json!({
+            "history": history,
+            "inspection": inspection,
+            "diskReport": disk,
+            "pruneResult": cleanup::PruneResult {
+                reclaimed: "2.1GB".into(),
+                message: "Deleted build cache".into(),
+            },
+            "fileEntry": entries[0],
+            "fileContent": files::RemoteFileContent {
+                path: "/app/.env.prod".into(),
+                content: "API_KEY=***".into(),
+                size_bytes: 123,
+                is_secret: true,
+                is_masked: true,
+            },
+            "containerLogs": logs::ContainerLogs {
+                container: "fameo-dev-api-1".into(),
+                tail: 500,
+                lines: logs::parse_logs(
+                    "2026-10-23T12:14:50.155500608Z server listening on 4101\nplain line\n",
+                ),
+            },
+            "note": HostNote {
+                host_id: "h_1".into(),
+                content: "Deploy from main only".into(),
+                updated_at_epoch: 1_700_000_000,
+            },
+        }))
+        .unwrap()
+            + "\n";
+        let path = format!(
+            "{}/../fixtures/remote/contracts.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        if std::env::var_os("UPDATE_GOLDEN").is_some() {
+            std::fs::write(&path, &json).unwrap();
+        }
+        let golden = std::fs::read_to_string(&path).unwrap_or_default();
+        assert_eq!(json, golden, "DTO JSON changed; rerun with UPDATE_GOLDEN=1");
+    }
 }

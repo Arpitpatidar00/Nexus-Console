@@ -20,3 +20,14 @@ export function guessEnv(alias: string): HostEnv {
   if (word('dev|development|test|sandbox')) return 'dev';
   return 'other';
 }
+
+/** `127.0.0.1:4101`, `localhost:4101`, `[::1]:4101` or `:4101` → host + port, so
+ * a pasted address fills both tunnel fields. A bare host (or IPv6 without
+ * brackets) has no port. */
+export function splitHostPort(input: string): { host: string; port: number | null } {
+  const s = input.trim();
+  const m = /^\[([^\]]+)\]:(\d{1,5})$/.exec(s) ?? /^([^:]*):(\d{1,5})$/.exec(s);
+  if (!m) return { host: s.replace(/^\[(.*)\]$/, '$1'), port: null };
+  const port = Number(m[2]);
+  return port >= 1 && port <= 65535 ? { host: m[1] || '127.0.0.1', port } : { host: s, port: null };
+}

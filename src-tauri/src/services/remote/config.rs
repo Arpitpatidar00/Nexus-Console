@@ -202,6 +202,23 @@ pub fn resolve(alias: &str) -> AppResult<ResolvedHost> {
     parse_ssh_g(&String::from_utf8_lossy(&out.stdout))
 }
 
+/// Group aliases that reach the same `(hostname, user, port)`: one `Host` line
+/// often carries several names for one server (`Host prod prod.old`). Groups
+/// keep file order; the first alias in each is the one to show.
+pub fn group_by_target(resolved: Vec<(String, ResolvedHost)>) -> Vec<(Vec<String>, ResolvedHost)> {
+    let mut groups: Vec<(Vec<String>, ResolvedHost)> = Vec::new();
+    for (alias, r) in resolved {
+        match groups
+            .iter_mut()
+            .find(|(_, g)| g.hostname == r.hostname && g.user == r.user && g.port == r.port)
+        {
+            Some((aliases, _)) => aliases.push(alias),
+            None => groups.push((vec![alias], r)),
+        }
+    }
+    groups
+}
+
 pub fn parse_ssh_g(out: &str) -> AppResult<ResolvedHost> {
     let mut hostname = None;
     let mut user = None;
@@ -356,6 +373,33 @@ mod tests {
         assert_eq!(r.port, 2222);
 
         assert!(parse_ssh_g("garbage").is_err());
+    }
+
+    #[test]
+    fn groups_aliases_of_the_same_server() {
+        let host = |hostname: &str, user: &str| ResolvedHost {
+            hostname: hostname.into(),
+            user: user.into(),
+            port: 22,
+            proxy_jump: None,
+            identity_files: vec![],
+        };
+        let groups = group_by_target(vec![
+            ("Vip-Prod".into(), host("i-07ef", "ec2-user")),
+            ("vip-prod".into(), host("i-07ef", "ec2-user")),
+            ("Vip-Dev".into(), host("i-023a", "ec2-user")),
+            ("vip.prod".into(), host("i-07ef", "ec2-user")),
+            ("vip-prod-root".into(), host("i-07ef", "root")),
+        ]);
+        let aliases: Vec<_> = groups.iter().map(|(a, _)| a.clone()).collect();
+        assert_eq!(
+            aliases,
+            [
+                vec!["Vip-Prod", "vip-prod", "vip.prod"],
+                vec!["Vip-Dev"],
+                vec!["vip-prod-root"],
+            ]
+        );
     }
 
     #[test]

@@ -200,35 +200,51 @@ export type RemoteJournalEntry = z.infer<typeof journalEntrySchema>;
 export const composeActionSchema = z.enum(['start', 'stop', 'restart']);
 export type ComposeAction = z.infer<typeof composeActionSchema>;
 
-export const nginxSiteSchema = z.object({
-  name: z.string(),
+// Mirrors services/remote/inspection.rs: one entry per nginx `server` block.
+export const nginxRouteSchema = z.object({
   path: z.string(),
-  enabled: z.boolean(),
-  listenPorts: z.array(z.number()),
+  target: z.string(),
+  note: z.string().nullable(),
+});
+export type NginxRoute = z.infer<typeof nginxRouteSchema>;
+
+export const nginxSiteSchema = z.object({
+  file: z.string(),
   serverNames: z.array(z.string()),
+  listenPorts: z.array(z.number()),
   ssl: z.boolean(),
-  proxyPasses: z.array(z.string()),
+  redirectOnly: z.boolean(),
+  routes: z.array(nginxRouteSchema),
 });
 export type NginxSite = z.infer<typeof nginxSiteSchema>;
 
+export const nginxUpstreamSchema = z.object({
+  name: z.string(),
+  servers: z.array(z.string()),
+});
+export type NginxUpstream = z.infer<typeof nginxUpstreamSchema>;
+
 export const cronJobSchema = z.object({
+  source: z.string(),
+  user: z.string().nullable(),
   schedule: z.string(),
   command: z.string(),
-  user: z.string(),
-  source: z.string(),
 });
 export type CronJob = z.infer<typeof cronJobSchema>;
 
 export const inspectionDataSchema = z.object({
   nginxInstalled: z.boolean(),
-  nginxRunning: z.boolean(),
+  nginxActive: z.boolean(),
   nginxSites: z.array(nginxSiteSchema),
+  upstreams: z.array(nginxUpstreamSchema),
   cronJobs: z.array(cronJobSchema),
+  reloadGuidance: z.string(),
 });
 export type InspectionData = z.infer<typeof inspectionDataSchema>;
 
+// Mirrors services/remote/cleanup.rs.
 export const dockerSpaceItemSchema = z.object({
-  typeName: z.string(),
+  itemType: z.string(),
   total: z.string(),
   active: z.string(),
   size: z.string(),
@@ -237,79 +253,93 @@ export const dockerSpaceItemSchema = z.object({
 export type DockerSpaceItem = z.infer<typeof dockerSpaceItemSchema>;
 
 export const serverDiskReportSchema = z.object({
-  dfItems: z.array(dockerSpaceItemSchema),
-  logSizes: z.array(z.tuple([z.string(), z.string()])),
-  buildCacheReclaimable: z.string(),
+  dockerSpace: z.array(dockerSpaceItemSchema),
+  journalDiskUsage: z.string(),
+  largeLogs: z.array(z.tuple([z.string(), z.string()])),
 });
 export type ServerDiskReport = z.infer<typeof serverDiskReportSchema>;
 
 export const pruneResultSchema = z.object({
-  reclaimedBytes: z.number(),
+  reclaimed: z.string(),
   message: z.string(),
 });
 export type PruneResult = z.infer<typeof pruneResultSchema>;
 
+// Mirrors services/remote/files.rs.
 export const remoteFileEntrySchema = z.object({
   name: z.string(),
   path: z.string(),
   isDir: z.boolean(),
   sizeBytes: z.number(),
-  modified: z.string(),
+  modifiedEpoch: z.number(),
   permissions: z.string(),
+  isSecret: z.boolean(),
 });
 export type RemoteFileEntry = z.infer<typeof remoteFileEntrySchema>;
 
 export const remoteFileContentSchema = z.object({
   path: z.string(),
   content: z.string(),
-  isSecret: z.boolean(),
-  masked: z.boolean(),
   sizeBytes: z.number(),
+  isSecret: z.boolean(),
+  isMasked: z.boolean(),
 });
 export type RemoteFileContent = z.infer<typeof remoteFileContentSchema>;
 
+// Mirrors services/remote/logs.rs.
+export const logLineSchema = z.object({
+  at: z.string().nullable(),
+  text: z.string(),
+});
+export type LogLine = z.infer<typeof logLineSchema>;
+
+export const containerLogsSchema = z.object({
+  container: z.string(),
+  tail: z.number(),
+  lines: z.array(logLineSchema),
+});
+export type ContainerLogs = z.infer<typeof containerLogsSchema>;
+
+// Mirrors services/remote/notes.rs.
 export const hostNoteSchema = z.object({
   hostId: z.string(),
   content: z.string(),
-  updatedAt: z.number(),
+  updatedAtEpoch: z.number(),
 });
 export type HostNote = z.infer<typeof hostNoteSchema>;
 
+// Mirrors services/remote/history.rs.
 export const snapshotSummarySchema = z.object({
-  capturedAt: z.number(),
-  cpuCores: z.number(),
-  cpuLoad1: z.number(),
-  memTotalBytes: z.number(),
-  memAvailBytes: z.number(),
-  containerCount: z.number(),
-  runningContainers: z.array(z.string()),
-  containerImages: z.array(z.tuple([z.string(), z.string()])),
-  diskUsage: z.array(z.tuple([z.string(), z.number(), z.number()])),
+  atEpoch: z.number(),
+  containerNames: z.array(z.string()),
+  containerImages: z.record(z.string(), z.string()),
+  containerRestarts: z.record(z.string(), z.number()),
+  diskUsagePct: z.number(),
   failedUnits: z.array(z.string()),
-  criticalFindingCount: z.number(),
+  criticalFindingIds: z.array(z.string()),
 });
 export type SnapshotSummary = z.infer<typeof snapshotSummarySchema>;
 
 export const snapshotDiffSchema = z.object({
-  previousAt: z.number(),
-  currentAt: z.number(),
-  newContainers: z.array(z.string()),
+  addedContainers: z.array(z.string()),
   removedContainers: z.array(z.string()),
   restartedContainers: z.array(z.string()),
-  imageChanges: z.array(z.string()),
-  diskGrowth: z.array(z.string()),
+  /** [container, previous image, current image] */
+  changedImages: z.array(z.tuple([z.string(), z.string(), z.string()])),
+  diskGrowthPct: z.number().nullable(),
   newFailedUnits: z.array(z.string()),
+  resolvedFailedUnits: z.array(z.string()),
+  newFindings: z.array(z.string()),
+  resolvedFindings: z.array(z.string()),
 });
 export type SnapshotDiff = z.infer<typeof snapshotDiffSchema>;
 
 export const incidentSchema = z.object({
   id: z.string(),
   hostId: z.string(),
-  findingId: z.string(),
-  summary: z.string(),
-  firstSeenAt: z.number(),
-  lastSeenAt: z.number(),
-  resolvedAt: z.number().nullable(),
+  title: z.string(),
+  openedAtEpoch: z.number(),
+  resolvedAtEpoch: z.number().nullable(),
 });
 export type Incident = z.infer<typeof incidentSchema>;
 

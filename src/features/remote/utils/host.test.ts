@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
-import { guessEnv, hostAddress } from './host';
+import { guessEnv, hostAddress, splitHostPort } from './host';
 
 const base: RemoteHost = {
   id: 'h_1',
@@ -38,4 +38,14 @@ test('env guesses from alias words, not substrings', () => {
   expect(guessEnv('product-db')).toBe('other');
   expect(guessEnv('devops-box')).toBe('other');
   expect(guessEnv('bastion')).toBe('other');
+});
+
+test('a pasted address splits into host and port', () => {
+  expect(splitHostPort('127.0.0.1:4101')).toEqual({ host: '127.0.0.1', port: 4101 });
+  expect(splitHostPort(' localhost:3000 ')).toEqual({ host: 'localhost', port: 3000 });
+  expect(splitHostPort('[::1]:8080')).toEqual({ host: '::1', port: 8080 });
+  expect(splitHostPort(':4101')).toEqual({ host: '127.0.0.1', port: 4101 });
+  expect(splitHostPort('127.0.0.1')).toEqual({ host: '127.0.0.1', port: null });
+  expect(splitHostPort('::1')).toEqual({ host: '::1', port: null });
+  expect(splitHostPort('db:99999')).toEqual({ host: 'db:99999', port: null });
 });

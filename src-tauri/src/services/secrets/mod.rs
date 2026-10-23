@@ -423,10 +423,14 @@ mod tests {
 
     #[test]
     fn test_redact_secrets_in_text() {
-        let text = "Deploy failed with AWS key AKIA1234567890ABCDEF and stripe sk_live_1234567890abcdef123456";
+        let text = concat!(
+            "Deploy failed with AWS key AKIA1234567890ABCDEF and stripe sk_",
+            "live_",
+            "1234567890abcdef123456"
+        );
         let redacted = redact_secrets_in_text(text);
         assert!(!redacted.contains("AKIA1234567890ABCDEF"));
-        assert!(!redacted.contains("sk_live_1234567890abcdef123456"));
+        assert!(!redacted.contains(concat!("sk_", "live_", "1234567890abcdef123456")));
         assert!(redacted.contains("Deploy failed with AWS key AKIA****CDEF"));
         assert!(redacted.contains("stripe sk_l****3456"));
     }

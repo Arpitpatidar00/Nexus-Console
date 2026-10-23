@@ -115,7 +115,7 @@ pub fn prune_build_cache(state: &RemoteState, host_id: &str) -> AppResult<PruneR
     let (host, target) = {
         let s = state.read()?;
         let h = s.host(host_id)?.clone();
-        let t = state.target(host_id)?;
+        let t = state.connected_target(host_id)?;
         (h, t)
     };
 
@@ -163,7 +163,7 @@ pub fn prune_dangling_images(state: &RemoteState, host_id: &str) -> AppResult<Pr
     let (host, target) = {
         let s = state.read()?;
         let h = s.host(host_id)?.clone();
-        let t = state.target(host_id)?;
+        let t = state.connected_target(host_id)?;
         (h, t)
     };
 

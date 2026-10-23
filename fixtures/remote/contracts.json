@@ -1,0 +1,187 @@
+{
+  "containerLogs": {
+    "container": "fameo-dev-api-1",
+    "lines": [
+      {
+        "at": "2026-10-23T12:14:50.155500608Z",
+        "text": "server listening on 4101"
+      },
+      {
+        "at": null,
+        "text": "plain line"
+      }
+    ],
+    "tail": 500
+  },
+  "diskReport": {
+    "dockerSpace": [
+      {
+        "active": "4",
+        "itemType": "Images",
+        "reclaimable": "2.8GB (62%)",
+        "size": "4.5GB",
+        "total": "12"
+      }
+    ],
+    "journalDiskUsage": "Archived and active journals take up 144.0M in the file system.",
+    "largeLogs": [
+      [
+        "/var/log/journal",
+        "50M"
+      ]
+    ]
+  },
+  "fileContent": {
+    "content": "API_KEY=***",
+    "isMasked": true,
+    "isSecret": true,
+    "path": "/app/.env.prod",
+    "sizeBytes": 123
+  },
+  "fileEntry": {
+    "isDir": false,
+    "isSecret": true,
+    "modifiedEpoch": 1700000100,
+    "name": ".env.prod",
+    "path": "/app/.env.prod",
+    "permissions": "-rw-r--r--",
+    "sizeBytes": 123
+  },
+  "history": {
+    "incidents": [
+      {
+        "hostId": "h_1",
+        "id": "inc_h_1_200",
+        "openedAtEpoch": 200,
+        "resolvedAtEpoch": null,
+        "title": "disk_full"
+      }
+    ],
+    "latestDiff": {
+      "addedContainers": [
+        "worker"
+      ],
+      "changedImages": [
+        [
+          "web",
+          "app:v1",
+          "app:v2"
+        ]
+      ],
+      "diskGrowthPct": 7,
+      "newFailedUnits": [
+        "nginx.service"
+      ],
+      "newFindings": [
+        "disk_full"
+      ],
+      "removedContainers": [
+        "api"
+      ],
+      "resolvedFailedUnits": [],
+      "resolvedFindings": [],
+      "restartedContainers": [
+        "web"
+      ]
+    },
+    "summaries": [
+      {
+        "atEpoch": 100,
+        "containerImages": {
+          "web": "app:v1"
+        },
+        "containerNames": [
+          "api",
+          "web"
+        ],
+        "containerRestarts": {
+          "web": 0
+        },
+        "criticalFindingIds": [],
+        "diskUsagePct": 40,
+        "failedUnits": []
+      },
+      {
+        "atEpoch": 200,
+        "containerImages": {
+          "web": "app:v2"
+        },
+        "containerNames": [
+          "web",
+          "worker"
+        ],
+        "containerRestarts": {
+          "web": 1
+        },
+        "criticalFindingIds": [
+          "disk_full"
+        ],
+        "diskUsagePct": 47,
+        "failedUnits": [
+          "nginx.service"
+        ]
+      }
+    ]
+  },
+  "inspection": {
+    "cronJobs": [
+      {
+        "command": "/app/cleanup.sh",
+        "schedule": "0 * * * *",
+        "source": "crontab",
+        "user": null
+      },
+      {
+        "command": "certbot renew -q",
+        "schedule": "0 12 * * *",
+        "source": "/etc/cron.d/certbot",
+        "user": "root"
+      }
+    ],
+    "nginxActive": true,
+    "nginxInstalled": true,
+    "nginxSites": [
+      {
+        "file": "/etc/nginx/conf.d/app.conf",
+        "listenPorts": [
+          443
+        ],
+        "redirectOnly": false,
+        "routes": [
+          {
+            "note": "backend",
+            "path": "/api/",
+            "target": "http://127.0.0.1:4101/"
+          },
+          {
+            "note": null,
+            "path": "/",
+            "target": "http://web_dev"
+          }
+        ],
+        "serverNames": [
+          "dev.example.com"
+        ],
+        "ssl": true
+      }
+    ],
+    "reloadGuidance": "sudo nginx -t && sudo systemctl reload nginx",
+    "upstreams": [
+      {
+        "name": "web_dev",
+        "servers": [
+          "127.0.0.1:3101"
+        ]
+      }
+    ]
+  },
+  "note": {
+    "content": "Deploy from main only",
+    "hostId": "h_1",
+    "updatedAtEpoch": 1700000000
+  },
+  "pruneResult": {
+    "message": "Deleted build cache",
+    "reclaimed": "2.1GB"
+  }
+}

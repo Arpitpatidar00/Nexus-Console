@@ -260,6 +260,7 @@ pub fn run() {
             commands::remote::remote_compose_action,
             commands::remote::remote_inspect_services,
             commands::remote::remote_disk_report,
+            commands::remote::remote_container_logs,
             commands::remote::remote_prune_builder,
             commands::remote::remote_prune_images,
             commands::remote::remote_list_files,

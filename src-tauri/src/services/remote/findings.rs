@@ -252,7 +252,7 @@ pub fn evaluate(s: &HostSnapshot) -> Vec<HostFinding> {
         out.push(HostFinding {
             guide: Some(vec![
                 "sudo usermod -aG docker $USER".into(),
-                "Log out and back in (or disconnect and reconnect in Nexus).".into(),
+                "Then disconnect and reconnect this server in Stackroost (group changes apply to new sessions).".into(),
             ]),
             ..f(
                 "docker_no_permission",

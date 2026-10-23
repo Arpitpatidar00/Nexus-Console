@@ -116,7 +116,7 @@ pub fn prepare(
 ) -> AppResult<Prepared> {
     let c = state.known_container(host_id, container)?;
     check_allowed(action, &c)?;
-    let target = state.target(host_id)?;
+    let target = state.connected_target(host_id)?;
     let s = state.read()?;
     let host = s.host(host_id)?;
     Ok(Prepared {
@@ -194,11 +194,11 @@ pub fn prepare_compose(
     project: &str,
     action: ComposeAction,
 ) -> AppResult<PreparedCompose> {
-    crate::util::validate::validate_display_text(project, "compose project")?;
+    crate::util::validate::validate_display_text("compose project", project)?;
     let (host, target) = {
         let s = state.read()?;
         let h = s.host(host_id)?.clone();
-        let t = state.target(host_id)?;
+        let t = state.connected_target(host_id)?;
         (h, t)
     };
     Ok(PreparedCompose {

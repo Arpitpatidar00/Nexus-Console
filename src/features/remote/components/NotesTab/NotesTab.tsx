@@ -49,7 +49,9 @@ export const NotesTab = ({ host }: Props) => {
     );
   }
 
-  const updatedTime = note?.updatedAt ? new Date(note.updatedAt * 1000).toLocaleString() : null;
+  const updatedTime = note?.updatedAtEpoch
+    ? new Date(note.updatedAtEpoch * 1000).toLocaleString()
+    : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">

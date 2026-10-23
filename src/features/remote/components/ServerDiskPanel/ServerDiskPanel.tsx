@@ -122,9 +122,9 @@ export const ServerDiskPanel = ({ host, connected }: Props) => {
             <span>ACTIVE</span>
             <span>SIZE (RECLAIMABLE)</span>
           </div>
-          {report.dfItems.map((item) => (
-            <div key={item.typeName} className="grid grid-cols-5 items-center px-4 py-3 text-sm">
-              <span className="col-span-2 font-medium text-fg">{item.typeName}</span>
+          {report.dockerSpace.map((item) => (
+            <div key={item.itemType} className="grid grid-cols-5 items-center px-4 py-3 text-sm">
+              <span className="col-span-2 font-medium text-fg">{item.itemType}</span>
               <span className="font-mono text-xs text-fg-muted">{item.total}</span>
               <span className="font-mono text-xs text-fg-muted">{item.active}</span>
               <div>
@@ -140,23 +140,21 @@ export const ServerDiskPanel = ({ host, connected }: Props) => {
         </div>
       </div>
 
-      {/* Log Sizes */}
-      {report.logSizes.length > 0 && (
+      {/* Largest logs under /var/log, plus the journal's own total */}
+      {report.largeLogs.length > 0 && (
         <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
           <div className="flex items-center gap-3 pb-4">
             <FileText className="size-6 text-muted-foreground" />
             <div>
-              <h3 className="font-semibold text-fg">Container Log Sizes</h3>
-              <p className="text-xs text-fg-subtle">
-                Estimated JSON log file sizes for active containers on disk
-              </p>
+              <h3 className="font-semibold text-fg">Largest logs</h3>
+              <p className="text-xs text-fg-subtle">{report.journalDiskUsage}</p>
             </div>
           </div>
 
           <div className="divide-y divide-hairline rounded-xl border border-hairline bg-canvas/60">
-            {report.logSizes.map(([container, size]) => (
-              <div key={container} className="flex items-center justify-between px-4 py-3">
-                <span className="font-mono text-sm text-fg">{container}</span>
+            {report.largeLogs.map(([path, size]) => (
+              <div key={path} className="flex items-center justify-between px-4 py-3">
+                <span className="font-mono text-sm text-fg">{path}</span>
                 <span className="font-mono text-xs font-semibold text-fg-muted">{size}</span>
               </div>
             ))}

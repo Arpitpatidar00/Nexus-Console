@@ -92,6 +92,7 @@ export const CMD = {
   REMOTE_COMPOSE_ACTION: 'remote_compose_action',
   REMOTE_INSPECT_SERVICES: 'remote_inspect_services',
   REMOTE_DISK_REPORT: 'remote_disk_report',
+  REMOTE_CONTAINER_LOGS: 'remote_container_logs',
   REMOTE_PRUNE_BUILDER: 'remote_prune_builder',
   REMOTE_PRUNE_IMAGES: 'remote_prune_images',
   REMOTE_LIST_FILES: 'remote_list_files',

@@ -286,7 +286,11 @@ export const FilesBrowser = ({ host, connected }: Props) => {
                       {file.isDir ? '<DIR>' : formatBytes(file.sizeBytes)}
                     </span>
                     <span className="w-24 text-center">{file.permissions}</span>
-                    <span className="w-32 truncate text-right">{file.modified || '-'}</span>
+                    <span className="w-32 truncate text-right">
+                      {file.modifiedEpoch > 0
+                        ? new Date(file.modifiedEpoch * 1000).toLocaleString()
+                        : '-'}
+                    </span>
                   </div>
                 </button>
               ))}

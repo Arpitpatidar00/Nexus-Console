@@ -17,6 +17,7 @@ import { useHostSnapshot } from '@/features/remote/api/useHostSnapshot';
 import { useHostHistory } from '@/features/remote/api/useHostHistory';
 import { useConnectHost, useDisconnectHost } from '@/features/remote/api/remoteMutations';
 import { hostAddress } from '@/features/remote/utils/host';
+import { healthOf, issueCount } from '@/features/remote/utils/health';
 import { ConnectionError } from '@/features/remote/components/ConnectionError';
 import { OverviewPanel } from '@/features/remote/components/OverviewPanel';
 import { ContainersTable } from '@/features/remote/components/ContainersTable';
@@ -120,15 +121,19 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
       ? snap.error
       : null;
 
-  const issues = s?.findings.length ?? 0;
+  // Info-only (green) findings are notes, not issues: same rule as the list.
+  const issues = issueCount(s);
   const label = (v: View) => (v === 'issues' && issues > 0 ? `Issues (${issues})` : VIEW_LABELS[v]);
   const group = VIEW_GROUPS.find((g) => g.views.includes(view)) ?? VIEW_GROUPS[0];
 
-  const statusTone: 'neutral' | 'danger' | 'success' = !connected
+  const health = healthOf(s);
+  const statusTone = !connected
     ? 'neutral'
-    : issues > 0
+    : health === 'critical'
       ? 'danger'
-      : 'success';
+      : health === 'warn'
+        ? 'warning'
+        : 'success';
   const statusLabel = !connected
     ? 'Not connected'
     : issues > 0
@@ -138,33 +143,51 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
   return (
     <Panel className="flex min-h-0 flex-col gap-0 overflow-hidden p-0">
       {/* Header with Title, Env badge, and Actions */}
-      <header className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-hairline px-6">
+      {/* Fixed height; two single lines that truncate rather than wrap into each other. */}
+      <header className="flex h-[72px] shrink-0 items-center justify-between gap-4 border-b border-hairline px-6">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5">
-            <h2 className="truncate font-display text-xl font-semibold text-foreground">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2
+              className="min-w-0 truncate font-display text-lg font-semibold text-foreground"
+              title={host.label}
+            >
               {host.label}
             </h2>
-            <EnvBadge env={host.env} />
-            <Badge tone={statusTone} dot size="sm">
-              {statusLabel}
-            </Badge>
-            {host.env === 'prod' && connected && (
-              <Badge
-                tone="warning"
-                size="sm"
-                title="Auto-disconnects after 10m idle or on screen lock. Use tmux for long prod jobs."
-              >
-                Idle guard: 10m
+            <span className="flex shrink-0 items-center gap-1.5">
+              <EnvBadge env={host.env} />
+              <Badge tone={statusTone} dot size="sm">
+                {statusLabel}
               </Badge>
-            )}
+              {host.env === 'prod' && connected && (
+                <Badge
+                  tone="warning"
+                  size="sm"
+                  className="hidden 2xl:inline-flex"
+                  title="Auto-disconnects after 10m idle or on screen lock. Use tmux for long prod jobs."
+                >
+                  Idle guard: 10m
+                </Badge>
+              )}
+            </span>
           </div>
-          <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-            <span className="truncate">{hostAddress(host)}</span>
+          <p
+            className="mt-1 truncate text-xs text-muted-foreground tabular-nums"
+            title={
+              s && connected
+                ? `${hostAddress(host)} · ${s.system.os || 'Linux'} · checked ${new Date(s.capturedAt * 1000).toLocaleTimeString()} in ${s.probeMs} ms`
+                : hostAddress(host)
+            }
+          >
+            <span className="font-mono">{hostAddress(host)}</span>
             {s && connected && (
-              <span className="hidden text-muted-foreground tabular-nums lg:inline">
-                · {s.system.os || 'Linux'} · updated{' '}
-                {new Date(s.capturedAt * 1000).toLocaleTimeString()} · {s.probeMs} ms
-              </span>
+              <>
+                {' · '}
+                {s.system.os || 'Linux'} · checked{' '}
+                {new Date(s.capturedAt * 1000).toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </>
             )}
           </p>
         </div>
@@ -179,7 +202,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
               onClick={() => setTeleportOpen(true)}
             >
               <Send className="size-3.5 text-primary" />
-              Teleport
+              <span className="hidden xl:inline">Teleport</span>
             </Button>
           )}
           {connected && (
@@ -207,7 +230,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             onClick={openShell}
           >
             <TerminalSquare className="size-4" />
-            Terminal
+            <span className="hidden xl:inline">Terminal</span>
           </Button>
           <Button
             variant="glass"
@@ -222,6 +245,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             <Button
               variant="glass"
               size="sm"
+              aria-label="Disconnect"
+              title="Disconnect"
               disabled={disconnect.isPending}
               onClick={() => disconnect.mutate(host.id)}
             >
@@ -230,7 +255,9 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
               ) : (
                 <Unplug className="size-3.5" />
               )}
-              {disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}
+              <span className="hidden xl:inline">
+                {disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}
+              </span>
             </Button>
           ) : (
             <Button
@@ -278,7 +305,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 flex-col gap-2 border-b border-hairline px-6 pt-3">
+          {/* items-start: the group switch hugs its content instead of stretching. */}
+          <div className="flex shrink-0 flex-col items-start gap-3 border-b border-hairline px-6 pt-4">
             <SegmentedControl<Group>
               ariaLabel="Server section"
               value={group.id}
@@ -293,7 +321,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
             <div
               role="tablist"
               aria-label={`${group.label} views`}
-              className="flex flex-wrap gap-1"
+              className="-ml-3 flex flex-wrap"
             >
               {group.views.map((v) => (
                 <button
@@ -303,7 +331,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
                   aria-selected={v === view}
                   onClick={() => setView(v)}
                   className={cn(
-                    '-mb-px cursor-pointer border-b-2 px-3 pt-1 pb-2 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    '-mb-px cursor-pointer border-b-2 px-3 pb-2.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     v === view
                       ? 'border-ember text-foreground'
                       : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -329,7 +357,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
                 <BodySkeleton />
               )
             ) : view === 'overview' ? (
-              <OverviewPanel snapshot={s} history={history} />
+              <OverviewPanel snapshot={s} history={history} onOpen={setView} />
             ) : view === 'stacks' ? (
               <ComposeStacksView host={host} snapshot={s} />
             ) : view === 'deploy' ? (

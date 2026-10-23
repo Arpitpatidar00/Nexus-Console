@@ -14,6 +14,7 @@ pub mod history;
 pub mod inspection;
 #[cfg(test)]
 mod it;
+pub mod logs;
 pub mod notes;
 pub mod parity;
 pub mod parse;
@@ -72,6 +73,18 @@ impl RemoteState {
             s.require_consent()?;
         }
         ssh::SshTarget::from_host(host)
+    }
+
+    /// `target` for a host the user has connected. Only connect (and the
+    /// opt-in auto-connect) may open a master: every exec runs with
+    /// ControlMaster=auto, so a late poll or refetch would otherwise quietly
+    /// reconnect a host the user just disconnected.
+    pub fn connected_target(&self, id: &str) -> AppResult<ssh::SshTarget> {
+        let target = self.target(id)?;
+        if !ssh::control_check(&target) {
+            return Err(AppError::NotFound("This server isn't connected.".into()));
+        }
+        Ok(target)
     }
 
     pub fn remember_snapshot(&self, id: &str, snap: &HostSnapshot) {

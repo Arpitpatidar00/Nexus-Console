@@ -5,6 +5,7 @@ import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { Spinner } from '@/shared/ui/Spinner';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { useAddTunnel } from '@/features/remote/api/tunnelMutations';
+import { splitHostPort } from '@/features/remote/utils/host';
 import type { RemoteHost } from '@/features/remote/api/remote.schema';
 import { TextField } from '@/features/remote/components/HostFields';
 
@@ -136,8 +137,17 @@ export const AddTunnelDialog = ({
           label="Remote Target Host"
           placeholder="127.0.0.1"
           value={remoteHost}
-          onChange={(e) => setRemoteHost(e.target.value)}
-          hint="Host as seen from the server (usually 127.0.0.1)"
+          onChange={(e) => {
+            // A pasted `127.0.0.1:4101` fills both fields instead of failing as a hostname.
+            const { host, port } = splitHostPort(e.target.value);
+            if (port != null) {
+              setRemoteHost(host);
+              setRemotePort(String(port));
+            } else {
+              setRemoteHost(e.target.value);
+            }
+          }}
+          hint="As seen from the server, usually 127.0.0.1. Pasting host:port fills Remote Port too."
         />
 
         <div className="flex items-center gap-2.5 pt-1">

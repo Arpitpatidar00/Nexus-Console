@@ -1,0 +1,92 @@
+# Local Docker lab for testing Stackroost's Docker and Databases screens.
+#   docker compose -f scripts/docker-lab/docker-compose.yml up -d
+#   docker pause stackroost-lab-paused-1          # one container in "paused"
+#   docker compose -f scripts/docker-lab/docker-compose.yml down -v   # remove everything
+# Every port binds 127.0.0.1 only, on numbers that don't clash with local services.
+name: stackroost-lab
+services:
+  # --- container states -----------------------------------------------------
+  web: # running + healthy, publishes a port
+    image: nginx:1.27-alpine
+    ports: ['127.0.0.1:18080:80']
+    healthcheck:
+      {
+        test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/'],
+        interval: 5s,
+        retries: 3,
+      }
+  sick: # running + unhealthy
+    image: nginx:1.27-alpine
+    healthcheck: { test: ['CMD', 'false'], interval: 5s, retries: 1 }
+  warming: # health "starting" for 10 minutes
+    image: nginx:1.27-alpine
+    healthcheck: { test: ['CMD', 'false'], interval: 30s, start_period: 600s }
+  crashy: # crash loop: restarting, restart count climbing
+    image: alpine:3.20
+    command:
+      [
+        'sh',
+        '-c',
+        'echo "[INFO ] booting worker"; sleep 4; echo "Error: connect ECONNREFUSED 127.0.0.1:6379" >&2; exit 1',
+      ]
+    restart: unless-stopped
+  busy: # high CPU (capped at half a core)
+    image: alpine:3.20
+    command: ['sh', '-c', 'while :; do :; done']
+    cpus: 0.5
+  done: # exited 0
+    image: alpine:3.20
+    command: ['sh', '-c', 'echo "migration complete"']
+    restart: 'no'
+  failed: # exited 2
+    image: alpine:3.20
+    command: ['sh', '-c', 'echo "fatal: config file missing" >&2; exit 2']
+    restart: 'no'
+  killed: # exited 137 (SIGKILL, like an OOM kill)
+    image: alpine:3.20
+    init: true # PID 1 ignores SIGKILL from inside; under tini the shell can be killed
+    command: ['sh', '-c', 'sleep 2; kill -9 $$$$']
+    restart: 'no'
+  paused: # pause it after `up` (see top)
+    image: alpine:3.20
+    command: ['sh', '-c', 'while :; do echo tick; sleep 5; done']
+  logger: # realistic app logs: levels, request ids, JSON, stack traces, noise
+    image: alpine:3.20
+    command: ['sh', '/seed/logger.sh']
+    volumes: ['./seed/logger.sh:/seed/logger.sh:ro']
+
+  # --- databases (seeded) -------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    ports: ['127.0.0.1:55432:5432']
+    environment: { POSTGRES_USER: lab, POSTGRES_PASSWORD: lab, POSTGRES_DB: shop }
+    volumes: ['./seed/postgres.sql:/docker-entrypoint-initdb.d/01.sql:ro']
+    healthcheck: { test: ['CMD', 'pg_isready', '-U', 'lab'], interval: 5s, retries: 10 }
+  mysql:
+    image: mysql:8.4
+    ports: ['127.0.0.1:53306:3306']
+    environment: { MYSQL_ROOT_PASSWORD: lab, MYSQL_DATABASE: shop }
+    volumes: ['./seed/mysql.sql:/docker-entrypoint-initdb.d/01.sql:ro']
+    healthcheck:
+      { test: ['CMD', 'mysqladmin', 'ping', '-uroot', '-plab'], interval: 5s, retries: 20 }
+  mongo:
+    image: mongo:7
+    ports: ['127.0.0.1:57017:27017']
+    environment: { MONGO_INITDB_DATABASE: shop }
+    volumes: ['./seed/mongo.js:/docker-entrypoint-initdb.d/01.js:ro']
+    healthcheck:
+      {
+        test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ping:1}).ok'],
+        interval: 5s,
+        retries: 20,
+      }
+  redis:
+    image: redis:7-alpine
+    ports: ['127.0.0.1:56379:6379']
+    healthcheck: { test: ['CMD', 'redis-cli', 'ping'], interval: 5s, retries: 10 }
+  redis-seed: # one-shot: fills redis, then exits 0
+    image: redis:7-alpine
+    depends_on: { redis: { condition: service_healthy } }
+    command: ['sh', '/seed/redis.sh']
+    volumes: ['./seed/redis.sh:/seed/redis.sh:ro']
+    restart: 'no'

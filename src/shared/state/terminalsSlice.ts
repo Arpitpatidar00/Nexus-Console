@@ -26,6 +26,8 @@ export function terminalKey(t: PtyTarget): string {
       return `remote:exec:${t.hostId}:${t.container}`;
     case 'workspace':
       return `workspace:${t.projectPath}:${t.command}`;
+    case 'projectTask':
+      return `project:${t.projectPath}:${t.taskId}`;
   }
 }
 

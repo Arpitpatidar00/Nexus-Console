@@ -1,0 +1,108 @@
+{
+  "path": "/Users/me/Desktop/web",
+  "name": "web",
+  "stacks": [
+    "Node",
+    "Docker Compose"
+  ],
+  "frameworks": [
+    "Next.js",
+    "React"
+  ],
+  "packageManager": "pnpm",
+  "tasks": [
+    {
+      "id": "install:node",
+      "label": "pnpm install",
+      "kind": "install",
+      "steps": [
+        [
+          "pnpm",
+          "install"
+        ]
+      ],
+      "source": "package.json",
+      "longRunning": false
+    },
+    {
+      "id": "script:dev",
+      "label": "dev",
+      "kind": "dev",
+      "steps": [
+        [
+          "pnpm",
+          "run",
+          "dev"
+        ]
+      ],
+      "source": "package.json",
+      "longRunning": true
+    }
+  ],
+  "primary": "script:dev",
+  "install": "install:node",
+  "deps": "stale",
+  "hasEnv": true,
+  "envRead": true,
+  "envTemplate": ".env.example",
+  "envMissingKeys": [
+    "API_KEY"
+  ],
+  "expectedPort": 3000,
+  "tools": [
+    {
+      "name": "node",
+      "label": "Node.js",
+      "neededFor": "running the project",
+      "install": "brew install node",
+      "found": true,
+      "version": "22.12.0"
+    }
+  ],
+  "running": [
+    {
+      "pid": 4242,
+      "command": "node",
+      "port": 3000
+    }
+  ],
+  "checks": [
+    {
+      "id": "deps",
+      "level": "warn",
+      "title": "Dependencies are out of date",
+      "detail": null,
+      "fix": {
+        "kind": "runTask",
+        "taskId": "install:node"
+      }
+    },
+    {
+      "id": "env",
+      "level": "warn",
+      "title": "No .env",
+      "detail": null,
+      "fix": {
+        "kind": "createEnv",
+        "from": ".env.example"
+      }
+    },
+    {
+      "id": "tool:pnpm",
+      "level": "error",
+      "title": "pnpm isn't installed",
+      "detail": "x",
+      "fix": {
+        "kind": "command",
+        "text": "corepack enable pnpm"
+      }
+    },
+    {
+      "id": "running",
+      "level": "ok",
+      "title": "Running on :3000",
+      "detail": null,
+      "fix": null
+    }
+  ]
+}

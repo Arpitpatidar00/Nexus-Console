@@ -36,7 +36,7 @@ pub fn discover_projects(roots: &[String]) -> Vec<DiscoveredProject> {
         if !root.exists() || !root.is_dir() {
             continue;
         }
-        scan_dir_for_projects(&root, 0, 2, &mut projects);
+        scan_dir_for_projects(&root, 0, 4, &mut projects);
     }
 
     projects.sort_by_key(|a| a.name.to_lowercase());
@@ -90,38 +90,42 @@ fn scan_dir_for_projects(
     }
 }
 
+/// A folder with a manifest the runner understands. Git isn't required:
+/// plenty of projects (downloads, copies, new apps) aren't repos yet. A bare
+/// Makefile or requirements.txt only counts inside a repo.
 fn is_project_dir(dir: &Path) -> bool {
-    if !dir.join(".git").exists() {
-        return false;
-    }
-    dir.join("package.json").exists()
-        || dir.join("pubspec.yaml").exists()
-        || dir.join("Cargo.toml").exists()
-        || dir.join("go.mod").exists()
-        || dir.join("pyproject.toml").exists()
+    const MANIFESTS: &[&str] = &[
+        "package.json",
+        "pubspec.yaml",
+        "Cargo.toml",
+        "go.mod",
+        "pyproject.toml",
+        "Pipfile",
+        "manage.py",
+        "pom.xml",
+        "build.gradle",
+        "build.gradle.kts",
+        "settings.gradle.kts",
+        "composer.json",
+        "Gemfile",
+        "deno.json",
+        "compose.yaml",
+        "docker-compose.yml",
+    ];
+    MANIFESTS.iter().any(|m| dir.join(m).is_file())
+        || (dir.join(".git").exists()
+            && ["Makefile", "requirements.txt", "setup.py"]
+                .iter()
+                .any(|m| dir.join(m).is_file()))
 }
 
+/// The most specific label the runner finds: "Next.js", "FastAPI", "Go".
 fn detect_framework(dir: &Path) -> String {
-    if dir.join("package.json").exists() {
-        if dir.join("next.config.js").exists()
-            || dir.join("next.config.ts").exists()
-            || dir.join("next.config.mjs").exists()
-        {
-            "Next.js".to_string()
-        } else if dir.join("vite.config.ts").exists() || dir.join("vite.config.js").exists() {
-            "Vite".to_string()
-        } else {
-            "Node.js".to_string()
-        }
-    } else if dir.join("Cargo.toml").exists() {
-        "Rust".to_string()
-    } else if dir.join("go.mod").exists() {
-        "Go".to_string()
-    } else if dir.join("pubspec.yaml").exists() {
-        "Flutter".to_string()
-    } else if dir.join("pyproject.toml").exists() {
-        "Python".to_string()
-    } else {
-        "Git Project".to_string()
-    }
+    let d = super::runner::detect(dir, false);
+    d.frameworks
+        .iter()
+        .find(|f| *f != "Monorepo")
+        .or_else(|| d.stacks.first())
+        .cloned()
+        .unwrap_or_else(|| "Project".to_string())
 }

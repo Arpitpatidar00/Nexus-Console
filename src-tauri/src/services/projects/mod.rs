@@ -1,6 +1,7 @@
 pub mod discovery;
 pub mod git;
 pub mod github;
+pub mod runner;
 pub mod store;
 
 use std::path::PathBuf;

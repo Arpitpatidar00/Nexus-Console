@@ -121,6 +121,74 @@ pub fn redact_secrets_in_text(text: &str) -> String {
     out
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnvFile {
+    /// Real settings (`.env`, `.env.local`, `.env.production`…): never committed.
+    Real,
+    /// A template meant to be committed (`.env.example`, `.env.sample`…).
+    Template,
+}
+
+const TEMPLATE_MARKERS: &[&str] = &[
+    "example", "sample", "template", "tmpl", "tpl", "dist", "defaults", "default", "schema",
+    "skeleton",
+];
+
+/// Whether a tracked path is an env file, by its name at any depth.
+pub fn env_file_kind(rel: &str) -> Option<EnvFile> {
+    let name = rel.rsplit('/').next().unwrap_or(rel).to_ascii_lowercase();
+    let is_env = name == ".env"
+        || name.starts_with(".env.")
+        || name.starts_with(".env-")
+        || name.ends_with(".env")
+        || name == "env.example";
+    if !is_env {
+        return None;
+    }
+    let template = name
+        .split(['.', '-', '_'])
+        .any(|part| TEMPLATE_MARKERS.contains(&part));
+    Some(if template {
+        EnvFile::Template
+    } else {
+        EnvFile::Real
+    })
+}
+
+/// Values that only look like keys: docs examples and fill-me-in markers.
+pub fn looks_like_placeholder(value: &str) -> bool {
+    let v = value.to_ascii_lowercase();
+    let body: String = v.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+    let after_prefix = body
+        .trim_start_matches("sklive")
+        .trim_start_matches("rklive")
+        .trim_start_matches("ghp")
+        .trim_start_matches("githubpat")
+        .trim_start_matches("xoxb")
+        .trim_start_matches("xoxp")
+        .trim_start_matches("akia");
+    let one_char =
+        after_prefix.len() >= 4 && after_prefix.chars().all(|c| after_prefix.starts_with(c));
+    one_char
+        || [
+            "example",
+            "xxxx",
+            "your",
+            "placeholder",
+            "changeme",
+            "replace",
+            "dummy",
+            "sample",
+            "fake",
+            "redacted",
+            "insert",
+            "todo",
+            "0000000",
+        ]
+        .iter()
+        .any(|w| v.contains(w))
+}
+
 pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
     let mut findings = Vec::new();
     let mut scanned_files = 0;
@@ -176,8 +244,9 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
             scanned_files += 1;
             let full_file = project_dir.join(rel);
 
-            // Check if tracked file is an env file
-            if rel == ".env" || rel.starts_with(".env.") {
+            // A real env file in git is a finding by itself; a template is
+            // meant to be committed, so only a real-looking key inside it is.
+            if env_file_kind(rel) == Some(EnvFile::Real) {
                 findings.push(SecretFinding {
                     id: format!("tracked_env_{}", findings.len()),
                     project_path: proj_str.clone(),
@@ -213,7 +282,11 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
                         let candidate = &tline[pos..];
                         if candidate.len() >= 20 {
                             let key = &candidate[..20];
-                            if key.chars().all(|c| c.is_ascii_alphanumeric()) {
+                            if key.chars().all(|c| c.is_ascii_alphanumeric())
+                                && !looks_like_placeholder(
+                                    candidate.split_whitespace().next().unwrap_or(key),
+                                )
+                            {
                                 findings.push(SecretFinding {
                                     id: format!("aws_key_{}", findings.len()),
                                     project_path: proj_str.clone(),
@@ -241,7 +314,7 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
                                 .chars()
                                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
                                 .collect();
-                            if candidate.len() >= 24 {
+                            if candidate.len() >= 24 && !looks_like_placeholder(&candidate) {
                                 findings.push(SecretFinding {
                                     id: format!("stripe_key_{}", findings.len()),
                                     project_path: proj_str.clone(),
@@ -269,7 +342,7 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
                                 .chars()
                                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
                                 .collect();
-                            if candidate.len() >= 36 {
+                            if candidate.len() >= 36 && !looks_like_placeholder(&candidate) {
                                 findings.push(SecretFinding {
                                     id: format!("github_pat_{}", findings.len()),
                                     project_path: proj_str.clone(),
@@ -315,7 +388,7 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
                                 .chars()
                                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
                                 .collect();
-                            if candidate.len() >= 30 {
+                            if candidate.len() >= 30 && !looks_like_placeholder(&candidate) {
                                 findings.push(SecretFinding {
                                     id: format!("slack_token_{}", findings.len()),
                                     project_path: proj_str.clone(),
@@ -413,6 +486,114 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn env_files_are_told_apart_from_templates() {
+        for real in [
+            ".env",
+            ".env.local",
+            ".env.production",
+            "apps/web/.env",
+            "config/prod.env",
+            ".env.development.local",
+        ] {
+            assert_eq!(env_file_kind(real), Some(EnvFile::Real), "{real}");
+        }
+        for t in [
+            ".env.example",
+            ".env.sample",
+            ".env.template",
+            ".env.dist",
+            ".env-example",
+            "apps/api/.env.example",
+            "example.env",
+            "env.example",
+            ".env.local.example",
+            ".env.defaults",
+        ] {
+            assert_eq!(env_file_kind(t), Some(EnvFile::Template), "{t}");
+        }
+        for not in ["environment.ts", "src/env.ts", ".envrc", "README.md"] {
+            assert_eq!(env_file_kind(not), None, "{not}");
+        }
+    }
+
+    #[test]
+    fn placeholders_are_not_keys() {
+        for p in [
+            "AKIAIOSFODNN7EXAMPLE",
+            concat!("sk_", "live_", "xxxxxxxxxxxxxxxxxxxxxxxx"),
+            concat!("sk_", "live_", "your_stripe_key_here_please"),
+            "ghp_000000000000000000000000000000000000",
+            "xoxb-your-bot-token-goes-here-123456",
+            "AKIAAAAAAAAAAAAAAAAA",
+        ] {
+            assert!(looks_like_placeholder(p), "{p}");
+        }
+        for real in [
+            "AKIA2E0A8F3B4C5D6E7F",
+            concat!("sk_", "live_", "51Hc8q2LkdQ9pXzR7mT4vWbN"),
+            "ghp_1a2B3c4D5e6F7g8H9i0JkLmNoPqRsTuVwXyZ",
+        ] {
+            assert!(!looks_like_placeholder(real), "{real}");
+        }
+    }
+
+    #[test]
+    fn templates_pass_unless_they_hold_a_real_key() {
+        let dir = std::env::temp_dir().join(format!("sr-secrets-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("apps/web")).unwrap();
+        let git = |args: &[&str]| {
+            let ok = Command::new("git")
+                .current_dir(&dir)
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success();
+            assert!(ok, "git {args:?}");
+        };
+        git(&["init", "-q"]);
+        std::fs::write(
+            dir.join(".env.example"),
+            concat!(
+                "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nSTRIPE_KEY=sk_",
+                "live_",
+                "xxxxxxxxxxxxxxxxxxxxxxxx\nDB_PASSWORD=changeme\n"
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join(".env.sample"),
+            "AWS_ACCESS_KEY_ID=AKIA2E0A8F3B4C5D6E7F\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("apps/web/.env"), "API_URL=http://localhost\n").unwrap();
+        git(&["add", "-A"]);
+        let r = scan_projects(std::slice::from_ref(&dir)).unwrap();
+        let got: Vec<(String, String)> = r
+            .findings
+            .iter()
+            .map(|f| (f.file_path.clone(), f.rule_id.clone()))
+            .collect();
+        // The example file passes; the sample with a real-looking key is
+        // caught for the key; a nested real .env is caught as tracked.
+        assert!(!got.iter().any(|(f, _)| f == ".env.example"), "{got:?}");
+        assert!(
+            got.contains(&(".env.sample".into(), "aws_access_key".into())),
+            "{got:?}"
+        );
+        assert!(
+            !got.contains(&(".env.sample".into(), "tracked_env".into())),
+            "{got:?}"
+        );
+        assert!(
+            got.contains(&("apps/web/.env".into(), "tracked_env".into())),
+            "{got:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn test_mask_secret() {

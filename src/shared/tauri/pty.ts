@@ -14,7 +14,9 @@ export type PtyTarget =
   | { type: 'remoteLogs'; hostId: string; container: string }
   | { type: 'remoteExec'; hostId: string; container: string }
   /** A command in the user's login shell, optionally inside a project folder. */
-  | { type: 'workspace'; command: string; projectPath: string; injectKeychain?: boolean };
+  | { type: 'workspace'; command: string; projectPath: string; injectKeychain?: boolean }
+  /** A task the project's own config defines, by id — Rust resolves the steps. */
+  | { type: 'projectTask'; projectPath: string; taskId: string; installFirst?: boolean };
 
 export interface PtyOpenParams {
   id: string;

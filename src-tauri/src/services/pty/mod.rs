@@ -349,6 +349,14 @@ pub enum PtyTarget {
         project_path: String,
         inject_keychain: Option<bool>,
     },
+    /// A task the project's own config defines, by id. Rust re-detects the
+    /// project and resolves the steps; JS never sends a command.
+    #[serde(rename_all = "camelCase")]
+    ProjectTask {
+        project_path: String,
+        task_id: String,
+        install_first: Option<bool>,
+    },
 }
 
 impl PtyTarget {
@@ -357,7 +365,9 @@ impl PtyTarget {
             PtyTarget::RemoteShell { host_id } => Some(host_id),
             PtyTarget::RemoteLogs { host_id, .. } => Some(host_id),
             PtyTarget::RemoteExec { host_id, .. } => Some(host_id),
-            PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } => None,
+            PtyTarget::Brew { .. }
+            | PtyTarget::Workspace { .. }
+            | PtyTarget::ProjectTask { .. } => None,
         }
     }
 
@@ -407,8 +417,8 @@ fn resolve_remote(target: &PtyTarget, remote: &RemoteState) -> AppResult<(String
                 ],
             )
         }
-        PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } => {
-            unreachable!("brew and workspace targets resolve locally")
+        PtyTarget::Brew { .. } | PtyTarget::Workspace { .. } | PtyTarget::ProjectTask { .. } => {
+            unreachable!("brew, workspace and project targets resolve locally")
         }
     };
     let t = remote.target(host_id)?;
@@ -431,17 +441,95 @@ fn resolve_target(
             project_path,
             ..
         } => {
+            // A saved command is shell the user wrote (pipes, &&), so it runs as
+            // shell — but the folder is an argument, never pasted into it: a
+            // quote in a folder name used to break (or extend) the command.
             let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
             let mut args = vec!["-l".to_string(), "-c".to_string()];
-            if !project_path.is_empty() {
-                args.push(format!("cd \"{project_path}\" && {command}"));
+            if project_path.is_empty() {
+                args.extend([
+                    r#"eval "$1""#.to_string(),
+                    "stackroost".into(),
+                    command.clone(),
+                ]);
             } else {
-                args.push(command.clone());
+                args.extend([
+                    r#"cd -- "$1" && eval "$2""#.to_string(),
+                    "stackroost".into(),
+                    project_path.clone(),
+                    command.clone(),
+                ]);
             }
             Ok((shell, args))
         }
+        PtyTarget::ProjectTask {
+            project_path,
+            task_id,
+            install_first,
+        } => resolve_project_task(project_path, task_id, install_first.unwrap_or(true)),
         _ => resolve_remote(target, remote),
     }
+}
+
+/// Runs the steps it's given as arguments — the folder, then each argv,
+/// separated by `::then::` — echoing each one and stopping at the first
+/// failure; the last step is exec'd so Ctrl-C and closing the tab reach it.
+/// Every value is a positional parameter: nothing is spliced into the script.
+const STEPS_SCRIPT: &str = r#"cd -- "$1" || exit 1
+shift
+step=()
+while [ $# -gt 0 ]; do
+  if [ "$1" = "::then::" ]; then
+    printf '\n\033[1m$ %s\033[0m\n' "${step[*]}"
+    "${step[@]}" || { s=$?; printf '\n\033[31m%s exited with %s. Stopped.\033[0m\n' "${step[*]}" "$s"; exit $s; }
+    step=()
+  else
+    step+=("$1")
+  fi
+  shift
+done
+printf '\n\033[1m$ %s\033[0m\n' "${step[*]}"
+exec "${step[@]}""#;
+
+/// The user's login shell (zsh or bash, both run the script; anything else
+/// falls back to zsh), interactive so nvm/fnm/pyenv set up in rc files apply.
+fn project_task_argv(dir: &str, steps: &[Vec<String>]) -> (String, Vec<String>) {
+    let shell = std::env::var("SHELL")
+        .ok()
+        .filter(|s| s.ends_with("/zsh") || s.ends_with("/bash"))
+        .unwrap_or_else(|| "/bin/zsh".into());
+    let mut args: Vec<String> = vec![
+        "-l".into(),
+        "-i".into(),
+        "-c".into(),
+        STEPS_SCRIPT.into(),
+        "stackroost".into(),
+        dir.into(),
+    ];
+    for (i, step) in steps.iter().enumerate() {
+        if i > 0 {
+            args.push("::then::".into());
+        }
+        args.extend(step.iter().cloned());
+    }
+    (shell, args)
+}
+
+fn resolve_project_task(
+    project_path: &str,
+    task_id: &str,
+    install_first: bool,
+) -> AppResult<(String, Vec<String>)> {
+    let home =
+        crate::doctor::paths::home().ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+    let dir = crate::services::projects::runner::check_project_dir(project_path, &home)
+        .map_err(AppError::InvalidName)?;
+    let steps = crate::services::projects::runner::resolve_steps(&dir, task_id, install_first)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| {
+            AppError::NotFound(format!("{task_id} isn't a task this project defines."))
+        })?;
+    Ok(project_task_argv(&dir.to_string_lossy(), &steps))
 }
 
 /// Server-side allowlist — JS passes a formula + kind, never a program. Resolves
@@ -524,6 +612,49 @@ pub async fn pty_kill(id: String, mgr: State<'_, PtyManager>) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn project_steps_run_as_arguments_in_zsh_and_bash() {
+        let dir = std::env::temp_dir().join(format!("sr pty \"q\" $HOME {}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let steps = vec![
+            vec![
+                "printf".into(),
+                "first:%s\\n".into(),
+                "a b; echo pwned".into(),
+            ],
+            vec!["pwd".into()],
+            vec!["false".into()],
+            vec!["echo".into(), "never".into()],
+        ];
+        let (_, args) = project_task_argv(&dir.to_string_lossy(), &steps);
+        // Skip the login/interactive flags: the test shouldn't load the
+        // developer's rc files. Everything from `-c` on is what runs.
+        let from_c = args.iter().position(|a| a == "-c").unwrap();
+        for shell in ["/bin/zsh", "/bin/bash"] {
+            let out = std::process::Command::new(shell)
+                .args(&args[from_c..])
+                .output()
+                .unwrap();
+            let text = String::from_utf8_lossy(&out.stdout);
+            let err = String::from_utf8_lossy(&out.stderr);
+            assert_eq!(out.status.code(), Some(1), "{shell}: {text} / {err}");
+            assert!(text.contains("first:a b; echo pwned"), "{shell}: {text}");
+            assert!(
+                !text.contains("\npwned"),
+                "{shell} ran injected text: {text}"
+            );
+            // `cd` reached the folder whose name holds quotes and `$HOME`
+            // (pwd prints /var/…, canonicalize gives /private/var/…).
+            assert!(text.contains("sr pty \"q\" $HOME"), "{shell}: {text}");
+            assert!(
+                text.contains("false exited with 1. Stopped."),
+                "{shell}: {text}"
+            );
+            assert!(!text.contains("never"), "{shell}: {text}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn take_utf8_holds_back_split_codepoint() {

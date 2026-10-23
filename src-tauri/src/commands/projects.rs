@@ -5,6 +5,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::projects::discovery::{self, DiscoveredProject};
 use crate::services::projects::git;
 use crate::services::projects::github::{self, GitHubStatus};
+use crate::services::projects::runner::{self, ProjectProfile};
 use crate::services::projects::store::{
     new_command_id, new_workspace_id, ActiveWorkspaceState, SavedCommand, WorkspaceConfig,
     WorkspaceStepResult,
@@ -602,6 +603,137 @@ pub async fn projects_delete_command(app: AppHandle, id: String) -> AppResult<()
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
         guard.success("removed");
+        Ok(())
+    })
+    .await
+}
+
+// --- Runner ------------------------------------------------------------------------
+
+fn runner_dir(path: &str) -> AppResult<std::path::PathBuf> {
+    let home =
+        crate::doctor::paths::home().ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+    runner::check_project_dir(path, &home).map_err(AppError::InvalidName)
+}
+
+/// What the project is, what it can run, and whether it's ready to: tools,
+/// versions, dependencies, .env (key names only, with consent), ports.
+#[tauri::command]
+pub async fn projects_profile(path: String) -> AppResult<ProjectProfile> {
+    blocking(move || {
+        let dir = runner_dir(&path)?;
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        let read_env =
+            crate::core::consent::is_consent_granted(crate::core::consent::DataSource::ProjectEnv);
+        Ok(runner::profile(&dir, &home, read_env))
+    })
+    .await
+}
+
+/// Copy the project's env template to `.env`. Never overwrites a `.env`.
+#[tauri::command]
+pub async fn projects_create_env(path: String) -> AppResult<String> {
+    crate::core::consent::require_consent(crate::core::consent::DataSource::ProjectEnv)?;
+    let guard = mutation_unattended(
+        MutationSpec::new(
+            "Create .env",
+            format!("Create .env from its template in {path}"),
+            "create_env",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&path),
+    );
+    blocking(move || {
+        let dir = runner_dir(&path)?;
+        let env = dir.join(".env");
+        if env.exists() {
+            return Err(AppError::Forbidden(
+                "This project already has a .env — Stackroost won't overwrite it.".into(),
+            ));
+        }
+        let template = runner::ENV_TEMPLATES
+            .iter()
+            .find(|t| dir.join(t).is_file())
+            .ok_or_else(|| {
+                AppError::NotFound("No .env template (.env.example…) in this project.".into())
+            })?;
+        std::fs::copy(dir.join(template), &env).map_err(|e| {
+            guard.failure(e.to_string());
+            AppError::Io(format!("couldn't create .env: {e}"))
+        })?;
+        guard.success(format!("from {template}"));
+        Ok(template.to_string())
+    })
+    .await
+}
+
+/// Stop a process that listens from inside this project (an earlier run, or
+/// one started outside Stackroost). Only pids the project owns, after a confirm.
+#[tauri::command]
+pub async fn projects_stop_process(app: AppHandle, path: String, pid: u32) -> AppResult<()> {
+    let dir = runner_dir(&path)?;
+    let real = dir.canonicalize().unwrap_or_else(|_| dir.clone());
+    let owned = blocking(move || {
+        Ok(runner::listeners_with_cwd().into_iter().find(|(l, cwd)| {
+            l.pid == pid
+                && cwd
+                    .as_ref()
+                    .is_some_and(|c| c.starts_with(&real) || c.starts_with(&dir))
+        }))
+    })
+    .await?;
+    let Some((l, _)) = owned else {
+        return Err(AppError::NotFound(format!(
+            "pid {pid} isn't running from this project any more."
+        )));
+    };
+    let guard = mutation(
+        &app,
+        MutationSpec::new(
+            format!("Stop {} on port {}?", l.command, l.port),
+            format!("Sends a polite stop (SIGTERM) to pid {pid}, which is serving this project. Unsaved work in that process may be lost."),
+            "Stop",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&path),
+    )?;
+    // SAFETY: kill(2) with a plain signal has no memory preconditions.
+    let rc = unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+    if rc != 0 {
+        let e = std::io::Error::last_os_error();
+        guard.failure(e.to_string());
+        return Err(AppError::Shell(format!("couldn't stop pid {pid}: {e}")));
+    }
+    guard.success(format!("SIGTERM {pid}"));
+    Ok(())
+}
+
+/// Open the project in VS Code or Finder (fixed apps; the folder is checked).
+#[tauri::command]
+pub async fn projects_open_in(path: String, target: String) -> AppResult<()> {
+    blocking(move || {
+        let dir = runner_dir(&path)?;
+        let dir = dir.to_string_lossy().into_owned();
+        let args: Vec<&str> = match target.as_str() {
+            "vscode" => vec!["-a", "Visual Studio Code", "--", &dir],
+            "finder" => vec!["--", &dir],
+            other => return Err(AppError::InvalidName(format!("can't open in {other}"))),
+        };
+        let out = exec::run(
+            "open",
+            &args,
+            ExecOpts::default()
+                .with_timeout(Duration::from_secs(10))
+                .no_check_exit(),
+        )?;
+        if !out.status.success() {
+            return Err(AppError::NotFound(if target == "vscode" {
+                "VS Code isn't installed (or isn't in /Applications).".into()
+            } else {
+                format!("couldn't open {dir}")
+            }));
+        }
         Ok(())
     })
     .await

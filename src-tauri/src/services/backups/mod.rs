@@ -66,6 +66,25 @@ impl BackupIndex {
     }
 }
 
+/// `destination_dir` reaches here straight from the UI once a "Create backup"
+/// form exists — it was never validated (AUDIT-2026-10-24 Fix-6/ARC-05):
+/// require an absolute path with no `..` traversal, same bar as the APFS
+/// snapshot paths.
+fn validate_destination_dir(p: &Path) -> AppResult<()> {
+    let s = p.to_string_lossy();
+    if s.is_empty() || s.contains('\0') || s.contains("..") {
+        return Err(AppError::Forbidden(
+            "destination directory: path traversal or invalid path".into(),
+        ));
+    }
+    if !p.is_absolute() {
+        return Err(AppError::Forbidden(
+            "destination directory must be an absolute path".into(),
+        ));
+    }
+    Ok(())
+}
+
 pub fn create_database_backup(dir: &Path, config: BackupConfig) -> AppResult<BackupRecord> {
     // 1. Validate database name using DbName newtype (rejects shell characters, injection, spaces)
     let validated_db = DbName::try_from(config.database.as_str())?;
@@ -76,11 +95,14 @@ pub fn create_database_backup(dir: &Path, config: BackupConfig) -> AppResult<Bac
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
-    let dest_dir = config
-        .destination_dir
-        .as_ref()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| dir.join("backups"));
+    let dest_dir = match config.destination_dir.as_ref() {
+        Some(d) => {
+            let p = PathBuf::from(d);
+            validate_destination_dir(&p)?;
+            p
+        }
+        None => dir.join("backups"),
+    };
     std::fs::create_dir_all(&dest_dir)
         .map_err(|e| AppError::Io(format!("create backup dir: {e}")))?;
 
@@ -115,7 +137,7 @@ pub fn create_database_backup(dir: &Path, config: BackupConfig) -> AppResult<Bac
             "mysql" => {
                 cmd.args(["mysqldump", "--single-transaction", db_str]);
             }
-            "mongo" => {
+            "mongo" | "mongodb" => {
                 cmd.args(["mongodump", "--archive", &format!("--db={db_str}")]);
             }
             other => {
@@ -188,7 +210,7 @@ pub fn create_database_backup(dir: &Path, config: BackupConfig) -> AppResult<Bac
                     return Err(AppError::Shell(format!("local mysqldump failed: {stderr}")));
                 }
             }
-            "mongo" => {
+            "mongo" | "mongodb" => {
                 let mut cmd = Command::new("mongodump");
                 cmd.args([
                     format!("--archive={}", target_file.display()),
@@ -389,6 +411,34 @@ mod tests {
         let res = create_database_backup(&tmp, bad_config);
         assert!(res.is_err());
         assert!(matches!(res.unwrap_err(), AppError::InvalidName(_)));
+    }
+
+    #[test]
+    fn destination_dir_traversal_and_relative_paths_are_rejected() {
+        let tmp = std::env::temp_dir().join(format!(
+            "sr-backups-destdir-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::create_dir_all(&tmp);
+
+        for bad in ["../../etc", "relative/path", ""] {
+            let config = BackupConfig {
+                source: "local".into(),
+                host_alias: None,
+                engine: "postgres".into(),
+                database: "mydb".into(),
+                destination_dir: Some(bad.into()),
+            };
+            let res = create_database_backup(&tmp, config);
+            assert!(res.is_err(), "expected {bad:?} to be rejected");
+            assert!(
+                matches!(res.unwrap_err(), AppError::Forbidden(_)),
+                "{bad:?}"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]

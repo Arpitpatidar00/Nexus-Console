@@ -62,6 +62,16 @@ export function useSaveHosts() {
   });
 }
 
+export function useRestoreHosts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => ipcVoid(CMD.NETWORK_RESTORE_HOSTS, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: networkKeys.hosts() });
+    },
+  });
+}
+
 export function useChaosProxies() {
   return useQuery({
     queryKey: ['network', 'chaos', 'proxies'],

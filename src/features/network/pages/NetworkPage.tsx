@@ -1,19 +1,35 @@
-import { useState } from 'react';
-import { Wifi, Activity, ShieldCheck, RotateCw, Sliders } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Wifi,
+  Activity,
+  ShieldCheck,
+  RotateCw,
+  Sliders,
+  Plus,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import {
   useNetworkInfo,
   useProcessBandwidth,
   useFlushDns,
+  useHostsEntries,
+  useSaveHosts,
+  useRestoreHosts,
   useChaosProxies,
   useStartChaosProxy,
   useStopChaosProxy,
 } from '../api/useNetwork';
+import type { HostEntry } from '../api/network.schema';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { Field, Input } from '@/shared/ui/Field';
 import { Switch } from '@/shared/ui/Switch';
+
+const newLocalId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tmp_${Date.now()}`;
 
 export const NetworkPage = () => {
   const [activeTab, setActiveTab] = useState<'bandwidth' | 'hosts' | 'chaos'>('bandwidth');
@@ -208,21 +224,204 @@ export const NetworkPage = () => {
         </div>
       )}
 
-      {activeTab === 'hosts' && (
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
-            <div>
-              <span className="font-bold">Coming back after a safety review:</span>
-              <p className="mt-0.5 text-warning">
-                The /etc/hosts editor is temporarily frozen while being rewritten with atomic file
-                writes, line preservation, input validation, and mutation gates.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {activeTab === 'hosts' && <HostsEditorSection />}
 
       {activeTab === 'chaos' && <ChaosProxySection />}
+    </div>
+  );
+};
+
+/** A row being edited: hostnames as one space-separated field, since that's
+ * how they're typed and how /etc/hosts itself writes them. */
+type EditableRow = Omit<HostEntry, 'hostnames'> & { hostnamesText: string };
+
+const toEditable = (e: HostEntry): EditableRow => ({ ...e, hostnamesText: e.hostnames.join(' ') });
+
+const HostsEditorSection = () => {
+  const { data: savedEntries = [], isLoading, error, refetch } = useHostsEntries();
+  const saveHosts = useSaveHosts();
+  const restoreHosts = useRestoreHosts();
+  const [rows, setRows] = useState<EditableRow[] | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Seed local editable rows from the server once per load; don't clobber
+  // in-progress edits on an unrelated refetch.
+  useEffect(() => {
+    if (rows === null && savedEntries.length >= 0 && !isLoading) {
+      setRows(savedEntries.map(toEditable));
+    }
+  }, [savedEntries, isLoading, rows]);
+
+  const dirty =
+    rows !== null && JSON.stringify(rows) !== JSON.stringify(savedEntries.map(toEditable));
+
+  const updateRow = (id: string, patch: Partial<EditableRow>) =>
+    setRows((r) => r?.map((row) => (row.id === id ? { ...row, ...patch } : row)) ?? r);
+
+  const addRow = () =>
+    setRows((r) => [
+      ...(r ?? []),
+      { id: newLocalId(), ip: '', hostnamesText: '', comment: null, enabled: true },
+    ]);
+
+  const removeRow = (id: string) => setRows((r) => r?.filter((row) => row.id !== id) ?? r);
+
+  const discard = () => setRows(savedEntries.map(toEditable));
+
+  const problems: string[] = [];
+  for (const row of rows ?? []) {
+    const label = row.ip || row.hostnamesText || 'a row';
+    if (!row.ip.trim()) problems.push(`${label}: missing an IP address.`);
+    if (!row.hostnamesText.trim()) problems.push(`${label}: needs at least one hostname.`);
+  }
+
+  const handleSave = () => {
+    if (!rows || problems.length > 0) return;
+    setSaveError(null);
+    const entries: HostEntry[] = rows.map((r) => ({
+      id: r.id,
+      ip: r.ip.trim(),
+      hostnames: r.hostnamesText.trim().split(/\s+/).filter(Boolean),
+      comment: r.comment?.trim() || null,
+      enabled: r.enabled,
+    }));
+    saveHosts.mutate(entries, {
+      onSuccess: () => setRows(null),
+      onError: (err) => setSaveError(err.message),
+    });
+  };
+
+  if (error) {
+    return (
+      <ErrorPanel
+        error={error}
+        fallback="Couldn't read /etc/hosts."
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+  if (isLoading || rows === null) {
+    return <Skeleton lines={4} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Changes write to <code className="font-mono">/etc/hosts</code> and need your Mac password.
+          A backup of the current file is kept, so you can always{' '}
+          <button
+            type="button"
+            onClick={() => restoreHosts.mutate()}
+            disabled={restoreHosts.isPending}
+            className="font-semibold text-warning underline hover:no-underline"
+          >
+            restore the last one
+          </button>
+          .
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card/40">
+        <table className="w-full border-collapse text-left text-xs">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 font-semibold text-fg-muted">
+              <th className="w-10 px-3 py-2" aria-label="Enabled"></th>
+              <th className="px-3 py-2">IP address</th>
+              <th className="px-3 py-2">Hostnames (space-separated)</th>
+              <th className="px-3 py-2">Comment</th>
+              <th className="w-10 px-3 py-2" aria-label="Remove"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-fg-muted">
+                  No managed entries. Click “Add entry” to create one.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-3 py-1.5">
+                    <Switch
+                      checked={row.enabled}
+                      onChange={(enabled) => updateRow(row.id, { enabled })}
+                      ariaLabel={row.enabled ? 'Entry enabled' : 'Entry disabled (commented out)'}
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <Input
+                      size="sm"
+                      mono
+                      value={row.ip}
+                      onChange={(e) => updateRow(row.id, { ip: e.target.value })}
+                      placeholder="127.0.0.1"
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <Input
+                      size="sm"
+                      mono
+                      value={row.hostnamesText}
+                      onChange={(e) => updateRow(row.id, { hostnamesText: e.target.value })}
+                      placeholder="api.local"
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <Input
+                      size="sm"
+                      value={row.comment ?? ''}
+                      onChange={(e) => updateRow(row.id, { comment: e.target.value })}
+                      placeholder="optional"
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5 text-right">
+                    <Button
+                      variant="ghost"
+                      size="iconSm"
+                      aria-label="Remove entry"
+                      onClick={() => removeRow(row.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="outline" size="sm" onClick={addRow}>
+          <Plus className="mr-1.5 size-3.5" />
+          Add entry
+        </Button>
+
+        <div className="flex items-center gap-2">
+          {dirty && (
+            <Button variant="ghost" size="sm" onClick={discard} disabled={saveHosts.isPending}>
+              Discard changes
+            </Button>
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSave}
+            disabled={!dirty || problems.length > 0 || saveHosts.isPending}
+          >
+            {saveHosts.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </div>
+      </div>
+
+      {problems.length > 0 && <p className="text-xs text-warning">{problems[0]}</p>}
+      {saveError && <p className="text-xs text-destructive">{saveError}</p>}
     </div>
   );
 };

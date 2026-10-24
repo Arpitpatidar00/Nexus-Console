@@ -73,5 +73,11 @@ export const uptimeMonitorSchema = z.object({
   isUp: z.boolean(),
   uptimePercent24h: z.number(),
   history: z.array(uptimePingSchema),
+  // Rust sends these too (`#[serde(default)]` on its side) — they were
+  // missing here, so zod silently dropped them before anything could show a
+  // last-ping time or an SSL countdown (Fix-6/ARC-05, unfreezing Uptime).
+  lastPingTimestamp: z.number().nullable().optional(),
+  sslDaysRemaining: z.number().nullable().optional(),
+  lastCertWarnTimestamp: z.number().nullable().optional(),
 });
 export type UptimeMonitor = z.infer<typeof uptimeMonitorSchema>;

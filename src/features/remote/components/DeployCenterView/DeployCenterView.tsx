@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { Rocket, History, Layers } from 'lucide-react';
+import { Rocket, History, Layers, Loader2, RotateCcw } from 'lucide-react';
 import { Badge } from '@/shared/ui/Badge';
+import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import type { HostSnapshot, RemoteHost } from '@/features/remote/api/remote.schema';
-import { useDeployHistory, useDeployPreview } from '@/features/remote/api/useDeploys';
+import {
+  useDeployHistory,
+  useDeployPreview,
+  useExecuteDeploy,
+  useRollbackDeploy,
+} from '@/features/remote/api/useDeploys';
 
 interface Props {
   host: RemoteHost;
@@ -15,6 +21,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
   const initialProject = snapshot.composeProjects[0]?.name || 'default';
   const [selectedProject, setSelectedProject] = useState(initialProject);
   const [deployLogs, setDeployLogs] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: preview, isFetching: previewLoading } = useDeployPreview(
     host.id,
@@ -22,6 +29,27 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
     connected && !!selectedProject,
   );
   const { data: history, isLoading: historyLoading } = useDeployHistory(host.id);
+  const executeDeploy = useExecuteDeploy(host.id);
+  const rollbackDeploy = useRollbackDeploy(host.id);
+
+  const handleDeploy = () => {
+    setActionError(null);
+    executeDeploy.mutate(
+      { project: selectedProject },
+      {
+        onSuccess: (res) => setDeployLogs(res.logs),
+        onError: (err) => setActionError(err.message),
+      },
+    );
+  };
+
+  const handleRollback = (deployId: string) => {
+    setActionError(null);
+    rollbackDeploy.mutate(deployId, {
+      onSuccess: (res) => setDeployLogs(res.logs),
+      onError: (err) => setActionError(err.message),
+    });
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
@@ -59,27 +87,32 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
         )}
       </div>
 
-      {/* Safety Freeze Notice */}
-      <div className="flex items-start gap-3 rounded-2xl border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
-        <div>
-          <span className="font-bold">Coming back after a safety review:</span>
-          <p className="mt-0.5 text-warning">
-            Remote deploy, rollback, and promotion are temporarily frozen while docker compose argv
-            pipelines, snapshot verification, and Rust mutation gates are implemented.
-          </p>
+      {actionError && (
+        <div className="rounded-xl border border-destructive/30 bg-danger-soft p-3 text-xs text-destructive">
+          {actionError}
         </div>
-      </div>
+      )}
 
       {/* Deploy Preview & Trigger Card */}
-      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm">
         <div className="flex items-center justify-between pb-4">
           <div className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
             <h4 className="text-sm font-semibold text-fg">Deploy Preview: {selectedProject}</h4>
           </div>
-          <Badge variant="warning" className="text-xs">
-            Deploy not available yet
-          </Badge>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!connected || !preview?.hasChanges || executeDeploy.isPending}
+            onClick={handleDeploy}
+          >
+            {executeDeploy.isPending ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Rocket className="mr-1.5 size-3.5" />
+            )}
+            {executeDeploy.isPending ? 'Deploying…' : `Deploy ${selectedProject}`}
+          </Button>
         </div>
 
         {previewLoading ? (
@@ -114,7 +147,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
 
       {/* Deploy Logs Output if present */}
       {deployLogs && (
-        <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm">
           <div className="flex items-center justify-between pb-3">
             <span className="text-xs font-semibold text-fg">Deploy Command Output</span>
             <button
@@ -132,7 +165,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
       )}
 
       {/* Historical Deploys & Rollback */}
-      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm backdrop-blur-sm">
+      <div className="rounded-2xl border border-hairline bg-card/50 p-5 shadow-sm">
         <div className="flex items-center gap-2 pb-3">
           <History className="size-4 text-primary" />
           <h4 className="text-sm font-semibold text-fg">Deployment History & Rollback Points</h4>
@@ -163,7 +196,17 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
                   <p className="mt-1 text-xs text-fg-muted">{record.message}</p>
                 </div>
 
-                <span className="text-xs text-fg-subtle italic">Rollback not available yet</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    !connected || record.status === 'rolledBack' || rollbackDeploy.isPending
+                  }
+                  onClick={() => handleRollback(record.id)}
+                >
+                  <RotateCcw className="mr-1.5 size-3.5" />
+                  {rollbackDeploy.isPending ? 'Rolling back…' : 'Roll back to this'}
+                </Button>
               </div>
             ))}
           </div>

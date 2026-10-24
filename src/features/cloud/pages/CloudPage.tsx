@@ -1,12 +1,86 @@
 import { useState } from 'react';
-import { Cloud, Server, Database, DollarSign, RefreshCw, Search } from 'lucide-react';
+import {
+  Cloud,
+  Server,
+  Database,
+  DollarSign,
+  RefreshCw,
+  Search,
+  Play,
+  Square,
+  RotateCw,
+} from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { Input, Select } from '@/shared/ui/Field';
-import { useAwsProfiles, useEc2Instances, useS3Buckets, useAwsCosts } from '../api/useCloud';
+import {
+  useAwsProfiles,
+  useEc2Instances,
+  useS3Buckets,
+  useAwsCosts,
+  useEc2Action,
+} from '../api/useCloud';
+import type { Ec2Instance } from '../api/cloud.schema';
 import { ConsentGate } from '@/shared/privacy';
 import { RequiresTool } from '@/shared/tools';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
+
+/** Start/stop/reboot for one instance — the native confirm (and, for a
+ * production instance, its red styling) comes from Rust's `aws_instance_action`
+ * mutation gate, not from anything here. */
+const InstanceActions = ({ inst, profile }: { inst: Ec2Instance; profile: string }) => {
+  const ec2Action = useEc2Action();
+  const isRunning = inst.state.toLowerCase() === 'running';
+  const isStopped = inst.state.toLowerCase() === 'stopped';
+  const run = (action: 'start' | 'stop' | 'reboot') =>
+    ec2Action.mutate({ profile, region: inst.region, instanceId: inst.id, action });
+
+  if (!isRunning && !isStopped) {
+    // Pending/transitional state (e.g. "stopping") — nothing to offer yet.
+    return <span className="text-[11px] text-fg-muted italic">{inst.state}</span>;
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      {isStopped && (
+        <Button
+          variant="ghost"
+          size="iconSm"
+          aria-label="Start instance"
+          title="Start"
+          disabled={ec2Action.isPending}
+          onClick={() => run('start')}
+        >
+          <Play className="size-3.5" />
+        </Button>
+      )}
+      {isRunning && (
+        <>
+          <Button
+            variant="ghost"
+            size="iconSm"
+            aria-label="Stop instance"
+            title="Stop"
+            disabled={ec2Action.isPending}
+            onClick={() => run('stop')}
+          >
+            <Square className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="iconSm"
+            aria-label="Reboot instance"
+            title="Reboot"
+            disabled={ec2Action.isPending}
+            onClick={() => run('reboot')}
+          >
+            <RotateCw className="size-3.5" />
+          </Button>
+        </>
+      )}
+    </div>
+  );
+};
 
 const CloudView = () => {
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
@@ -306,9 +380,7 @@ const CloudView = () => {
                       <td className="px-4 py-3 font-mono text-fg-muted">{inst.privateIp || '—'}</td>
                       <td className="px-4 py-3 text-fg-muted">{inst.region}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-[11px] text-fg-muted italic">
-                          Start/stop/reboot not available yet
-                        </span>
+                        <InstanceActions inst={inst} profile={selectedProfile} />
                       </td>
                     </tr>
                   );

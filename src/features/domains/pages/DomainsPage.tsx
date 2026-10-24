@@ -9,13 +9,31 @@ import {
   Clock,
   Layers,
   Radio,
+  Plus,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
-import { useDnsLookup, useSslCheck, useRdapCheck, usePropagationCheck } from '../api/useDomains';
+import { Field, Input } from '@/shared/ui/Field';
+import { Switch } from '@/shared/ui/Switch';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
+import { useIpcEvent } from '@/shared/tauri';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useDnsLookup,
+  useSslCheck,
+  useRdapCheck,
+  usePropagationCheck,
+  useUptimeMonitors,
+  useSaveUptimeMonitor,
+  useDeleteUptimeMonitor,
+  usePingNow,
+  domainKeys,
+} from '../api/useDomains';
+import type { UptimeMonitor } from '../api/domains.schema';
 
 export const DomainsPage = () => {
   const [activeTab, setActiveTab] = useState<'inspector' | 'uptime'>('inspector');
@@ -80,7 +98,7 @@ export const DomainsPage = () => {
             }`}
           >
             <Activity className="h-3.5 w-3.5" />
-            Uptime Monitors (Frozen)
+            Uptime Monitors
           </button>
         </div>
       </div>
@@ -311,17 +329,187 @@ export const DomainsPage = () => {
           </div>
         </div>
       ) : (
-        /* Uptime Monitors View - Frozen */
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-          <div className="flex items-start gap-3 rounded-xl border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
-            <div>
-              <span className="font-bold">Coming back after a safety review:</span>
-              <p className="mt-0.5 text-warning">
-                Uptime monitoring is temporarily frozen while real background periodic scheduling
-                and native system notifications are implemented.
-              </p>
-            </div>
+        <UptimeMonitorsView />
+      )}
+    </div>
+  );
+};
+
+const emptyMonitor = (): UptimeMonitor => ({
+  id: '',
+  name: '',
+  url: '',
+  intervalMins: 5,
+  enabled: true,
+  lastStatus: null,
+  lastLatencyMs: null,
+  isUp: false,
+  uptimePercent24h: 0,
+  history: [],
+  lastPingTimestamp: null,
+  sslDaysRemaining: null,
+  lastCertWarnTimestamp: null,
+});
+
+const UptimeMonitorsView = () => {
+  const { data: monitors = [], isLoading } = useUptimeMonitors();
+  const saveMonitor = useSaveUptimeMonitor();
+  const deleteMonitor = useDeleteUptimeMonitor();
+  const pingNow = usePingNow();
+  const qc = useQueryClient();
+
+  // The scheduler pings on its own cadence; pick up what it found live
+  // instead of waiting for the next poll.
+  useIpcEvent<UptimeMonitor[]>('uptime://update', (e) => {
+    qc.setQueryData(domainKeys.uptime(), e.payload);
+  });
+
+  const [draft, setDraft] = useState<UptimeMonitor | null>(null);
+
+  const startAdding = () => setDraft(emptyMonitor());
+  const canSave = draft !== null && draft.name.trim() !== '' && draft.url.trim() !== '';
+
+  const handleAdd = () => {
+    if (!draft || !canSave) return;
+    saveMonitor.mutate(
+      { ...draft, name: draft.name.trim(), url: draft.url.trim() },
+      { onSuccess: () => setDraft(null) },
+    );
+  };
+
+  const toggleEnabled = (m: UptimeMonitor) => saveMonitor.mutate({ ...m, enabled: !m.enabled });
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3 text-xs text-fg-muted">
+        <Radio className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Checked over plain HTTP(S) on each monitor's own interval, in the background. You get a
+          Mac notification the moment one goes down, comes back up, or its certificate is about to
+          expire.
+        </p>
+      </div>
+
+      {draft ? (
+        <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-paper p-4 shadow-xs sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Name">
+            <Input
+              size="sm"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              placeholder="API"
+            />
+          </Field>
+          <Field label="URL" className="lg:col-span-2">
+            <Input
+              size="sm"
+              mono
+              value={draft.url}
+              onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+              placeholder="https://api.example.com/health"
+            />
+          </Field>
+          <Field label="Check every (minutes)">
+            <Input
+              size="sm"
+              type="number"
+              min={1}
+              value={draft.intervalMins}
+              onChange={(e) =>
+                setDraft({ ...draft, intervalMins: Math.max(1, Number(e.target.value) || 1) })
+              }
+            />
+          </Field>
+          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleAdd}
+              disabled={!canSave || saveMonitor.isPending}
+            >
+              {saveMonitor.isPending ? 'Saving…' : 'Add monitor'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
+              Cancel
+            </Button>
           </div>
+        </div>
+      ) : (
+        <Button variant="outline" size="sm" className="self-start" onClick={startAdding}>
+          <Plus className="mr-1.5 size-3.5" />
+          Add monitor
+        </Button>
+      )}
+
+      {isLoading ? (
+        <Skeleton lines={4} />
+      ) : monitors.length === 0 ? (
+        <EmptyState
+          icon={<Activity className="size-10" />}
+          title="No uptime monitors yet"
+          description="Add a URL to check it on a schedule and get notified if it goes down."
+        />
+      ) : (
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-paper">
+          {monitors.map((m) => (
+            <div key={m.id} className="flex items-center gap-3 p-4">
+              <Switch
+                checked={m.enabled}
+                onChange={() => toggleEnabled(m)}
+                ariaLabel={m.enabled ? 'Monitor enabled' : 'Monitor disabled'}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-fg">{m.name}</span>
+                  {m.lastStatus != null && (
+                    <Badge variant={m.isUp ? 'success' : 'destructive'} className="text-[10px]">
+                      {m.isUp ? 'Up' : 'Down'}
+                      {m.lastStatus > 0 ? ` · HTTP ${m.lastStatus}` : ''}
+                    </Badge>
+                  )}
+                  {m.sslDaysRemaining != null && m.sslDaysRemaining <= 14 && (
+                    <Badge variant="warning" className="text-[10px]">
+                      <ShieldAlert className="mr-1 size-3" />
+                      Cert expires in {m.sslDaysRemaining}d
+                    </Badge>
+                  )}
+                </div>
+                <p className="truncate font-mono text-xs text-fg-muted">{m.url}</p>
+                <p className="mt-0.5 text-[11px] text-fg-subtle">
+                  Every {m.intervalMins}m{m.lastLatencyMs != null ? ` · ${m.lastLatencyMs}ms` : ''}
+                  {m.history.length > 0 ? ` · ${m.uptimePercent24h.toFixed(0)}% up` : ''}
+                  {m.lastPingTimestamp
+                    ? ` · last checked ${new Date(m.lastPingTimestamp * 1000).toLocaleTimeString()}`
+                    : ' · not checked yet'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="iconSm"
+                aria-label="Ping now"
+                title="Ping now"
+                disabled={pingNow.isPending}
+                onClick={() => pingNow.mutate({ id: m.id, url: m.url })}
+              >
+                {pingNow.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-3.5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="iconSm"
+                aria-label="Delete monitor"
+                title="Delete"
+                className="text-fg-muted hover:text-destructive"
+                disabled={deleteMonitor.isPending}
+                onClick={() => deleteMonitor.mutate(m.id)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -32,7 +32,12 @@
 - [x] **P4** Servers depth (timeline/notes, compose stacks, nginx/cron view, disk cleanup, merged logs, SFTP files, runbooks)
 - [x] **P5** Parity and Ship (parity auditor, deploy/rollback, image push over SSH)
 - [x] **P6** Local data (Local Docker, Databases, branch databases)
-- [x] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved commands, terminal restore, time per project)
+- [x] **P7** Projects and Workspaces (projects, GitHub — **ASK if gh missing**, workspaces, saved
+      commands) — **terminal restore and time per project were never implemented** (AUDIT-2026-10-21
+      T-29/T-30; confirmed still absent in AUDIT-2026-10-24 §10 Fix-6). This line wrongly claimed them
+      done; left unchecked below as the real, open items.
+- [ ] **P7.4** Terminal restore — "Restore last terminal tabs?" on launch (PLAN.md §7.4)
+- [ ] **P7.5** Time per project — attribute running time to a project from workspaces/services (PLAN.md §7.5)
 - [x] **P8** Claude Chats (search, resume, export, usage, context analysis)
 - [x] **P9** Mac health (ghost leftovers, Energy, battery health + thermal, weekly trends, duplicate files)
 - [x] **P10** Blueprint, Homebrew pin, auto-update

@@ -188,6 +188,7 @@ export const CMD = {
   NETWORK_FLUSH_DNS: 'network_flush_dns',
   NETWORK_GET_HOSTS: 'network_get_hosts',
   NETWORK_SAVE_HOSTS: 'network_save_hosts',
+  NETWORK_RESTORE_HOSTS: 'network_restore_hosts',
   CHAOS_START_PROXY: 'chaos_start_proxy',
   CHAOS_STOP_PROXY: 'chaos_stop_proxy',
   CHAOS_LIST_PROXIES: 'chaos_list_proxies',

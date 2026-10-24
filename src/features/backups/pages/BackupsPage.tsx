@@ -1,7 +1,140 @@
-import { HardDriveDownload, Trash2, RefreshCw, FolderArchive, Lock } from 'lucide-react';
+import { useState } from 'react';
+import {
+  HardDriveDownload,
+  Trash2,
+  RefreshCw,
+  FolderArchive,
+  Lock,
+  Plus,
+  Loader2,
+} from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
-import { useBackupHistory, useDeleteBackup } from '../api/useBackups';
+import { Field, Input, Select } from '@/shared/ui/Field';
+import { useBackupHistory, useCreateDbBackup, useDeleteBackup } from '../api/useBackups';
+import type { BackupConfig } from '../api/backups.schema';
+import { useRemoteState } from '@/features/remote/api/useRemoteState';
+
+const ENGINES: Array<{ value: BackupConfig['engine']; label: string }> = [
+  { value: 'postgres', label: 'PostgreSQL' },
+  { value: 'mysql', label: 'MySQL' },
+  { value: 'mongo', label: 'MongoDB' },
+];
+
+/** Create a backup: pick local or a configured SSH host, an engine, and the
+ * database name. Dumps stream straight over the encrypted SSH pipe into a
+ * 0600 local file — nothing is ever written to the remote filesystem. */
+const CreateBackupForm = () => {
+  const { data: remoteState } = useRemoteState();
+  const createBackup = useCreateDbBackup();
+  const [source, setSource] = useState<BackupConfig['source']>('local');
+  const [engine, setEngine] = useState<BackupConfig['engine']>('postgres');
+  const [database, setDatabase] = useState('');
+  const [hostAlias, setHostAlias] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Only hosts reachable by a plain ssh-config alias can run a remote dump
+  // (`ssh <alias> -- pg_dump ...`) — a manual host's `user@host:port` form
+  // has characters validate_ssh_alias rejects on purpose.
+  const aliasHosts = (remoteState?.hosts ?? []).filter((h) => h.source === 'sshConfig' && h.alias);
+
+  const canSubmit =
+    database.trim().length > 0 && (source === 'local' || hostAlias.trim().length > 0);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setFormError(null);
+    createBackup.mutate(
+      {
+        source,
+        engine,
+        database: database.trim(),
+        hostAlias: source === 'remote' ? hostAlias : null,
+        destinationDir: null,
+      },
+      {
+        onSuccess: () => setDatabase(''),
+        onError: (err) => setFormError(err.message),
+      },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-card/40 p-4 sm:grid-cols-2 lg:grid-cols-4"
+    >
+      <Field label="Source">
+        <Select
+          size="sm"
+          value={source}
+          onChange={(e) => setSource(e.target.value as BackupConfig['source'])}
+        >
+          <option value="local">This Mac</option>
+          <option value="remote">A server you've added</option>
+        </Select>
+      </Field>
+
+      {source === 'remote' && (
+        <Field
+          label="Server"
+          hint={aliasHosts.length === 0 ? 'No eligible servers added yet.' : undefined}
+        >
+          <Select size="sm" value={hostAlias} onChange={(e) => setHostAlias(e.target.value)}>
+            <option value="">Choose a server…</option>
+            {aliasHosts.map((h) => (
+              <option key={h.id} value={h.alias ?? ''}>
+                {h.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+
+      <Field label="Engine">
+        <Select
+          size="sm"
+          value={engine}
+          onChange={(e) => setEngine(e.target.value as BackupConfig['engine'])}
+        >
+          {ENGINES.map((e) => (
+            <option key={e.value} value={e.value}>
+              {e.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Database name">
+        <Input
+          size="sm"
+          mono
+          value={database}
+          onChange={(e) => setDatabase(e.target.value)}
+          placeholder="my_app_production"
+        />
+      </Field>
+
+      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={!canSubmit || createBackup.isPending}
+        >
+          {createBackup.isPending ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+          ) : (
+            <Plus className="mr-1.5 size-3.5" />
+          )}
+          {createBackup.isPending ? 'Backing up…' : 'Create backup'}
+        </Button>
+        {formError && <p className="text-xs text-destructive">{formError}</p>}
+      </div>
+    </form>
+  );
+};
 
 export const BackupsPage = () => {
   const { data: backups = [], isLoading, refetch } = useBackupHistory();
@@ -29,28 +162,6 @@ export const BackupsPage = () => {
             permissions.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Badge
-            variant="warning"
-            className="border-warning-soft bg-warning-soft px-2.5 py-1 text-xs text-warning"
-          >
-            Coming back after safety review
-          </Badge>
-        </div>
-      </div>
-
-      {/* Safety Freeze Callout */}
-      <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
-        <Lock className="h-5 w-5 shrink-0 text-warning" />
-        <div>
-          <span className="font-bold">Coming back after a safety review:</span>
-          <p className="mt-0.5 text-warning">
-            Database dump and environment archiving features are temporarily frozen while shell-free
-            argv streaming pipelines, destination validation, and strict 0600 atomic file creation
-            are put in place.
-          </p>
-        </div>
       </div>
 
       {/* Security Callout Banner */}
@@ -67,6 +178,9 @@ export const BackupsPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Create Backup */}
+      <CreateBackupForm />
 
       {/* Backups Table */}
       <div className="overflow-hidden rounded-lg border border-border bg-card/40 shadow-sm">

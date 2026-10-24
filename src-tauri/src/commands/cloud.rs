@@ -60,6 +60,7 @@ pub async fn aws_instance_action(
 
     let _guard = mutation(&app, spec)?;
 
+    crate::core::net::check_outbound_allowed(&format!("ec2.{region}.amazonaws.com"))?;
     blocking(move || cloud::ec2_action(&profile, &region, &instance_id, &action)).await
 }
 

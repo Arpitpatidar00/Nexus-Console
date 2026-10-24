@@ -39,7 +39,7 @@ const CloudView = () => {
     (i) =>
       i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       i.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (i.public_ip && i.public_ip.includes(searchTerm)),
+      (i.publicIp && i.publicIp.includes(searchTerm)),
   );
 
   const filteredBuckets = buckets.filter((b) =>
@@ -114,9 +114,9 @@ const CloudView = () => {
                 <span className="text-xs font-bold text-fg">
                   AWS Cost Explorer (Profile: {selectedProfile})
                 </span>
-                {costReport && costReport.cached_at > 0 && (
+                {costReport && costReport.cachedAt > 0 && (
                   <Badge variant="neutral" className="px-1.5 py-0 text-[10px] text-fg-muted">
-                    Cached {new Date(costReport.cached_at * 1000).toLocaleTimeString()}
+                    Cached {new Date(costReport.cachedAt * 1000).toLocaleTimeString()}
                   </Badge>
                 )}
               </div>
@@ -140,7 +140,7 @@ const CloudView = () => {
             <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${costLoading ? 'animate-spin' : ''}`} />
             {costLoading
               ? 'Querying CE...'
-              : costReport && costReport.cached_at > 0
+              : costReport && costReport.cachedAt > 0
                 ? 'Refresh Costs'
                 : 'Query AWS Costs'}
           </Button>
@@ -152,18 +152,18 @@ const CloudView = () => {
           </div>
         )}
 
-        {costReport && costReport.cached_at > 0 && (
+        {costReport && costReport.cachedAt > 0 && (
           <div className="mt-4 border-t border-border/50 pt-3">
             <div className="flex items-baseline gap-2">
               <span className="text-xs text-fg-muted">Month-to-date Total:</span>
               <span className="text-base font-bold text-success">
-                {costReport.month_to_date_total.toFixed(2)} {costReport.currency}
+                {costReport.monthToDateTotal.toFixed(2)} {costReport.currency}
               </span>
             </div>
 
-            {costReport.top_services.length > 0 && (
+            {costReport.topServices.length > 0 && (
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-                {costReport.top_services.slice(0, 6).map((svc) => (
+                {costReport.topServices.slice(0, 6).map((svc) => (
                   <div
                     key={svc.service}
                     className="rounded border border-border/40 bg-canvas/50 px-2.5 py-1.5 text-xs"
@@ -172,7 +172,7 @@ const CloudView = () => {
                       {svc.service}
                     </div>
                     <div className="text-[11px] text-fg-muted">
-                      {svc.amount.toFixed(2)} {svc.currency || svc.unit || 'USD'}
+                      {svc.amount.toFixed(2)} {svc.unit || 'USD'}
                     </div>
                   </div>
                 ))}
@@ -285,7 +285,7 @@ const CloudView = () => {
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-fg">{inst.name || 'Unnamed'}</span>
-                          {inst.is_prod && (
+                          {inst.isProd && (
                             <Badge variant="destructive" className="text-[10px] uppercase">
                               Production
                             </Badge>
@@ -301,11 +301,9 @@ const CloudView = () => {
                           {inst.state}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 font-mono text-fg-muted">{inst.instance_type}</td>
-                      <td className="px-4 py-3 font-mono text-fg">{inst.public_ip || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-fg-muted">
-                        {inst.private_ip || '—'}
-                      </td>
+                      <td className="px-4 py-3 font-mono text-fg-muted">{inst.instanceType}</td>
+                      <td className="px-4 py-3 font-mono text-fg">{inst.publicIp || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-fg-muted">{inst.privateIp || '—'}</td>
                       <td className="px-4 py-3 text-fg-muted">{inst.region}</td>
                       <td className="px-4 py-3 text-right">
                         <span className="text-[11px] text-fg-muted italic">
@@ -360,7 +358,7 @@ const CloudView = () => {
                       {bucket.name}
                     </td>
                     <td className="px-4 py-3 text-fg-muted">
-                      {new Date(bucket.creation_date).toLocaleDateString()}
+                      {new Date(bucket.creationDate).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-fg-muted">{bucket.region || 'global'}</td>
                   </tr>

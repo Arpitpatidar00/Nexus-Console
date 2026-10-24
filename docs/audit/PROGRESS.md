@@ -2,6 +2,9 @@
 
 > Update after every item. An item is ticked only with gate output and QA recorded (PLAN §0).
 
+> **Newer audit:** `AUDIT-2026-10-24.md` re-audits every feature on `2162714` and carries its own fix
+> tracker (§10, Fix-1 … Fix-6). Track new work there; this file stays the record of Phases 0–G.
+
 ## Current status
 
 - **Current phase:** Phase G (Release readiness) - COMPLETE — awaiting owner actions (FINAL-REVIEW.md §4)

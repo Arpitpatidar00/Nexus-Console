@@ -9,7 +9,7 @@ pre-commit:
       glob: 'src/**/*.{ts,tsx}'
       run: npx oxlint {staged_files}
     prettier:
-      glob: '*.{ts,tsx,css,json,md,yml}'
+      glob: '*.{ts,tsx,js,mjs,cjs,css,json,md,yml}'
       run: npx prettier --check {staged_files}
     rustfmt:
       glob: 'src-tauri/**/*.rs'

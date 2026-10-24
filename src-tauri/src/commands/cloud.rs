@@ -4,32 +4,26 @@ use crate::error::{AppError, AppResult};
 use crate::services::cloud::{self, AwsCostReport, Ec2Instance, S3Bucket};
 use tauri::{AppHandle, Manager};
 
-fn blocking<F, T>(f: F) -> tauri::async_runtime::JoinHandle<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f)
-}
+use super::blocking;
 
 #[tauri::command]
 pub async fn aws_list_profiles() -> AppResult<Vec<String>> {
     crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
-    blocking(cloud::list_profiles)
-        .await
-        .map_err(|e| AppError::Shell(format!("list aws profiles task: {e}")))?
+    blocking(cloud::list_profiles).await
 }
 
 #[tauri::command]
 pub async fn aws_list_ec2_instances(
     profile: String,
-    region: String,
+    region: Option<String>,
 ) -> AppResult<Vec<Ec2Instance>> {
     crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
-    crate::core::net::check_outbound_allowed(&format!("ec2.{region}.amazonaws.com"))?;
-    blocking(move || cloud::list_ec2_instances(&profile, &region))
-        .await
-        .map_err(|e| AppError::Shell(format!("list ec2 instances task: {e}")))?
+    blocking(move || {
+        let region = cloud::resolve_region(&profile, region.as_deref())?;
+        crate::core::net::check_outbound_allowed(&format!("ec2.{region}.amazonaws.com"))?;
+        cloud::list_ec2_instances(&profile, &region)
+    })
+    .await
 }
 
 use crate::core::mutation::{mutation, MutationSpec};
@@ -49,7 +43,6 @@ pub async fn aws_instance_action(
 
     let is_prod = blocking(move || cloud::get_instance_is_prod(&p_clone, &r_clone, &id_clone))
         .await
-        .map_err(|e| AppError::Shell(format!("check ec2 tags task: {e}")))?
         .unwrap_or(false);
 
     let is_destructive = is_prod || action == "stop" || action == "reboot";
@@ -67,9 +60,7 @@ pub async fn aws_instance_action(
 
     let _guard = mutation(&app, spec)?;
 
-    blocking(move || cloud::ec2_action(&profile, &region, &instance_id, &action))
-        .await
-        .map_err(|e| AppError::Shell(format!("ec2 action task: {e}")))?
+    blocking(move || cloud::ec2_action(&profile, &region, &instance_id, &action)).await
 }
 
 #[tauri::command]
@@ -84,15 +75,11 @@ pub async fn aws_get_costs(
         .app_data_dir()
         .map_err(|e| AppError::Io(format!("data dir: {e}")))?;
     let force = force_refresh.unwrap_or(false);
-    blocking(move || cloud::get_cached_or_fresh_costs(&dir, &profile, force))
-        .await
-        .map_err(|e| AppError::Shell(format!("aws cost task: {e}")))?
+    blocking(move || cloud::get_cached_or_fresh_costs(&dir, &profile, force)).await
 }
 
 #[tauri::command]
 pub async fn aws_list_s3_buckets(profile: String) -> AppResult<Vec<S3Bucket>> {
     crate::core::consent::require_consent(crate::core::consent::DataSource::AwsConfig)?;
-    blocking(move || cloud::list_s3_buckets(&profile))
-        .await
-        .map_err(|e| AppError::Shell(format!("list s3 buckets task: {e}")))?
+    blocking(move || cloud::list_s3_buckets(&profile)).await
 }

@@ -1,0 +1,82 @@
+{
+  "awsCostReport": {
+    "cachedAt": 1773900000,
+    "currency": "USD",
+    "monthToDateTotal": 142.5,
+    "topServices": [
+      {
+        "amount": 98.2,
+        "service": "Amazon Elastic Compute Cloud - Compute",
+        "unit": "USD"
+      }
+    ]
+  },
+  "backupConfig": {
+    "database": "users_service",
+    "destinationDir": null,
+    "engine": "postgres",
+    "hostAlias": "prod-bastion",
+    "source": "remote"
+  },
+  "backupRecord": {
+    "createdAt": 1773900000,
+    "id": "bk-123456",
+    "sizeBytes": 41943040,
+    "sourceName": "prod_api_db",
+    "sourceType": "postgres_remote",
+    "status": "success",
+    "targetFile": "/Users/test/Library/Application Support/Stackroost/backups/prod_api_db.sql.gz"
+  },
+  "chaosProfile": {
+    "dropRatePct": 10,
+    "latencyMs": 150,
+    "reject": false
+  },
+  "chaosProxyInfo": {
+    "active": true,
+    "chaosPort": 15432,
+    "id": "chaos-1",
+    "profile": {
+      "dropRatePct": 10,
+      "latencyMs": 150,
+      "reject": false
+    },
+    "targetPort": 5432
+  },
+  "ec2Instance": {
+    "id": "i-1234567890abcdef0",
+    "instanceType": "t3.large",
+    "isProd": true,
+    "name": "api-prod-01",
+    "privateIp": "10.0.1.5",
+    "publicIp": "54.210.10.1",
+    "region": "us-east-1",
+    "state": "running",
+    "tags": [
+      [
+        "Environment",
+        "production"
+      ]
+    ]
+  },
+  "networkInfo": {
+    "dnsServers": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ],
+    "ipv4Address": "192.168.1.100",
+    "ipv6Address": null,
+    "primaryInterface": "en0"
+  },
+  "processBandwidth": {
+    "bytesIn": 5242880,
+    "bytesOut": 1048576,
+    "pid": 1234,
+    "process": "com.apple.WebKit.Networking"
+  },
+  "s3Bucket": {
+    "creationDate": "2026-01-15T10:00:00Z",
+    "name": "stackroost-backups-vault",
+    "region": "us-east-1"
+  }
+}

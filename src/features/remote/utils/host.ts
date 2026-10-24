@@ -21,11 +21,21 @@ export function guessEnv(alias: string): HostEnv {
   return 'other';
 }
 
-/** `127.0.0.1:4101`, `localhost:4101`, `[::1]:4101` or `:4101` → host + port, so
- * a pasted address fills both tunnel fields. A bare host (or IPv6 without
- * brackets) has no port. */
+/** `127.0.0.1:4101`, `localhost:4101`, `[::1]:4101`, `:4101` or a full URL
+ * (`http://127.0.0.1:4101/health`) → host + port, so a pasted address — the
+ * health-check URL a service just printed, say — fills both tunnel fields
+ * instead of failing as "invalid hostname" (AUDIT-2026-10-24 BUG-12). A bare
+ * host (or IPv6 without brackets, or a URL with no explicit port) has no port. */
 export function splitHostPort(input: string): { host: string; port: number | null } {
   const s = input.trim();
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) {
+    try {
+      const url = new URL(s);
+      return { host: url.hostname, port: url.port ? Number(url.port) : null };
+    } catch {
+      // Not a parseable URL despite the `scheme://` look — fall through.
+    }
+  }
   const m = /^\[([^\]]+)\]:(\d{1,5})$/.exec(s) ?? /^([^:]*):(\d{1,5})$/.exec(s);
   if (!m) return { host: s.replace(/^\[(.*)\]$/, '$1'), port: null };
   const port = Number(m[2]);

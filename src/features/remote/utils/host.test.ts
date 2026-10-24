@@ -49,3 +49,15 @@ test('a pasted address splits into host and port', () => {
   expect(splitHostPort('::1')).toEqual({ host: '::1', port: null });
   expect(splitHostPort('db:99999')).toEqual({ host: 'db:99999', port: null });
 });
+
+test('a pasted URL (e.g. a health-check endpoint) splits into host and port', () => {
+  expect(splitHostPort('http://127.0.0.1:14101/health')).toEqual({
+    host: '127.0.0.1',
+    port: 14101,
+  });
+  expect(splitHostPort('https://localhost:8443/api/status')).toEqual({
+    host: 'localhost',
+    port: 8443,
+  });
+  expect(splitHostPort('http://example.com')).toEqual({ host: 'example.com', port: null });
+});

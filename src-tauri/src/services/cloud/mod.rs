@@ -172,6 +172,28 @@ pub fn parse_ec2_instances_json(stdout: &[u8], region: &str) -> AppResult<Vec<Ec
     Ok(list)
 }
 
+/// The region to use when the UI has none picked: the profile's configured
+/// region, else `us-east-1` (the AWS CLI's own fallback for EC2).
+pub fn resolve_region(profile: &str, region: Option<&str>) -> AppResult<String> {
+    if let Some(r) = region.map(str::trim).filter(|r| !r.is_empty()) {
+        return Ok(AwsRegion::try_from(r)?.as_str().to_string());
+    }
+    let p = AwsProfile::try_from(profile)?;
+    let opts = ExecOpts::default()
+        .with_timeout(Duration::from_secs(10))
+        .no_check_exit();
+    let configured = exec::run(
+        "aws",
+        &["configure", "get", "region", "--profile", p.as_str()],
+        opts,
+    )
+    .ok()
+    .filter(|o| o.status.success())
+    .map(|o| o.stdout_str.trim().to_string())
+    .filter(|r| AwsRegion::try_from(r.as_str()).is_ok());
+    Ok(configured.unwrap_or_else(|| "us-east-1".into()))
+}
+
 pub fn list_ec2_instances(profile: &str, region: &str) -> AppResult<Vec<Ec2Instance>> {
     let p = AwsProfile::try_from(profile)?;
     let r = AwsRegion::try_from(region)?;

@@ -5,6 +5,32 @@
 /// Map a Tauri IPC command name to its owning module ID.
 /// Returns None for core/system commands that are always enabled.
 pub fn command_module(cmd: &str) -> Option<&'static str> {
+    // AUDIT-2026-10-24 SEC-02: these ran with their owning module switched
+    // off. `blueprint_export`/`blueprint_analyze_import` stay ungated — they
+    // only read local state or diff a pasted file, never mutate anything.
+    if matches!(
+        cmd,
+        "ai_check_ollama"
+            | "ai_prepare_prompt"
+            | "ai_explain"
+            | "ai_get_model_pricing"
+            | "ai_save_model_pricing"
+    ) {
+        return Some("toolbox"); // the only feature that calls them (AiExplainModal)
+    }
+    if cmd == "blueprint_apply_homebrew" {
+        return Some("homebrew"); // runs `brew bundle install`
+    }
+    if cmd == "blueprint_apply_hosts" {
+        return Some("remote"); // imports SSH host definitions
+    }
+    if cmd == "blueprint_apply_workspaces" {
+        return Some("projects"); // imports project workspaces
+    }
+    if cmd == "blueprint_apply_extensions" {
+        return Some("doctor"); // installs VS Code extensions, same module as vscode_*
+    }
+
     if cmd.starts_with("aws_") {
         Some("cloud")
     } else if cmd.starts_with("docker_") {
@@ -100,6 +126,37 @@ mod tests {
     }
 
     #[test]
+    fn ai_and_blueprint_apply_commands_are_gated_by_their_module() {
+        // AUDIT-2026-10-24 SEC-02: these used to answer with their module off.
+        let s = json!({ "enabledModules": ["homebrew", "remote", "projects", "doctor"] });
+        assert!(command_allowed(Some(&s), "blueprint_apply_homebrew"));
+        assert!(command_allowed(Some(&s), "blueprint_apply_hosts"));
+        assert!(command_allowed(Some(&s), "blueprint_apply_workspaces"));
+        assert!(command_allowed(Some(&s), "blueprint_apply_extensions"));
+        assert!(!command_allowed(Some(&s), "ai_explain")); // toolbox not enabled
+
+        let toolbox_only = json!({ "enabledModules": ["toolbox"] });
+        assert!(command_allowed(Some(&toolbox_only), "ai_explain"));
+        assert!(command_allowed(Some(&toolbox_only), "ai_check_ollama"));
+        assert!(!command_allowed(
+            Some(&toolbox_only),
+            "blueprint_apply_homebrew"
+        ));
+        assert!(!command_allowed(
+            Some(&toolbox_only),
+            "blueprint_apply_hosts"
+        ));
+        assert!(!command_allowed(
+            Some(&toolbox_only),
+            "blueprint_apply_workspaces"
+        ));
+        assert!(!command_allowed(
+            Some(&toolbox_only),
+            "blueprint_apply_extensions"
+        ));
+    }
+
+    #[test]
     fn test_command_module_mapping() {
         assert_eq!(command_module("aws_list_profiles"), Some("cloud"));
         assert_eq!(command_module("docker_list_containers"), Some("docker"));
@@ -110,6 +167,16 @@ mod tests {
         assert_eq!(command_module("claude_archive"), Some("claude"));
         assert_eq!(command_module("claude_installed"), None);
         assert_eq!(command_module("blueprint_export"), None);
+        assert_eq!(command_module("blueprint_analyze_import"), None);
+        assert_eq!(command_module("blueprint_apply_homebrew"), Some("homebrew"));
+        assert_eq!(command_module("blueprint_apply_hosts"), Some("remote"));
+        assert_eq!(
+            command_module("blueprint_apply_workspaces"),
+            Some("projects")
+        );
+        assert_eq!(command_module("blueprint_apply_extensions"), Some("doctor"));
+        assert_eq!(command_module("ai_explain"), Some("toolbox"));
+        assert_eq!(command_module("ai_check_ollama"), Some("toolbox"));
         assert_eq!(command_module("chaos_simulate"), Some("network"));
         assert_eq!(command_module("uptime_ping_now"), Some("domains"));
         assert_eq!(command_module("upgrade_all"), Some("homebrew"));

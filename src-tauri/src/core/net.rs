@@ -121,6 +121,16 @@ pub fn declared_destinations() -> Vec<NetDestination> {
             "TLS certificate and DNS lookups for domains you enter",
             "domains",
         ),
+        // AUDIT-2026-10-24 SEC-03: database connections (e.g. a Neon or RDS
+        // host pasted as a connection string) were never declared, so
+        // Settings → Privacy did not list them even though every query
+        // reaches that host.
+        user_dest(
+            "db_hosts",
+            "Database connections you add",
+            "Queries to the database hosts you connect to (local or remote)",
+            "databases",
+        ),
     ])
     .collect()
 }

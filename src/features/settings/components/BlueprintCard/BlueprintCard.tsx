@@ -11,9 +11,10 @@ import {
   useApplyWorkspaces,
   useApplyExtensions,
 } from '@/features/blueprint/api/useBlueprint';
-import type {
-  BlueprintDiffReport,
-  NexusBlueprint,
+import {
+  nexusBlueprintSchema,
+  type BlueprintDiffReport,
+  type NexusBlueprint,
 } from '@/features/blueprint/api/blueprint.schema';
 
 export const BlueprintCard = () => {
@@ -48,17 +49,31 @@ export const BlueprintCard = () => {
   const handleAnalyze = () => {
     if (!importJson.trim()) return;
     setJsonError(null);
+    // A malformed or unrelated JSON file was cast straight to `NexusBlueprint`
+    // with no check, so a bad import could break the diff view with no
+    // explanation (AUDIT-2026-10-24 BUG-11). Validate it with the same zod
+    // schema the Rust DTO is built from before trusting any of its fields.
+    let rawJson;
     try {
-      const parsed = JSON.parse(importJson) as NexusBlueprint;
-      setParsedBlueprint(parsed);
-      analyzeMutation.mutate(importJson, {
-        onSuccess: (report) => {
-          setDiffReport(report);
-        },
-      });
+      rawJson = JSON.parse(importJson);
     } catch {
       setJsonError('Invalid JSON format in blueprint');
+      return;
     }
+    const result = nexusBlueprintSchema.safeParse(rawJson);
+    if (!result.success) {
+      setJsonError(
+        `Not a Stackroost blueprint: ${result.error.issues[0]?.message ?? 'unexpected shape'} ` +
+          `(${result.error.issues[0]?.path.join('.') || 'root'})`,
+      );
+      return;
+    }
+    setParsedBlueprint(result.data);
+    analyzeMutation.mutate(importJson, {
+      onSuccess: (report) => {
+        setDiffReport(report);
+      },
+    });
   };
 
   const handleApplyHomebrew = () => {

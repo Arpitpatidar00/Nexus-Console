@@ -9,6 +9,17 @@ interface QueryEditorProps {
   defaultQuery?: string;
 }
 
+/** macOS smart punctuation turns `'x'` into `‘x’` and `"x"` into `“x”` as you
+ * type (or on paste), which every SQL engine then rejects as a syntax error
+ * (AUDIT-2026-10-24 BUG-09). The textarea below also turns the substitution
+ * off, but this catches anything pasted in regardless. */
+export function normalizeSqlText(sql: string): string {
+  return sql
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/[“”„‟]/g, '"')
+    .replace(/[–—]/g, '-');
+}
+
 export function QueryEditor({
   connectionId,
   allowWrites,
@@ -22,7 +33,7 @@ export function QueryEditor({
   const handleExecute = () => {
     setErrorMsg(null);
     runQuery.mutate(
-      { id: connectionId, query },
+      { id: connectionId, query: normalizeSqlText(query) },
       {
         onSuccess: (data) => setResult(data),
         onError: (err) => setErrorMsg(err.message),
@@ -58,6 +69,9 @@ export function QueryEditor({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Enter SQL statement (e.g. SELECT * FROM users;)"
           rows={5}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
           className="w-full resize-none bg-transparent p-3 font-mono text-xs text-fg focus:outline-none"
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

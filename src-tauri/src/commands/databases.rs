@@ -1,4 +1,7 @@
 use super::blocking;
+use super::services::{brew_bin, ServicesCache};
+use crate::brew::{run_brew, BrewLock};
+use crate::context::AppContext;
 use crate::core::exec::{self, ExecOpts};
 use crate::core::mutation::{mutation, mutation_unattended, BlastRadius, MutationSpec};
 use crate::core::validate::{DbName, DbUser, HostName, Port};
@@ -11,7 +14,7 @@ use crate::services::databases::store::{new_connection_id, DbConnection, QueryRe
 use crate::services::databases::DatabaseState;
 use std::path::Path;
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]
 pub async fn db_discover_connections(_app: AppHandle) -> AppResult<Vec<DiscoveredDb>> {
@@ -446,25 +449,46 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 (columns, rows)
             }
             "mongo" | "mongodb" => {
-                let port_str = valid_port.as_u16().to_string();
-                let mut argv = vec![
-                    "--host",
-                    valid_host.as_str(),
-                    "--port",
-                    port_str.as_str(),
-                    "--norc",
-                    "--quiet",
-                ];
-                if let Some(ref u) = conn.user {
-                    argv.push("-u");
-                    argv.push(u);
-                }
-                if let Some(ref p) = pass {
-                    argv.push("-p");
-                    argv.push(p);
-                }
-                argv.extend(["--eval", &sanitized]);
-                let opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                // No `-u`/`-p` on argv — mongosh has no `*_PASSWORD` env var
+                // of its own, so credentials travel as env vars under names
+                // we chose and are read back inside the `--eval`'d script;
+                // `ps` can read another process's argv without privilege but
+                // not its environment (AUDIT-2026-10-24 SEC-01), matching the
+                // PGPASSWORD/MYSQL_PWD/REDISCLI_AUTH handling above.
+                let db_literal = serde_json::to_string(conn.database.as_deref().unwrap_or("test"))
+                    .unwrap_or_else(|_| "\"test\"".into());
+                let mut opts = ExecOpts::default().with_timeout(Duration::from_secs(10));
+                let prelude = if let Some(ref u) = conn.user {
+                    opts = opts.with_env("STACKROOST_MONGO_USER", u);
+                    if let Some(ref p) = pass {
+                        opts = opts.with_env("STACKROOST_MONGO_PASS", p);
+                    }
+                    let base_literal = serde_json::to_string(&format!(
+                        "mongodb://{}:{}/?authSource=admin",
+                        valid_host.as_str(),
+                        valid_port.as_u16()
+                    ))
+                    .unwrap_or_else(|_| "\"\"".into());
+                    format!(
+                        "const __base = {base_literal};\n\
+                         const __u = process.env.STACKROOST_MONGO_USER;\n\
+                         const __p = process.env.STACKROOST_MONGO_PASS;\n\
+                         const __auth = __p ? encodeURIComponent(__u) + ':' + encodeURIComponent(__p) + '@' \
+                                             : encodeURIComponent(__u) + '@';\n\
+                         const db = Mongo(__base.replace('mongodb://', 'mongodb://' + __auth)).getDB({db_literal});\n"
+                    )
+                } else {
+                    let base_literal = serde_json::to_string(&format!(
+                        "mongodb://{}:{}/",
+                        valid_host.as_str(),
+                        valid_port.as_u16()
+                    ))
+                    .unwrap_or_else(|_| "\"\"".into());
+                    format!("const db = Mongo({base_literal}).getDB({db_literal});\n")
+                };
+
+                let full_script = format!("{prelude}{sanitized}");
+                let argv = ["--norc", "--quiet", "--eval", full_script.as_str()];
                 let out = exec::run("mongosh", &argv, opts)?;
 
                 if !out.status.success() {
@@ -509,9 +533,61 @@ pub async fn db_list_snapshots(data_dir: String) -> AppResult<Vec<DbSnapshot>> {
     blocking(move || Ok(apfs::list_snapshots(Path::new(&data_dir)))).await
 }
 
+/// Stop `svc` through the same `BrewLock` + cache-invalidate path the
+/// Services tab uses, and confirm it is actually stopped before returning —
+/// `brew services stop` can report success while the process is still
+/// shutting down. Returns an error instead of letting the caller clone a
+/// data directory a server might still be writing to (AUDIT-2026-10-24 BUG-01).
+fn stop_service_checked(app: &AppHandle, ctx: &State<'_, AppContext>, svc: &str) -> AppResult<()> {
+    apfs::check_service_name(svc)?;
+    let bin = brew_bin(ctx)?.to_string();
+    let lock = app.state::<BrewLock>();
+    let _g = lock
+        .0
+        .lock()
+        .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+    run_brew(&bin, &["services", "stop", svc])?;
+    app.state::<ServicesCache>().invalidate();
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        let status = run_brew(&bin, &["services", "info", svc, "--json"]).ok();
+        let still_running = status
+            .as_deref()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+            .and_then(|v| v.as_array().and_then(|a| a.first().cloned()))
+            .and_then(|e| e.get("running").and_then(|r| r.as_bool()))
+            .unwrap_or(false);
+        if !still_running {
+            return Ok(());
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(AppError::Shell(format!(
+                "{svc} is still reported running after `brew services stop` \
+                 — refusing to touch its data directory"
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(300));
+    }
+}
+
+/// Start `svc` back up the same way the Services tab does.
+fn start_service_checked(app: &AppHandle, ctx: &State<'_, AppContext>, svc: &str) -> AppResult<()> {
+    let bin = brew_bin(ctx)?.to_string();
+    let lock = app.state::<BrewLock>();
+    let _g = lock
+        .0
+        .lock()
+        .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+    run_brew(&bin, &["services", "start", svc])?;
+    app.state::<ServicesCache>().invalidate();
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn db_create_snapshot(
-    _app: AppHandle,
+    app: AppHandle,
+    ctx: State<'_, AppContext>,
     service_name: Option<String>,
     data_dir: String,
     label: String,
@@ -526,13 +602,37 @@ pub async fn db_create_snapshot(
         .target(&data_dir),
     );
 
-    blocking(move || apfs::create_snapshot(service_name.as_deref(), Path::new(&data_dir), &label))
-        .await
+    if let Some(svc) = service_name.as_deref() {
+        stop_service_checked(&app, &ctx, svc)?;
+    }
+    let clone_result = blocking({
+        let (data_dir, label, service_name) =
+            (data_dir.clone(), label.clone(), service_name.clone());
+        move || apfs::create_snapshot(service_name.as_deref(), Path::new(&data_dir), &label)
+    })
+    .await;
+    if let Some(svc) = service_name.as_deref() {
+        // Always try to restart, even if the clone failed, and fold a failed
+        // restart into whatever message the caller sees instead of hiding it.
+        if let Err(restart_err) = start_service_checked(&app, &ctx, svc) {
+            return Err(match clone_result {
+                Ok(snap) => AppError::Shell(format!(
+                    "snapshot created ({}), but {svc} did not restart: {restart_err}",
+                    snap.id
+                )),
+                Err(clone_err) => AppError::Shell(format!(
+                    "{clone_err}; also, {svc} did not restart: {restart_err}"
+                )),
+            });
+        }
+    }
+    clone_result
 }
 
 #[tauri::command]
 pub async fn db_restore_snapshot(
     app: AppHandle,
+    ctx: State<'_, AppContext>,
     service_name: Option<String>,
     data_dir: String,
     snapshot_path: String,
@@ -549,12 +649,25 @@ pub async fn db_restore_snapshot(
         .destructive(true),
     )?;
 
-    blocking(move || {
-        apfs::restore_snapshot(
-            service_name.as_deref(),
-            Path::new(&data_dir),
-            Path::new(&snapshot_path),
-        )
+    if let Some(svc) = service_name.as_deref() {
+        stop_service_checked(&app, &ctx, svc)?;
+    }
+    let restore_result = blocking({
+        let (data_dir, snapshot_path) = (data_dir.clone(), snapshot_path.clone());
+        move || apfs::restore_snapshot(Path::new(&data_dir), Path::new(&snapshot_path))
     })
-    .await
+    .await;
+    if let Some(svc) = service_name.as_deref() {
+        if let Err(restart_err) = start_service_checked(&app, &ctx, svc) {
+            return Err(match restore_result {
+                Ok(()) => AppError::Shell(format!(
+                    "restore finished, but {svc} did not restart: {restart_err}"
+                )),
+                Err(restore_err) => AppError::Shell(format!(
+                    "{restore_err}; also, {svc} did not restart: {restart_err}"
+                )),
+            });
+        }
+    }
+    restore_result
 }

@@ -103,10 +103,10 @@ export const NetworkPage = () => {
               <div className="mt-2 flex items-center justify-between">
                 <div>
                   <div className="text-lg font-bold text-fg">
-                    {netInfo?.primary_interface || 'en0'}
+                    {netInfo?.primaryInterface || 'en0'}
                   </div>
                   <div className="mt-1 font-mono text-xs text-fg-muted">
-                    IPv4: {netInfo?.ipv4_address || '127.0.0.1'}
+                    IPv4: {netInfo?.ipv4Address || '127.0.0.1'}
                   </div>
                 </div>
                 <Badge variant="default" className="text-xs">
@@ -132,7 +132,7 @@ export const NetworkPage = () => {
                 </Button>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {netInfo?.dns_servers.map((dns) => (
+                {netInfo?.dnsServers.map((dns) => (
                   <Badge key={dns} variant="neutral" className="font-mono text-xs">
                     {dns}
                   </Badge>
@@ -195,13 +195,13 @@ export const NetworkPage = () => {
                       <td className="px-4 py-3 font-semibold text-fg">{p.process}</td>
                       <td className="px-4 py-3 font-mono text-fg-muted">{p.pid}</td>
                       <td className="px-4 py-3 text-right font-mono text-success">
-                        ↓ {formatBytes(p.bytes_in)}
+                        ↓ {formatBytes(p.bytesIn)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-info">
-                        ↑ {formatBytes(p.bytes_out)}
+                        ↑ {formatBytes(p.bytesOut)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-fg">
-                        {formatBytes(p.bytes_in + p.bytes_out)}
+                        {formatBytes(p.bytesIn + p.bytesOut)}
                       </td>
                     </tr>
                   ))
@@ -271,8 +271,8 @@ const ChaosProxySection = () => {
       targetPort: target,
       chaosPort: chaos,
       profile: {
-        latency_ms: Number(latencyMs) || 0,
-        drop_rate_pct: Number(dropRatePct) || 0,
+        latencyMs: Number(latencyMs) || 0,
+        dropRatePct: Number(dropRatePct) || 0,
         reject,
       },
     });
@@ -382,7 +382,7 @@ const ChaosProxySection = () => {
                     {p.profile.reject ? (
                       <span className="text-destructive">Refusing every connection</span>
                     ) : (
-                      `${p.profile.latency_ms} ms latency · ${p.profile.drop_rate_pct}% dropped`
+                      `${p.profile.latencyMs} ms latency · ${p.profile.dropRatePct}% dropped`
                     )}
                   </p>
                 </div>

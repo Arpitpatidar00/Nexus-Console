@@ -6,13 +6,7 @@ use crate::services::backups::{self, BackupConfig, BackupIndex, BackupRecord};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
-fn blocking<F, T>(f: F) -> tauri::async_runtime::JoinHandle<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f)
-}
+use super::blocking;
 
 #[tauri::command]
 pub async fn backup_create_db(app: AppHandle, config: BackupConfig) -> AppResult<BackupRecord> {
@@ -39,9 +33,7 @@ pub async fn backup_create_db(app: AppHandle, config: BackupConfig) -> AppResult
         .app_data_dir()
         .map_err(|e| AppError::Io(format!("data dir: {e}")))?;
 
-    let res = blocking(move || backups::create_database_backup(&dir, config))
-        .await
-        .map_err(|e| AppError::Shell(format!("create backup task: {e}")))?;
+    let res = blocking(move || backups::create_database_backup(&dir, config)).await;
 
     match res {
         Ok(record) => {
@@ -66,7 +58,6 @@ pub async fn backup_list_history(app: AppHandle) -> AppResult<Vec<BackupRecord>>
         Ok(index.backups)
     })
     .await
-    .map_err(|e| AppError::Shell(format!("list backups task: {e}")))?
 }
 
 #[tauri::command]
@@ -97,8 +88,7 @@ pub async fn backup_delete(app: AppHandle, id: String) -> AppResult<Vec<BackupRe
         }
         Ok(index.backups)
     })
-    .await
-    .map_err(|e| AppError::Shell(format!("delete backup task: {e}")))?;
+    .await;
 
     match res {
         Ok(backups) => {
@@ -133,9 +123,7 @@ pub async fn backup_env_files(app: AppHandle, project_path: String) -> AppResult
         .map_err(|e| AppError::Io(format!("data dir: {e}")))?;
 
     let p = PathBuf::from(project_path);
-    let res = blocking(move || backups::backup_project_env(&dir, &p))
-        .await
-        .map_err(|e| AppError::Shell(format!("backup env task: {e}")))?;
+    let res = blocking(move || backups::backup_project_env(&dir, &p)).await;
 
     match res {
         Ok(record) => {

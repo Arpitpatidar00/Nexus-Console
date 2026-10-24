@@ -11,22 +11,22 @@ describe('network schemas', () => {
     const raw = {
       process: 'com.apple.WebKit.Networking',
       pid: 1234,
-      bytes_in: 5242880,
-      bytes_out: 1048576,
+      bytesIn: 5242880,
+      bytesOut: 1048576,
     };
     const parsed = processBandwidthSchema.parse(raw);
-    expect(parsed.bytes_in).toBe(5242880);
+    expect(parsed.bytesIn).toBe(5242880);
   });
 
   it('validates network interfaces and dns', () => {
     const raw = {
-      primary_interface: 'en0',
-      ipv4_address: '192.168.1.100',
-      ipv6_address: null,
-      dns_servers: ['1.1.1.1', '8.8.8.8'],
+      primaryInterface: 'en0',
+      ipv4Address: '192.168.1.100',
+      ipv6Address: null,
+      dnsServers: ['1.1.1.1', '8.8.8.8'],
     };
     const parsed = networkInfoSchema.parse(raw);
-    expect(parsed.dns_servers).toContain('1.1.1.1');
+    expect(parsed.dnsServers).toContain('1.1.1.1');
   });
 
   it('validates host entry', () => {
@@ -43,11 +43,11 @@ describe('network schemas', () => {
 
   it('validates chaos profile', () => {
     const raw = {
-      latency_ms: 150,
-      drop_rate_pct: 10,
+      latencyMs: 150,
+      dropRatePct: 10,
       reject: false,
     };
     const parsed = chaosProfileSchema.parse(raw);
-    expect(parsed.latency_ms).toBe(150);
+    expect(parsed.latencyMs).toBe(150);
   });
 });

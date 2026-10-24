@@ -3,16 +3,16 @@ import { z } from 'zod';
 export const processBandwidthSchema = z.object({
   process: z.string(),
   pid: z.number(),
-  bytes_in: z.number(),
-  bytes_out: z.number(),
+  bytesIn: z.number(),
+  bytesOut: z.number(),
 });
 export type ProcessBandwidth = z.infer<typeof processBandwidthSchema>;
 
 export const networkInfoSchema = z.object({
-  primary_interface: z.string(),
-  ipv4_address: z.string().nullable().optional(),
-  ipv6_address: z.string().nullable().optional(),
-  dns_servers: z.array(z.string()),
+  primaryInterface: z.string(),
+  ipv4Address: z.string().nullable().optional(),
+  ipv6Address: z.string().nullable().optional(),
+  dnsServers: z.array(z.string()),
 });
 export type NetworkInfo = z.infer<typeof networkInfoSchema>;
 
@@ -26,8 +26,8 @@ export const hostEntrySchema = z.object({
 export type HostEntry = z.infer<typeof hostEntrySchema>;
 
 export const chaosProfileSchema = z.object({
-  latency_ms: z.number(),
-  drop_rate_pct: z.number(),
+  latencyMs: z.number(),
+  dropRatePct: z.number(),
   reject: z.boolean(),
 });
 export type ChaosProfile = z.infer<typeof chaosProfileSchema>;

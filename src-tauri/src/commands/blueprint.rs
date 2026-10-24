@@ -6,19 +6,11 @@ use crate::services::blueprint::{self, BlueprintDiffReport, BlueprintHost, Nexus
 use crate::services::projects::store::WorkspaceConfig;
 use tauri::{AppHandle, Manager};
 
-fn blocking<F, T>(f: F) -> tauri::async_runtime::JoinHandle<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f)
-}
+use super::blocking;
 
 #[tauri::command]
 pub async fn blueprint_export(app: AppHandle) -> AppResult<NexusBlueprint> {
-    blocking(move || blueprint::export_blueprint(&app))
-        .await
-        .map_err(|e| AppError::Shell(format!("blueprint task: {e}")))?
+    blocking(move || blueprint::export_blueprint(&app)).await
 }
 
 #[tauri::command]
@@ -32,7 +24,6 @@ pub async fn blueprint_analyze_import(
         blueprint::analyze_blueprint(&bp, &app)
     })
     .await
-    .map_err(|e| AppError::Shell(format!("blueprint diff task: {e}")))?
 }
 
 #[tauri::command]
@@ -65,7 +56,6 @@ pub async fn blueprint_apply_homebrew(app: AppHandle, brewfile: String) -> AppRe
         res
     })
     .await
-    .map_err(|e| AppError::Shell(format!("brew bundle task: {e}")))?
 }
 
 #[tauri::command]
@@ -83,9 +73,7 @@ pub async fn blueprint_apply_hosts(app: AppHandle, hosts: Vec<BlueprintHost>) ->
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;
-    blocking(move || blueprint::apply_blueprint_hosts(hosts, &app))
-        .await
-        .map_err(|e| AppError::Shell(format!("hosts task: {e}")))?
+    blocking(move || blueprint::apply_blueprint_hosts(hosts, &app)).await
 }
 
 #[tauri::command]
@@ -106,9 +94,7 @@ pub async fn blueprint_apply_workspaces(
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalIsolated),
     )?;
-    blocking(move || blueprint::apply_blueprint_workspaces(workspaces, &app))
-        .await
-        .map_err(|e| AppError::Shell(format!("workspaces task: {e}")))?
+    blocking(move || blueprint::apply_blueprint_workspaces(workspaces, &app)).await
 }
 
 #[tauri::command]
@@ -125,7 +111,5 @@ pub async fn blueprint_apply_extensions(
         )
         .blast_radius(crate::core::mutation::BlastRadius::LocalSystem),
     )?;
-    blocking(move || blueprint::apply_blueprint_extensions(extensions))
-        .await
-        .map_err(|e| AppError::Shell(format!("extensions task: {e}")))?
+    blocking(move || blueprint::apply_blueprint_extensions(extensions)).await
 }

@@ -340,7 +340,7 @@ fn run_lsof(ids: &[String]) -> String {
 
 use crate::session::SessionServices;
 
-fn brew_bin<'a>(ctx: &'a State<'_, AppContext>) -> AppResult<&'a str> {
+pub(crate) fn brew_bin<'a>(ctx: &'a State<'_, AppContext>) -> AppResult<&'a str> {
     ctx.brew_bin
         .as_deref()
         .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))

@@ -8,34 +8,22 @@ use crate::services::domains::{
 };
 use tauri::{AppHandle, Manager};
 
-fn blocking<F, T>(f: F) -> tauri::async_runtime::JoinHandle<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f)
-}
+use super::blocking;
 
 #[tauri::command]
 pub async fn domains_lookup_dns(domain: String, record_type: String) -> AppResult<DnsLookupResult> {
-    blocking(move || domains::lookup_dns(&domain, &record_type))
-        .await
-        .map_err(|e| AppError::Shell(format!("lookup dns task: {e}")))?
+    blocking(move || domains::lookup_dns(&domain, &record_type)).await
 }
 
 #[tauri::command]
 pub async fn domains_check_ssl(domain: String, port: Option<u16>) -> AppResult<SslCertResult> {
     let p = port.unwrap_or(443);
-    blocking(move || domains::check_ssl(&domain, p))
-        .await
-        .map_err(|e| AppError::Shell(format!("check ssl task: {e}")))?
+    blocking(move || domains::check_ssl(&domain, p)).await
 }
 
 #[tauri::command]
 pub async fn domains_check_rdap(domain: String) -> AppResult<RdapResult> {
-    blocking(move || domains::check_rdap(&domain))
-        .await
-        .map_err(|e| AppError::Shell(format!("check rdap task: {e}")))?
+    blocking(move || domains::check_rdap(&domain)).await
 }
 
 #[tauri::command]
@@ -43,9 +31,7 @@ pub async fn domains_check_propagation(
     domain: String,
     record_type: String,
 ) -> AppResult<PropagationResult> {
-    blocking(move || domains::check_propagation(&domain, &record_type))
-        .await
-        .map_err(|e| AppError::Shell(format!("check propagation task: {e}")))?
+    blocking(move || domains::check_propagation(&domain, &record_type)).await
 }
 
 #[tauri::command]
@@ -59,7 +45,6 @@ pub async fn uptime_list_monitors(app: AppHandle) -> AppResult<Vec<UptimeMonitor
         Ok(store.monitors)
     })
     .await
-    .map_err(|e| AppError::Shell(format!("list uptime task: {e}")))?
 }
 
 #[tauri::command]
@@ -87,7 +72,6 @@ pub async fn uptime_save_monitor(
         Ok(store.monitors)
     })
     .await
-    .map_err(|e| AppError::Shell(format!("save uptime monitor task: {e}")))?
 }
 
 #[tauri::command]
@@ -110,7 +94,6 @@ pub async fn uptime_delete_monitor(app: AppHandle, id: String) -> AppResult<Vec<
         Ok(store.monitors)
     })
     .await
-    .map_err(|e| AppError::Shell(format!("delete uptime monitor task: {e}")))?
 }
 
 #[tauri::command]
@@ -133,5 +116,4 @@ pub async fn uptime_ping_now(
         Ok(ping)
     })
     .await
-    .map_err(|e| AppError::Shell(format!("uptime ping task: {e}")))?
 }

@@ -145,8 +145,18 @@ pub fn snapshot_parent_dir(data_dir: &Path) -> PathBuf {
     parent.join(format!("{dir_name}-nexus-snapshots"))
 }
 
+/// Checks `service_name`, if given, for the caller's `validate_service_name`
+/// call before any stop/start — kept here so both commands validate the same way.
+pub fn check_service_name(svc: &str) -> AppResult<()> {
+    validate_service_name(svc)
+}
+
+/// Clone `data_dir` into a new snapshot directory. The caller (commands layer,
+/// which owns `BrewLock` and `ServicesCache`) must stop the service first and
+/// confirm it is actually stopped — this function only clones and never
+/// touches brew (AUDIT-2026-10-24 BUG-01).
 pub fn create_snapshot(
-    service_name: Option<&str>,
+    service_label: Option<&str>,
     data_dir: &Path,
     label: &str,
 ) -> AppResult<DbSnapshot> {
@@ -172,31 +182,14 @@ pub fn create_snapshot(
     let snap_name = format!("{now}_{clean_label}");
     let snap_path = snap_parent.join(&snap_name);
 
-    // Stop service if provided
-    if let Some(svc) = service_name {
-        validate_service_name(svc)?;
-        let opts =
-            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
-        let _ = crate::core::exec::run("brew", &["services", "stop", svc], opts);
-    }
-
-    // APFS CoW clone
-    let clone_res = clonefile(data_dir, &snap_path);
-
-    // Always restart service if stopped
-    if let Some(svc) = service_name {
-        let opts =
-            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
-        let _ = crate::core::exec::run("brew", &["services", "start", svc], opts);
-    }
-
-    clone_res?;
+    // APFS CoW clone — the only filesystem mutation this function makes.
+    clonefile(data_dir, &snap_path)?;
 
     let size_bytes = measure_dir_size_bytes(&snap_path);
 
     Ok(DbSnapshot {
         id: snap_name,
-        service: service_name.unwrap_or("database").to_string(),
+        service: service_label.unwrap_or("database").to_string(),
         label: label.to_string(),
         path: snap_path.to_string_lossy().to_string(),
         created_at: now,
@@ -204,11 +197,12 @@ pub fn create_snapshot(
     })
 }
 
-pub fn restore_snapshot(
-    service_name: Option<&str>,
-    data_dir: &Path,
-    snapshot_path: &Path,
-) -> AppResult<()> {
+/// Restore `data_dir` from `snapshot_path`. The caller must stop the service
+/// first and confirm it is stopped. The current data directory is moved aside
+/// (never deleted) and only overwritten if that move succeeds — previously a
+/// failed `rename` was ignored and the clone proceeded into a directory that
+/// still held the live, running database (AUDIT-2026-10-24 BUG-01).
+pub fn restore_snapshot(data_dir: &Path, snapshot_path: &Path) -> AppResult<()> {
     validate_local_path(data_dir)?;
     validate_local_path(snapshot_path)?;
     if !snapshot_path.exists() {
@@ -218,36 +212,32 @@ pub fn restore_snapshot(
         )));
     }
 
-    // Stop service
-    if let Some(svc) = service_name {
-        validate_service_name(svc)?;
-        let opts =
-            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
-        let _ = crate::core::exec::run("brew", &["services", "stop", svc], opts);
-    }
-
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
-    // Backup current data dir to <data_dir>.before-restore-<now>
+    // Move the current data dir aside to <data_dir>.before-restore-<now>.
+    // Abort instead of cloning over it if this fails.
     let backup_path = data_dir.with_extension(format!("before-restore-{now}"));
     if data_dir.exists() {
-        let _ = std::fs::rename(data_dir, &backup_path);
+        std::fs::rename(data_dir, &backup_path).map_err(|e| {
+            AppError::Io(format!(
+                "could not move aside the current data directory before restoring \
+                 (nothing was changed): {e}"
+            ))
+        })?;
     }
 
-    // Clone snapshot back to data_dir
-    let clone_res = clonefile(snapshot_path, data_dir);
-
-    // Restart service
-    if let Some(svc) = service_name {
-        let opts =
-            crate::core::exec::ExecOpts::default().with_timeout(std::time::Duration::from_secs(15));
-        let _ = crate::core::exec::run("brew", &["services", "start", svc], opts);
-    }
-
-    clone_res
+    // Clone snapshot back to data_dir. If this fails, the pre-restore backup
+    // is still at `backup_path` — surface that in the error instead of leaving
+    // the data directory missing with no indication where its contents went.
+    clonefile(snapshot_path, data_dir).map_err(|e| {
+        AppError::Io(format!(
+            "{e}; the previous data directory was moved to {} and was not restored",
+            backup_path.display()
+        ))
+    })
 }
 
 #[cfg(test)]
@@ -272,5 +262,58 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
         let _ = std::fs::remove_dir_all(&dst);
+    }
+
+    #[test]
+    fn restore_errors_instead_of_deleting_data_when_snapshot_is_missing() {
+        // No stop/start here any more — restore_snapshot only touches the
+        // filesystem. A missing snapshot must fail before anything is moved.
+        let dir = std::env::temp_dir().join(format!("test_restore_missing_{}", std::process::id()));
+        let data_dir = dir.join("data");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::write(data_dir.join("live.db"), "still here").unwrap();
+
+        let missing_snapshot = dir.join("no-such-snapshot");
+        let res = restore_snapshot(&data_dir, &missing_snapshot);
+
+        assert!(res.is_err(), "restoring from a missing snapshot must fail");
+        assert!(
+            data_dir.join("live.db").exists(),
+            "the live data directory must be untouched when the snapshot does not exist"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn restore_does_not_lose_data_when_moving_it_aside_fails() {
+        // Deny write on the parent dir so `fs::rename(data_dir, backup_path)`
+        // fails (removing an entry needs write permission on its parent).
+        // Previously this failure was ignored (`let _ = fs::rename(...)`) and
+        // the clone proceeded into the still-live data_dir (AUDIT-2026-10-24
+        // BUG-01). It must now abort before anything is cloned.
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir =
+            std::env::temp_dir().join(format!("test_restore_norename_{}", std::process::id()));
+        let data_dir = dir.join("data");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::write(data_dir.join("live.db"), "irreplaceable").unwrap();
+        let snapshot = dir.join("snapshot");
+        std::fs::create_dir_all(&snapshot).unwrap();
+        std::fs::write(snapshot.join("live.db"), "from snapshot").unwrap();
+
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let res = restore_snapshot(&data_dir, &snapshot);
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert!(res.is_err(), "a failed rename must abort the restore");
+        assert_eq!(
+            std::fs::read_to_string(data_dir.join("live.db")).unwrap(),
+            "irreplaceable",
+            "the live data directory must be untouched when it could not be moved aside"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

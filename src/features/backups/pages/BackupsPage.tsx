@@ -109,23 +109,23 @@ export const BackupsPage = () => {
               backups.map((bk) => (
                 <tr key={bk.id} className="transition-colors hover:bg-muted/20">
                   <td className="px-4 py-3">
-                    <div className="font-semibold text-fg">{bk.source_name}</div>
+                    <div className="font-semibold text-fg">{bk.sourceName}</div>
                     <div className="font-mono text-[10px] text-fg-muted">{bk.id}</div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant="neutral" className="text-[10px] uppercase">
-                      {bk.source_type}
+                      {bk.sourceType}
                     </Badge>
                   </td>
                   <td
                     className="max-w-xs truncate px-4 py-3 font-mono text-[11px] text-fg-muted"
-                    title={bk.target_file}
+                    title={bk.targetFile}
                   >
-                    {bk.target_file}
+                    {bk.targetFile}
                   </td>
-                  <td className="px-4 py-3 font-mono text-fg">{formatBytes(bk.size_bytes)}</td>
+                  <td className="px-4 py-3 font-mono text-fg">{formatBytes(bk.sizeBytes)}</td>
                   <td className="px-4 py-3 text-fg-muted">
-                    {new Date(bk.created_at * 1000).toLocaleString()}
+                    {new Date(bk.createdAt * 1000).toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
                     <Badge

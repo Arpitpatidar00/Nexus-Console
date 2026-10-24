@@ -97,13 +97,22 @@ fn user_facing(text: &str) -> String {
         .map(str::trim)
         .filter(|l| !l.is_empty() && !is_backtrace_frame(l))
         .filter(|l| !l.starts_with("Please report this issue"))
-        .take(MAX_ERR_LINES)
         .collect();
     if lines.is_empty() {
-        "Homebrew command failed".to_string()
-    } else {
-        lines.join(" ")
+        return "Homebrew command failed".to_string();
     }
+    // A failed install/upgrade can print `==> Downloading bottle manifests …`
+    // progress lines before the real `Error:` line; blindly taking the first
+    // MAX_ERR_LINES cut the message down to the progress noise and hid the
+    // actual error (AUDIT-2026-10-24 BUG-08). Start from the first `Error:`
+    // line when there is one.
+    let start = lines.iter().position(|l| l.contains("Error:")).unwrap_or(0);
+    lines[start..]
+        .iter()
+        .take(MAX_ERR_LINES)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]
@@ -155,6 +164,23 @@ mod tests {
             panic!("expected Shell");
         };
         assert_eq!(msg, "Homebrew command failed");
+    }
+
+    // Real stderr captured from the app's own error log (2026-10-24): the
+    // `Error:` line was cut off because progress lines came first and
+    // MAX_ERR_LINES only took the first 3 (AUDIT-2026-10-24 BUG-08).
+    const BOTTLE_PROGRESS_THEN_ERROR: &str = "==> Downloading bottle manifests\n✔︎ Bottle Manifest docker (29.9.2)\n✔︎ Bottle Manifest render (2.31.0)\n==> Fetching docker\nError: docker: SHA256 mismatch\nExpected: abc123\nActual: def456";
+
+    #[test]
+    fn real_error_is_shown_even_behind_download_progress() {
+        let AppError::Shell(msg) = brew_error(BOTTLE_PROGRESS_THEN_ERROR) else {
+            panic!("expected Shell");
+        };
+        assert!(
+            msg.starts_with("Error: docker: SHA256 mismatch"),
+            "progress lines leaked ahead of the real error: {msg}"
+        );
+        assert!(!msg.contains("Bottle Manifest"), "progress noise in: {msg}");
     }
 
     // Read-only proof that run_brew reaches real brew. Ignored in CI.

@@ -83,18 +83,44 @@ fn with_params(script: &str, params: &Value) -> String {
     script.replace("__PARAMS__", &literal)
 }
 
+/// No `--username`/`--password` on argv: unlike psql/mysql/redis, mongosh has
+/// no `*_PASSWORD` env var of its own, so the credentials travel as env vars
+/// under names we chose and are read back inside the `--eval`'d script — `ps`
+/// can read another process's argv without privilege but not its
+/// environment (same reasoning as `PGPASSWORD`/`MYSQL_PWD`/`REDISCLI_AUTH`;
+/// AUDIT-2026-10-24 SEC-01). The script text itself (visible in `ps`) only
+/// ever contains the env var *names*, never the secret values.
 fn mongosh(ep: &Endpoint, script: String) -> AppResult<exec::ExecOutput> {
-    let port = ep.port.to_string();
+    let port = ep.port;
     let db = ep.database.as_deref().unwrap_or("test");
-    let mut argv: Vec<&str> = vec!["--norc", "--quiet", "--host", &ep.host, "--port", &port];
-    if let Some(u) = ep.user.as_deref() {
-        argv.extend(["--username", u, "--authenticationDatabase", "admin"]);
+    let db_literal = serde_json::to_string(db).unwrap_or_else(|_| "\"test\"".into());
+    let mut opts = read_opts(45);
+
+    let prelude = if let Some(u) = ep.user.as_deref() {
+        opts = opts.with_env("STACKROOST_MONGO_USER", u);
         if let Some(p) = ep.password.as_deref() {
-            argv.extend(["--password", p]);
+            opts = opts.with_env("STACKROOST_MONGO_PASS", p);
         }
-    }
-    argv.extend([db, "--eval", &script]);
-    cli_output("mongosh", exec::run("mongosh", &argv, read_opts(45)))
+        let base_literal =
+            serde_json::to_string(&format!("mongodb://{}:{port}/?authSource=admin", ep.host))
+                .unwrap_or_else(|_| "\"\"".into());
+        format!(
+            "const __base = {base_literal};\n\
+             const __u = process.env.STACKROOST_MONGO_USER;\n\
+             const __p = process.env.STACKROOST_MONGO_PASS;\n\
+             const __auth = __p ? encodeURIComponent(__u) + ':' + encodeURIComponent(__p) + '@' \
+                                 : encodeURIComponent(__u) + '@';\n\
+             const db = Mongo(__base.replace('mongodb://', 'mongodb://' + __auth)).getDB({db_literal});\n"
+        )
+    } else {
+        let base_literal = serde_json::to_string(&format!("mongodb://{}:{port}/", ep.host))
+            .unwrap_or_else(|_| "\"\"".into());
+        format!("const db = Mongo({base_literal}).getDB({db_literal});\n")
+    };
+
+    let full_script = format!("{prelude}{script}");
+    let argv = ["--norc", "--quiet", "--eval", full_script.as_str()];
+    cli_output("mongosh", exec::run("mongosh", &argv, opts))
 }
 
 /// mongosh can print warnings before the result; the result is the last JSON line.

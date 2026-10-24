@@ -1,8 +1,10 @@
+use crate::core::exec::{self, ExecOpts};
 use crate::error::{AppError, AppResult};
 use crate::remote::docker::{ComposeAction, DockerAction};
 use crate::remote::parse::docker::Container;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -133,24 +135,27 @@ pub fn list_containers() -> AppResult<Vec<Container>> {
     Ok(list)
 }
 
+/// AUDIT-2026-10-24 BUG-07: this used `.status()` (stderr discarded, no
+/// timeout), so a failed remove on a running or paused container surfaced as
+/// "docker rm X failed" with no reason. Now runs through `core::exec`, which
+/// enforces a timeout and puts the real stderr in the error.
 pub fn container_action(name: &str, action: DockerAction) -> AppResult<()> {
-    let action_str = match action {
-        DockerAction::Start => "start",
-        DockerAction::Stop => "stop",
-        DockerAction::Restart => "restart",
-        DockerAction::Remove => "rm",
-    };
-
-    let status = Command::new("docker")
-        .args([action_str, name])
-        .status()
-        .map_err(|e| AppError::Io(format!("docker {action_str} {name}: {e}")))?;
-
-    if !status.success() {
-        return Err(AppError::Io(format!("docker {action_str} {name} failed")));
+    let opts = ExecOpts::default().with_timeout(Duration::from_secs(30));
+    match action {
+        DockerAction::Start => exec::run("docker", &["start", name], opts).map(|_| ()),
+        DockerAction::Stop => exec::run("docker", &["stop", name], opts).map(|_| ()),
+        DockerAction::Restart => exec::run("docker", &["restart", name], opts).map(|_| ()),
+        DockerAction::Remove => {
+            // A plain `docker rm` refuses a running or paused container.
+            // The confirm dialog already told the user removal is
+            // destructive, so retry with `-f` (stops it first) rather than
+            // failing with no way to proceed from the UI.
+            match exec::run("docker", &["rm", name], opts.clone()) {
+                Ok(_) => Ok(()),
+                Err(_) => exec::run("docker", &["rm", "-f", name], opts).map(|_| ()),
+            }
+        }
     }
-
-    Ok(())
 }
 
 pub fn compose_action(project: &str, action: ComposeAction) -> AppResult<()> {
@@ -159,19 +164,8 @@ pub fn compose_action(project: &str, action: ComposeAction) -> AppResult<()> {
         ComposeAction::Stop => "stop",
         ComposeAction::Restart => "restart",
     };
-
-    let status = Command::new("docker")
-        .args(["compose", "-p", project, action_str])
-        .status()
-        .map_err(|e| AppError::Io(format!("compose {action_str} {project}: {e}")))?;
-
-    if !status.success() {
-        return Err(AppError::Io(format!(
-            "compose {action_str} {project} failed"
-        )));
-    }
-
-    Ok(())
+    let opts = ExecOpts::default().with_timeout(Duration::from_secs(60));
+    exec::run("docker", &["compose", "-p", project, action_str], opts).map(|_| ())
 }
 
 #[cfg(test)]

@@ -1,19 +1,13 @@
 // Tauri IPC commands for Secrets Scanner (P11.3).
 
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::services::projects::ProjectsState;
 use crate::services::secrets::{self, SecretFinding, SecretsScanResult};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-fn blocking<F, T>(f: F) -> tauri::async_runtime::JoinHandle<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f)
-}
+use super::blocking;
 
 #[tauri::command]
 pub async fn secrets_scan_projects(
@@ -52,16 +46,12 @@ pub async fn secrets_scan_projects(
         set.into_iter().collect()
     };
 
-    blocking(move || secrets::scan_projects(&target_paths))
-        .await
-        .map_err(|e| AppError::Shell(format!("scan projects secrets task: {e}")))?
+    blocking(move || secrets::scan_projects(&target_paths)).await
 }
 
 #[tauri::command]
 pub async fn secrets_scan_history(_app: AppHandle) -> AppResult<Vec<SecretFinding>> {
     // A-06: Unified consent check before reading shell history
     crate::core::consent::require_consent(crate::core::consent::DataSource::ShellHistory)?;
-    blocking(secrets::scan_shell_history)
-        .await
-        .map_err(|e| AppError::Shell(format!("scan shell history secrets task: {e}")))?
+    blocking(secrets::scan_shell_history).await
 }

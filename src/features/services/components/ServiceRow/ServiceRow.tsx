@@ -13,14 +13,12 @@ export const ServiceRow = ({ service }: { service: ReconciledService }) => {
 
   return (
     <div className="sr-row flex min-h-14 items-center gap-3 rounded-lg px-3.5 py-2.5 shadow-edge glass transition-colors hover:bg-glass-strong">
-      <div className="sr-row__icon flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+      <div className="sr-row__icon flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-fg">
         <Icon className="size-4" />
       </div>
 
       <div className="min-w-[6rem] flex-1">
-        <p className="sr-row__title truncate text-sm font-medium text-foreground">
-          {service.displayName}
-        </p>
+        <p className="sr-row__title truncate text-sm font-medium text-fg">{service.displayName}</p>
         <p className="sr-row__sub truncate font-mono text-xs text-muted-foreground">
           {service.formula}
           {service.port ? ` · :${service.port}` : ''}

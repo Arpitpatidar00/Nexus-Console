@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nexusBlueprintSchema,
+  macBlueprintSchema,
   blueprintDiffReportSchema,
   updateCheckResultSchema,
 } from './blueprint.schema';
 
 describe('blueprint.schema', () => {
-  it('parses valid nexus blueprint schema', () => {
+  it('parses valid Mac blueprint schema', () => {
     const raw = {
       schemaVersion: 1,
       exportedAtEpoch: 1700000000,
@@ -36,7 +36,7 @@ describe('blueprint.schema', () => {
       vscodeExtensions: ['dbaeumer.vscode-eslint'],
     };
 
-    const parsed = nexusBlueprintSchema.parse(raw);
+    const parsed = macBlueprintSchema.parse(raw);
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.macHostname).toBe('Arpits-MacBook-Pro.local');
     expect(parsed.remoteHosts).toHaveLength(1);

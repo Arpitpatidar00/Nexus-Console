@@ -63,7 +63,7 @@ const WhereToLook = ({ cleanable, onOpen }: { cleanable: number; onOpen: (t: Tab
   ];
   return (
     <section className="overflow-hidden rounded-xl shadow-edge glass">
-      <h2 className="border-b border-hairline px-5 py-3.5 font-display text-sm font-semibold text-foreground">
+      <h2 className="border-b border-hairline px-5 py-3.5 font-display text-sm font-semibold text-fg">
         Where space can come back from
       </h2>
       <ul className="divide-y divide-border">

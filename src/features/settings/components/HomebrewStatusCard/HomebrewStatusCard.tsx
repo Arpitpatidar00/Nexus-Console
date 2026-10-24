@@ -14,7 +14,7 @@ export const HomebrewStatusCard = () => {
   return (
     <section className="rounded-xl p-6 text-card-foreground shadow-edge glass">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-base font-semibold text-foreground">Homebrew</h2>
+        <h2 className="font-display text-base font-semibold text-fg">Homebrew</h2>
         {detected && (
           <Button
             variant="glass"
@@ -40,7 +40,7 @@ export const HomebrewStatusCard = () => {
             ) : (
               <TriangleAlert className="size-4 text-warning" />
             )}
-            <span className="text-sm text-foreground">
+            <span className="text-sm text-fg">
               {detected ? `Installed · v${data?.brewVersion ?? '—'}` : 'Homebrew not detected'}
             </span>
           </div>
@@ -48,9 +48,9 @@ export const HomebrewStatusCard = () => {
           {detected && (
             <dl className="mt-4 grid grid-cols-[5rem_1fr] gap-y-2 text-xs">
               <dt className="text-muted-foreground">Prefix</dt>
-              <dd className="font-mono text-foreground">{data?.brewPrefix}</dd>
+              <dd className="font-mono text-fg">{data?.brewPrefix}</dd>
               <dt className="text-muted-foreground">Platform</dt>
-              <dd className="text-foreground">
+              <dd className="text-fg">
                 {data?.platform} · {data?.arch}
               </dd>
             </dl>

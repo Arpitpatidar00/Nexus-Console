@@ -17,7 +17,7 @@ export const TerminalTabs = () => {
             'flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-1.5 pl-3 font-mono text-xs transition-colors select-none',
             s.id === activeId
               ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
-              : 'border-hairline bg-muted text-muted-foreground hover:text-foreground',
+              : 'border-hairline bg-muted text-muted-foreground hover:text-fg',
           )}
         >
           <button
@@ -31,7 +31,7 @@ export const TerminalTabs = () => {
             type="button"
             aria-label={`Close ${s.title}`}
             onClick={() => dispatch(closeTerminal(s.id))}
-            className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-muted dark:hover:bg-white/20"
+            className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-accent"
           >
             <X className="size-3" />
           </button>

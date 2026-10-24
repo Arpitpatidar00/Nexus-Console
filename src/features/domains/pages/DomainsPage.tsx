@@ -315,10 +315,10 @@ export const DomainsPage = () => {
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           <div className="flex items-start gap-3 rounded-xl border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
             <div>
-              <span className="font-bold">Coming back after safety review (T-14):</span>
+              <span className="font-bold">Coming back after a safety review:</span>
               <p className="mt-0.5 text-warning">
                 Uptime monitoring is temporarily frozen while real background periodic scheduling
-                and native system notifications are implemented in Phase B.
+                and native system notifications are implemented.
               </p>
             </div>
           </div>

@@ -27,7 +27,7 @@ export const IndexesView = ({
           {table.indexes.map((i) => (
             <li key={i.name} className="px-3 py-2.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm text-foreground">{i.name}</span>
+                <span className="font-mono text-sm text-fg">{i.name}</span>
                 {i.primary ? (
                   <span className="rounded bg-warning-soft px-1.5 text-[11px] font-medium text-warning">
                     primary key
@@ -44,7 +44,7 @@ export const IndexesView = ({
                   {i.columns.map((c, n) => (
                     <span
                       key={n}
-                      className="rounded-full border border-hairline px-2 font-mono text-xs text-foreground"
+                      className="rounded-full border border-hairline px-2 font-mono text-xs text-fg"
                     >
                       {c}
                     </span>
@@ -65,7 +65,7 @@ export const IndexesView = ({
       )}
       {missing.length > 0 && (
         <section className="mt-4 rounded-lg border border-hairline px-3 py-2.5">
-          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
             <Gauge className="size-4 text-warning" aria-hidden />
             Foreign keys without an index
             <span className="rounded bg-muted px-1.5 text-[11px] font-medium text-muted-foreground">
@@ -78,7 +78,7 @@ export const IndexesView = ({
           </p>
           <ul className="mt-2 space-y-1">
             {missing.map((l) => (
-              <li key={l.id} className="font-mono text-xs text-foreground">
+              <li key={l.id} className="font-mono text-xs text-fg">
                 {l.fromColumns.join(', ')} → {nameOf(l.to)}
                 <span className="ml-2 text-muted-foreground select-all">
                   CREATE INDEX ON {table.schema}.{table.name} ({l.fromColumns.join(', ')});

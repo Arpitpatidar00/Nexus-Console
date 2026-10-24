@@ -307,7 +307,7 @@ const CloudView = () => {
                       <td className="px-4 py-3 text-fg-muted">{inst.region}</td>
                       <td className="px-4 py-3 text-right">
                         <span className="text-[11px] text-fg-muted italic">
-                          Actions frozen (T-06)
+                          Start/stop/reboot not available yet
                         </span>
                       </td>
                     </tr>

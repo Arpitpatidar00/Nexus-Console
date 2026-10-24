@@ -41,7 +41,7 @@ export const PrivacyCard = () => {
             {consents.data?.map((c) => (
               <div key={c.source} className="flex items-center justify-between gap-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-foreground">{c.name}</p>
+                  <p className="text-sm font-medium text-fg">{c.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {c.granted
                       ? `Allowed${c.grantedAtEpoch ? ` since ${formatTime(c.grantedAtEpoch * 1000)}` : ''}`
@@ -63,7 +63,7 @@ export const PrivacyCard = () => {
           <div className="divide-y divide-hairline">
             {destinations.data?.map((d) => (
               <div key={d.id} className="py-3">
-                <p className="text-sm font-medium text-foreground">
+                <p className="text-sm font-medium text-fg">
                   <span className={d.userConfigured ? '' : 'font-mono'}>{d.hostPattern}</span>
                   <span className="ml-2 text-xs font-normal text-muted-foreground">{d.module}</span>
                 </p>

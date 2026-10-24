@@ -199,7 +199,7 @@ fn notify(app: &AppHandle, body: &str) {
     let _ = app
         .notification()
         .builder()
-        .title("Nexus Servers · PROD Safety")
+        .title("Stackroost Servers · PROD Safety")
         .body(body)
         .show();
 }

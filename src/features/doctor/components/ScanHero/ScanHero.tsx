@@ -50,7 +50,7 @@ export const ScanHero = ({
         <div className="flex size-16 items-center justify-center rounded-full bg-ember-soft text-ember">
           <Stethoscope className="size-8" />
         </div>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="font-display text-2xl font-semibold tracking-tight text-fg">
           Check your Mac&apos;s health
         </h2>
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -60,9 +60,7 @@ export const ScanHero = ({
 
       <div className="flex w-full items-center gap-3" aria-hidden>
         <span className="h-px flex-1 bg-hairline" />
-        <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-          Scan areas
-        </span>
+        <span className="text-xs font-medium text-muted-foreground">Scan areas</span>
         <span className="h-px flex-1 bg-hairline" />
       </div>
 
@@ -81,7 +79,7 @@ export const ScanHero = ({
               <Icon className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-foreground">{label}</span>
+              <span className="block text-sm font-semibold text-fg">{label}</span>
               <span className="line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
                 {desc}
               </span>

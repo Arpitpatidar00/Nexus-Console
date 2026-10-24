@@ -27,11 +27,11 @@ export const ServersSettingsCard = () => {
 
   return (
     <section className="rounded-xl p-6 text-card-foreground shadow-edge glass">
-      <h2 className="font-display text-base font-semibold text-foreground">Servers</h2>
+      <h2 className="font-display text-base font-semibold text-fg">Servers</h2>
       <div className="mt-2 divide-y divide-hairline">
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-foreground">Refresh</p>
+            <p className="text-sm font-medium text-fg">Refresh</p>
             <p className="text-xs text-muted-foreground">
               How often the open server is re-checked while the window is focused.
             </p>
@@ -45,7 +45,7 @@ export const ServersSettingsCard = () => {
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-foreground">Prod dead-man's switch</p>
+            <p className="text-sm font-medium text-fg">Prod dead-man's switch</p>
             <p className="text-xs text-muted-foreground">
               Auto-disconnect idle prod control masters when locked, asleep, or idle. Never kills
               busy commands.
@@ -60,7 +60,7 @@ export const ServersSettingsCard = () => {
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-foreground">Check in the background</p>
+            <p className="text-sm font-medium text-fg">Check in the background</p>
             <p className="text-xs text-muted-foreground">
               While Stackroost is in the menu bar, re-check servers that are already connected and
               notify only about new critical issues. Never connects on its own.
@@ -75,7 +75,7 @@ export const ServersSettingsCard = () => {
         </div>
         <div className="flex items-center justify-between gap-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-foreground">SSH config access</p>
+            <p className="text-sm font-medium text-fg">SSH config access</p>
             <p className="text-xs text-muted-foreground">
               {granted
                 ? `Allowed${since ? ` since ${formatTime(since * 1000)}` : ''}. Revoking disconnects every server; your list stays.`

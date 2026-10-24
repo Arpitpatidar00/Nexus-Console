@@ -40,14 +40,14 @@ export const ListRow: React.FC<ListRowProps> = ({
     <>
       {icon && (
         <span
-          className="sr-row__icon flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground"
+          className="sr-row__icon flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-fg"
           aria-hidden="true"
         >
           {icon}
         </span>
       )}
       <div className="sr-row__text flex min-w-0 flex-1 flex-col justify-center">
-        <div className="sr-row__title truncate font-sans text-sm leading-snug font-medium text-foreground">
+        <div className="sr-row__title truncate font-sans text-sm leading-snug font-medium text-fg">
           {title}
         </div>
         {subtitle && (

@@ -21,7 +21,7 @@ export const ActivityBar = () => {
   const text = rest.length > 0 ? `${first} +${rest.length} more` : first;
 
   return (
-    <output className="absolute bottom-5 left-5 z-[var(--z-sticky)] flex max-w-[min(30rem,calc(100%-2.5rem))] animate-in items-center gap-3 rounded-full px-4 py-2.5 text-sm text-foreground shadow-float glass duration-200 fade-in slide-in-from-bottom-2">
+    <output className="absolute bottom-5 left-5 z-[var(--z-sticky)] flex max-w-[min(30rem,calc(100%-2.5rem))] animate-in items-center gap-3 rounded-full px-4 py-2.5 text-sm text-fg shadow-float glass duration-200 fade-in slide-in-from-bottom-2">
       <Spinner className="size-4 text-ember" />
       <span className="truncate font-medium">{text}…</span>
       <span className="shrink-0 text-xs text-muted-foreground">Homebrew can take a minute.</span>

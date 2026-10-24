@@ -68,7 +68,7 @@ export const ExplorerSidebar = ({
   return (
     <nav aria-label="Databases" className="flex w-64 shrink-0 flex-col border-r border-hairline">
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-hairline px-3">
-        <span className="text-sm font-semibold text-foreground">Databases</span>
+        <span className="text-sm font-semibold text-fg">Databases</span>
         <span className="flex items-center gap-0.5">
           <Button
             variant="ghost"
@@ -102,7 +102,7 @@ export const ExplorerSidebar = ({
             </p>
             {unconnected.map((d) => (
               <div key={d.port} className="mt-1 flex items-center justify-between gap-2 text-xs">
-                <span className="truncate text-foreground">
+                <span className="truncate text-fg">
                   {d.name} <span className="text-muted-foreground">:{d.port}</span>
                 </span>
                 <Button
@@ -149,9 +149,7 @@ export const ExplorerSidebar = ({
                     {ENGINE_SHORT[c.driver] ?? '··'}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-medium text-foreground">
-                      {c.name}
-                    </span>
+                    <span className="block truncate text-[13px] font-medium text-fg">{c.name}</span>
                     <span className="block truncate font-mono text-[10px] text-muted-foreground">
                       {c.database ? `${c.database} · ` : ''}
                       {c.host}
@@ -196,7 +194,7 @@ export const ExplorerSidebar = ({
                             onChange={(e) => setFilter(e.target.value)}
                             placeholder={`${s?.tables.length ?? 0} ${s?.engine === 'redis' ? 'prefixes' : s?.engine?.startsWith('mongo') ? 'collections' : 'tables'}`}
                             aria-label="Filter tables"
-                            className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+                            className="min-w-0 flex-1 bg-transparent text-xs text-fg outline-none placeholder:text-muted-foreground"
                           />
                         </label>
                         <Button
@@ -235,7 +233,7 @@ export const ExplorerSidebar = ({
                                   'flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1 text-left',
                                   activeTable === key
                                     ? 'bg-ember-soft text-ember-text'
-                                    : 'text-foreground hover:bg-accent',
+                                    : 'text-fg hover:bg-accent',
                                 )}
                               >
                                 <span

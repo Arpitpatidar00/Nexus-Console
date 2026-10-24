@@ -56,7 +56,7 @@ export function ProjectsPage() {
     <div className="flex h-full overflow-hidden bg-canvas text-fg">
       <nav aria-label="Projects" className="flex w-72 shrink-0 flex-col border-r border-hairline">
         <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-hairline px-3">
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-sm font-semibold text-fg">
             Projects{' '}
             <span className="font-normal text-muted-foreground tabular-nums">
               {projects.length}
@@ -82,7 +82,7 @@ export function ProjectsPage() {
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Name, folder, framework, branch"
               aria-label="Filter projects"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-muted-foreground"
             />
           </label>
         </div>
@@ -119,9 +119,7 @@ export function ProjectsPage() {
                       )}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="truncate text-[13px] font-medium text-foreground">
-                          {p.name}
-                        </span>
+                        <span className="truncate text-[13px] font-medium text-fg">{p.name}</span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
                           {p.framework}
                         </span>
@@ -156,7 +154,7 @@ export function ProjectsPage() {
             </p>
             {workspaces.map((ws) => (
               <div key={ws.id} className="flex items-center justify-between gap-2 py-0.5 text-xs">
-                <span className="truncate text-foreground">{ws.name}</span>
+                <span className="truncate text-fg">{ws.name}</span>
                 <span className="flex shrink-0 items-center">
                   <Button
                     variant="ghost"

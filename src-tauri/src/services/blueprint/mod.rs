@@ -43,7 +43,7 @@ pub struct BlueprintTunnel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NexusBlueprint {
+pub struct MacBlueprint {
     pub schema_version: u32,
     pub exported_at_epoch: u64,
     pub mac_hostname: String,
@@ -69,7 +69,7 @@ pub struct BlueprintDiffReport {
     pub maclean_rules_different: bool,
 }
 
-pub fn export_blueprint(app: &AppHandle) -> AppResult<NexusBlueprint> {
+pub fn export_blueprint(app: &AppHandle) -> AppResult<MacBlueprint> {
     let ctx = app.state::<AppContext>();
     let brew_bin = ctx.brew_bin.as_deref().unwrap_or("/opt/homebrew/bin/brew");
 
@@ -162,7 +162,7 @@ pub fn export_blueprint(app: &AppHandle) -> AppResult<NexusBlueprint> {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
 
-    Ok(NexusBlueprint {
+    Ok(MacBlueprint {
         schema_version: 1,
         exported_at_epoch,
         mac_hostname,
@@ -177,7 +177,7 @@ pub fn export_blueprint(app: &AppHandle) -> AppResult<NexusBlueprint> {
 }
 
 pub fn analyze_blueprint(
-    blueprint: &NexusBlueprint,
+    blueprint: &MacBlueprint,
     app: &AppHandle,
 ) -> AppResult<BlueprintDiffReport> {
     let ctx = app.state::<AppContext>();

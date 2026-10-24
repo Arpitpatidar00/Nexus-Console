@@ -70,9 +70,7 @@ export function ContextAnalysisModal({ dirName, sessionFile, onClose }: ContextA
 
           {/* Breakdown List */}
           <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3">
-            <div className="text-[11px] font-semibold tracking-wider text-fg-muted uppercase">
-              Memory Breakdown
-            </div>
+            <div className="text-[11px] font-semibold text-fg-muted">Memory Breakdown</div>
             <div className="space-y-2">
               {analysis.largeItems.map((item) => (
                 <div key={item.label} className="space-y-1">

@@ -27,7 +27,7 @@ export const SegmentedControl = <T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               'relative h-8 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-              active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-fg',
             )}
           >
             {active && (

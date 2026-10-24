@@ -69,7 +69,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
       <button
         type="button"
         onClick={() => setSort((x) => ({ key: k, desc: x.key === k ? !x.desc : k !== 'name' }))}
-        className="cursor-pointer hover:text-foreground"
+        className="cursor-pointer hover:text-fg"
       >
         {label}
         {sort.key === k && (sort.desc ? ' ↓' : ' ↑')}
@@ -80,7 +80,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <p className="border-b border-hairline px-4 py-3 text-sm text-muted-foreground tabular-nums">
-        <span className="text-foreground">{ENGINE[s.engine] ?? s.engine}</span>
+        <span className="text-fg">{ENGINE[s.engine] ?? s.engine}</span>
         {s.serverVersion && ` ${s.serverVersion.split(' ')[0]}`}
         {s.sizeBytes != null && ` · ${formatBytes(s.sizeBytes)}`}
         {multi && ` · ${s.schemas.length} schemas`}
@@ -91,13 +91,13 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
 
       {(noPk.length > 0 || unindexed.length > 0 || guessed.length > 0) && (
         <section className="border-b border-hairline px-4 py-3">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Worth a look</h3>
+          <h3 className="mb-2 text-sm font-semibold text-fg">Worth a look</h3>
           <ul className="space-y-2 text-sm">
             {noPk.length > 0 && (
               <li className="flex gap-2">
                 <KeyRound className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
                 <span>
-                  <span className="text-foreground">
+                  <span className="text-fg">
                     {noPk.length} table{noPk.length === 1 ? ' has' : 's have'} no primary key
                   </span>
                   <span className="text-muted-foreground">
@@ -123,7 +123,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
               <li className="flex gap-2">
                 <Gauge className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
                 <span>
-                  <span className="text-foreground">
+                  <span className="text-fg">
                     {unindexed.length} foreign key{unindexed.length === 1 ? ' has' : 's have'} no
                     index
                   </span>
@@ -152,7 +152,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
               <li className="flex gap-2">
                 <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
                 <span>
-                  <span className="text-foreground">
+                  <span className="text-fg">
                     {guessed.length} column{guessed.length === 1 ? ' looks' : 's look'} like a
                     reference without a foreign key
                   </span>
@@ -176,7 +176,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
             onChange={(e) => setFilter(e.target.value)}
             placeholder={`Filter ${s.tables.length} ${isRedis ? 'prefixes' : 'tables'}`}
             aria-label="Filter tables"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-muted-foreground"
           />
         </label>
         <table className="w-full border-separate border-spacing-0 text-sm">
@@ -199,7 +199,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
                 <td className="border-b border-hairline px-3 py-2">
                   <span
                     className={cn(
-                      'font-mono text-foreground',
+                      'font-mono text-fg',
                       t.kind !== 'table' &&
                         t.kind !== 'collection' &&
                         t.kind !== 'keyspace' &&

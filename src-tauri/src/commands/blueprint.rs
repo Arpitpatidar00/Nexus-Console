@@ -2,14 +2,14 @@
 
 use crate::context::AppContext;
 use crate::error::{AppError, AppResult};
-use crate::services::blueprint::{self, BlueprintDiffReport, BlueprintHost, NexusBlueprint};
+use crate::services::blueprint::{self, BlueprintDiffReport, BlueprintHost, MacBlueprint};
 use crate::services::projects::store::WorkspaceConfig;
 use tauri::{AppHandle, Manager};
 
 use super::blocking;
 
 #[tauri::command]
-pub async fn blueprint_export(app: AppHandle) -> AppResult<NexusBlueprint> {
+pub async fn blueprint_export(app: AppHandle) -> AppResult<MacBlueprint> {
     blocking(move || blueprint::export_blueprint(&app)).await
 }
 
@@ -19,7 +19,7 @@ pub async fn blueprint_analyze_import(
     blueprint_json: String,
 ) -> AppResult<BlueprintDiffReport> {
     blocking(move || {
-        let bp: NexusBlueprint = serde_json::from_str(&blueprint_json)
+        let bp: MacBlueprint = serde_json::from_str(&blueprint_json)
             .map_err(|e| AppError::InvalidName(format!("malformed blueprint JSON: {e}")))?;
         blueprint::analyze_blueprint(&bp, &app)
     })

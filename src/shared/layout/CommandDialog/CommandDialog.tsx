@@ -242,7 +242,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
           type="button"
           aria-label="Close command palette"
           onClick={() => onOpenChange(false)}
-          className="absolute top-4 right-4 flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="absolute top-4 right-4 flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-fg"
         >
           <X className="size-5" />
         </button>
@@ -352,7 +352,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
                                     dispatch(togglePinnedCommand(item.id));
                                   }}
                                   className={cn(
-                                    'rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground',
+                                    'rounded p-1 text-muted-foreground hover:bg-muted hover:text-fg',
                                     !isSelected &&
                                       !pinnedIds.includes(item.id) &&
                                       'opacity-0 group-hover:opacity-100',

@@ -3,14 +3,14 @@ import { z } from 'zod';
 import { ipc, ipcVoid, CMD } from '@/shared/tauri';
 import {
   blueprintDiffReportSchema,
-  nexusBlueprintSchema,
+  macBlueprintSchema,
   type BlueprintHost,
-  type NexusBlueprint,
+  type MacBlueprint,
 } from './blueprint.schema';
 
 export function useBlueprintExport() {
   return useMutation({
-    mutationFn: () => ipc(CMD.BLUEPRINT_EXPORT, undefined, nexusBlueprintSchema),
+    mutationFn: () => ipc(CMD.BLUEPRINT_EXPORT, undefined, macBlueprintSchema),
   });
 }
 
@@ -45,7 +45,7 @@ export function useApplyHosts() {
 export function useApplyWorkspaces() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (workspaces: NexusBlueprint['workspaces']) =>
+    mutationFn: (workspaces: MacBlueprint['workspaces']) =>
       ipc(CMD.BLUEPRINT_APPLY_WORKSPACES, { workspaces }, z.number()),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['projects', 'workspaces'] });

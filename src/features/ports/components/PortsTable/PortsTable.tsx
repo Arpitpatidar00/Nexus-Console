@@ -67,7 +67,7 @@ function buildColumns(
       size: 90,
       meta: { align: 'right' },
       cell: (c) => (
-        <span className="font-medium text-foreground tabular-nums">:{c.getValue<number>()}</span>
+        <span className="font-medium text-fg tabular-nums">:{c.getValue<number>()}</span>
       ),
     },
     {

@@ -36,7 +36,7 @@ export const Metric: React.FC<MetricProps> = ({
 
   return (
     <div className={cn('sr-metric flex min-w-0 flex-col gap-1.5', className)}>
-      <div className="sr-metric__value flex items-baseline font-display text-[44px] leading-[48px] font-medium tracking-tight text-foreground tabular-nums">
+      <div className="sr-metric__value flex items-baseline font-display text-[44px] leading-[48px] font-medium tracking-tight text-fg tabular-nums">
         <span>{value}</span>
         {unit && (
           <span className="sr-metric__unit ml-1.5 text-xl font-normal text-muted-foreground">
@@ -61,7 +61,7 @@ export const Metric: React.FC<MetricProps> = ({
           aria-hidden="true"
         >
           <span
-            className="block h-full rounded-full bg-foreground transition-all duration-300"
+            className="block h-full rounded-full bg-fg transition-all duration-300"
             style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
           />
         </div>

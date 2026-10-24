@@ -94,14 +94,9 @@ pub fn measure_dir_size_bytes(dir: &Path) -> u64 {
     0
 }
 
-pub fn list_snapshots(service_data_dir: &Path) -> Vec<DbSnapshot> {
-    if validate_local_path(service_data_dir).is_err() {
-        return Vec::new();
-    }
-    let snap_dir = snapshot_parent_dir(service_data_dir);
+fn list_snapshots_in(dir: &Path, service_data_dir: &Path) -> Vec<DbSnapshot> {
     let mut list = Vec::new();
-
-    if let Ok(entries) = std::fs::read_dir(&snap_dir) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
             if p.is_dir() {
@@ -134,12 +129,48 @@ pub fn list_snapshots(service_data_dir: &Path) -> Vec<DbSnapshot> {
             }
         }
     }
+    list
+}
+
+pub fn list_snapshots(service_data_dir: &Path) -> Vec<DbSnapshot> {
+    if validate_local_path(service_data_dir).is_err() {
+        return Vec::new();
+    }
+    let snap_dir = snapshot_parent_dir(service_data_dir);
+    let legacy_dir = legacy_snapshot_parent_dir(service_data_dir);
+
+    // The snapshot folder used to be named `-nexus-snapshots` (AUDIT-2026-10-24
+    // ARC-06). Try a one-time rename to the current name; if that fails for
+    // any reason (cross-device, permissions), still read both so a snapshot
+    // someone already made never silently disappears from the list.
+    if legacy_dir.exists() && !snap_dir.exists() {
+        let _ = std::fs::rename(&legacy_dir, &snap_dir);
+    }
+
+    let mut list = list_snapshots_in(&snap_dir, service_data_dir);
+    if legacy_dir.exists() && legacy_dir != snap_dir {
+        let seen: std::collections::HashSet<String> = list.iter().map(|s| s.id.clone()).collect();
+        list.extend(
+            list_snapshots_in(&legacy_dir, service_data_dir)
+                .into_iter()
+                .filter(|s| !seen.contains(&s.id)),
+        );
+    }
 
     list.sort_by_key(|a| std::cmp::Reverse(a.created_at));
     list
 }
 
 pub fn snapshot_parent_dir(data_dir: &Path) -> PathBuf {
+    let dir_name = data_dir.file_name().unwrap_or_default().to_string_lossy();
+    let parent = data_dir.parent().unwrap_or(data_dir);
+    parent.join(format!("{dir_name}-db-snapshots"))
+}
+
+/// The pre-rename snapshot folder name (AUDIT-2026-10-24 ARC-06). Only used
+/// by `list_snapshots`'s one-time migration and as a read fallback — nothing
+/// writes new snapshots here.
+fn legacy_snapshot_parent_dir(data_dir: &Path) -> PathBuf {
     let dir_name = data_dir.file_name().unwrap_or_default().to_string_lossy();
     let parent = data_dir.parent().unwrap_or(data_dir);
     parent.join(format!("{dir_name}-nexus-snapshots"))
@@ -243,6 +274,62 @@ pub fn restore_snapshot(data_dir: &Path, snapshot_path: &Path) -> AppResult<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_old_nexus_snapshots_dir_is_migrated_and_still_listed() {
+        let dir = std::env::temp_dir().join(format!(
+            "sr-apfs-migrate-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let data_dir = dir.join("postgresql@16");
+        std::fs::create_dir_all(&data_dir).unwrap();
+
+        // A snapshot made under the old suffix, before anything in this
+        // process ever asks for the new one.
+        let legacy_parent = legacy_snapshot_parent_dir(&data_dir);
+        std::fs::create_dir_all(legacy_parent.join("1700000000_before_migration")).unwrap();
+
+        let found = list_snapshots(&data_dir);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].id, "1700000000_before_migration");
+
+        // The migration moved it: the old folder is gone, the new one has it.
+        assert!(
+            !legacy_parent.exists(),
+            "legacy snapshot dir should be renamed away"
+        );
+        assert!(snapshot_parent_dir(&data_dir)
+            .join("1700000000_before_migration")
+            .exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn snapshots_under_old_and_new_names_are_both_listed_if_migration_cannot_run() {
+        let dir = std::env::temp_dir().join(format!(
+            "sr-apfs-both-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let data_dir = dir.join("postgresql@16");
+        std::fs::create_dir_all(&data_dir).unwrap();
+
+        // Both exist already (e.g. a previous run created the new dir before
+        // this one found a leftover old one) — nothing should be hidden.
+        std::fs::create_dir_all(legacy_snapshot_parent_dir(&data_dir).join("1700000000_old"))
+            .unwrap();
+        std::fs::create_dir_all(snapshot_parent_dir(&data_dir).join("1700000100_new")).unwrap();
+
+        let found = list_snapshots(&data_dir);
+        let ids: Vec<&str> = found.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(ids, ["1700000100_new", "1700000000_old"], "{ids:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn test_clonefile_on_temp_dir() {

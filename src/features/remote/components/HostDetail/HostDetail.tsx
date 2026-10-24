@@ -148,7 +148,7 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <h2
-              className="min-w-0 truncate font-display text-lg font-semibold text-foreground"
+              className="min-w-0 truncate font-display text-lg font-semibold text-fg"
               title={host.label}
             >
               {host.label}
@@ -333,8 +333,8 @@ export const HostDetail = ({ host, onEdit }: { host: RemoteHost; onEdit: () => v
                   className={cn(
                     '-mb-px cursor-pointer border-b-2 px-3 pb-2.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     v === view
-                      ? 'border-ember text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                      ? 'border-ember text-fg'
+                      : 'border-transparent text-muted-foreground hover:text-fg',
                   )}
                 >
                   {label(v)}

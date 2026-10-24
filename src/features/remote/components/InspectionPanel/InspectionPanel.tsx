@@ -33,7 +33,7 @@ const RouteTarget = ({ r }: { r: DomainRoute }) => {
   const plain = r.target.replace(/^https?:\/\//, '').replace(/\/$/, '');
   return (
     <span className="flex min-w-0 items-center gap-1.5 font-mono text-xs">
-      <span className="truncate text-foreground" title={r.target}>
+      <span className="truncate text-fg" title={r.target}>
         {r.upstream ? plain : plain || '—'}
       </span>
       {r.upstream && (
@@ -48,7 +48,7 @@ const RouteTarget = ({ r }: { r: DomainRoute }) => {
 const DomainRow = ({ d }: { d: Domain }) => (
   <li className="px-3 py-3">
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span className="font-mono text-sm font-medium text-foreground">
+      <span className="font-mono text-sm font-medium text-fg">
         {d.name || 'Default server (any other hostname)'}
       </span>
       {d.https ? (
@@ -102,11 +102,11 @@ const CronRow = ({ job }: { job: CronJob }) => {
   return (
     <tr className="align-top">
       <td className="px-3 py-2 whitespace-nowrap">
-        <p className="text-foreground">{words ?? job.schedule}</p>
+        <p className="text-fg">{words ?? job.schedule}</p>
         {words && <p className="font-mono text-xs text-muted-foreground">{job.schedule}</p>}
       </td>
       <td className="max-w-0 px-3 py-2">
-        <p className="truncate font-mono text-xs text-foreground" title={job.command}>
+        <p className="truncate font-mono text-xs text-fg" title={job.command}>
           {job.command}
         </p>
       </td>

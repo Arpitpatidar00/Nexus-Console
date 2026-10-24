@@ -135,7 +135,7 @@ export function DatabasesPage() {
         ) : mapOpen ? (
           <>
             <header className="flex h-12 shrink-0 items-center border-b border-hairline px-4">
-              <h1 className="text-sm font-semibold text-foreground">All databases</h1>
+              <h1 className="text-sm font-semibold text-fg">All databases</h1>
             </header>
             <MapView
               connections={connections}
@@ -179,7 +179,7 @@ export function DatabasesPage() {
                 <button
                   type="button"
                   onClick={() => setTrail([])}
-                  className="min-w-0 cursor-pointer truncate text-sm font-semibold text-foreground hover:underline"
+                  className="min-w-0 cursor-pointer truncate text-sm font-semibold text-fg hover:underline"
                 >
                   {active.name}
                 </button>

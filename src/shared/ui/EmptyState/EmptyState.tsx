@@ -9,7 +9,7 @@ export const EmptyState = ({ icon, title, description, action }: EmptyStateProps
       <Mark size={56} className="opacity-80 transition-transform duration-300 hover:scale-105" />
     )}
     <div className="max-w-sm space-y-1.5">
-      <p className="font-display text-lg font-semibold tracking-tight text-foreground">{title}</p>
+      <p className="font-display text-lg font-semibold tracking-tight text-fg">{title}</p>
       {description && (
         <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       )}

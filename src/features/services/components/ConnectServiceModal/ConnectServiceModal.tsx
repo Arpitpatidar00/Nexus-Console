@@ -97,13 +97,13 @@ export const ConnectServiceModal = ({ open, onOpenChange }: ConnectServiceModalP
           <>
             {installed.length > 0 && (
               <>
-                <p className="mb-2 text-xs font-medium text-fg-subtle uppercase">
+                <p className="mb-2 text-xs font-medium text-fg-subtle">
                   Installed on this Mac · not in your list
                 </p>
                 <div className="mb-4 flex flex-wrap gap-2">{installed.map(chip)}</div>
               </>
             )}
-            <p className="mb-2 text-xs font-medium text-fg-subtle uppercase">Popular services</p>
+            <p className="mb-2 text-xs font-medium text-fg-subtle">Popular services</p>
             <div className="flex flex-wrap gap-2">{popular.map(chip)}</div>
           </>
         )}

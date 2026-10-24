@@ -146,7 +146,9 @@ export const CommandDial: React.FC<CommandDialProps> = ({
           aria-label="Open command palette"
           onClick={onKnob}
         >
-          <Layers className="size-7 text-[#1A181B]" />
+          {/* Color comes from `.sr-dial__knob`'s `color` (styles/components.css): the knob is a
+              brushed-metal dial face, fixed in both themes like a real control, not a token. */}
+          <Layers className="size-7" />
         </button>
       </div>
 

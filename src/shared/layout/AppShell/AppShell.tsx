@@ -13,7 +13,7 @@ export const AppShell = ({ children, footer }: PropsWithChildren<AppShellProps>)
   const [commandOpen, setCommandOpen] = useState(false);
 
   return (
-    <div className="box-border flex h-screen min-h-screen w-screen gap-5 overflow-hidden p-4 font-sans text-foreground ground">
+    <div className="box-border flex h-screen min-h-screen w-screen gap-5 overflow-hidden p-4 font-sans text-fg ground">
       {/* Floating 64px icon rail with top window controls clearance */}
       <div className="flex h-full shrink-0 flex-col">
         {/* Window drag spacer to clear native macOS traffic lights (close/minimize/zoom) */}

@@ -32,7 +32,7 @@ export const Dialog = ({
       >
         <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
-            <RadixDialog.Title className="font-display text-lg font-semibold tracking-tight text-foreground">
+            <RadixDialog.Title className="font-display text-lg font-semibold tracking-tight text-fg">
               {title}
             </RadixDialog.Title>
             {description && (
@@ -43,7 +43,7 @@ export const Dialog = ({
           </div>
           <RadixDialog.Close
             aria-label="Close"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-fg"
           >
             <X className="size-4" />
           </RadixDialog.Close>

@@ -12,7 +12,7 @@ export const DiskSummary = ({ disk, lastClean }: DiskSummaryProps) => {
     <section className="rounded-xl px-5 py-4 text-card-foreground shadow-edge glass">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-sm font-semibold text-foreground">Macintosh HD</h2>
+          <h2 className="text-sm font-semibold text-fg">Macintosh HD</h2>
           <span className="font-mono text-sm text-muted-foreground tabular-nums">
             {formatBytes(disk.usedBytes)} used of {formatBytes(disk.totalBytes)}
           </span>

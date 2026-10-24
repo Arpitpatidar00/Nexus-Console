@@ -23,7 +23,7 @@ export const Progress: React.FC<ProgressProps> = ({
     success: 'bg-success',
     warning: 'bg-warning',
     danger: 'bg-destructive',
-    ivory: 'bg-foreground',
+    ivory: 'bg-fg',
   }[tone];
 
   return (

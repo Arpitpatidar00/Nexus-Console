@@ -52,7 +52,7 @@ export const NotificationsMenu = () => {
               <button
                 type="button"
                 onClick={clearNotifications}
-                className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+                className="cursor-pointer text-xs text-muted-foreground hover:text-fg"
               >
                 Clear
               </button>

@@ -7,7 +7,7 @@ import { cn } from '@/shared/lib/cn';
 type ControlSize = 'sm' | 'md';
 
 const CONTROL =
-  'w-full min-w-0 rounded-md border border-input bg-muted font-sans text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring focus:shadow-ring-ember focus:outline-none disabled:cursor-not-allowed disabled:opacity-50';
+  'w-full min-w-0 rounded-md border border-input bg-muted font-sans text-fg transition-colors placeholder:text-muted-foreground focus:border-ring focus:shadow-ring-ember focus:outline-none disabled:cursor-not-allowed disabled:opacity-50';
 
 const SIZE: Record<ControlSize, string> = {
   sm: 'h-9 px-3 text-[13px]',

@@ -124,11 +124,23 @@ impl PtyManager {
         cmd.env("TERM", "xterm-256color");
 
         if target.inject_keychain() {
-            // Optional Keychain injection into Nexus terminals (T-18)
+            // Optional Keychain injection into workspace terminals (T-18). The
+            // app never writes these entries itself — they're for a user who
+            // adds one by hand in Keychain Access. The service name used to
+            // be `nexus.terminal:<key>` (AUDIT-2026-10-24 ARC-06); look under
+            // the current name first, then fall back to the old one so an
+            // entry someone already created keeps working.
             for key in ["DATABASE_URL", "DB_PASSWORD", "API_KEY", "SECRET_KEY"] {
-                if let Ok(Some(secret)) =
-                    crate::core::keychain::get_password(&format!("nexus.terminal:{key}"))
-                {
+                let found =
+                    crate::core::keychain::get_password(&format!("stackroost.terminal:{key}"))
+                        .ok()
+                        .flatten()
+                        .or_else(|| {
+                            crate::core::keychain::get_password(&format!("nexus.terminal:{key}"))
+                                .ok()
+                                .flatten()
+                        });
+                if let Some(secret) = found {
                     cmd.env(key, secret);
                 }
             }

@@ -14,7 +14,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 32, markOnly = false, classNa
       <Mark size={size} label="Stackroost" />
       {!markOnly && (
         <span
-          className="sr-logo__word font-display font-semibold tracking-tight text-foreground select-none"
+          className="sr-logo__word font-display font-semibold tracking-tight text-fg select-none"
           aria-hidden="true"
           style={{ fontSize: Math.round(size * 0.72) + 'px' }}
         >

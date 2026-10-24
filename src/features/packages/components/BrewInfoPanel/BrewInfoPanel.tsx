@@ -42,14 +42,14 @@ export const BrewInfoPanel = ({ name, onClose }: { name: string; onClose: () => 
 
             {data.homepage && (
               <div className="text-xs">
-                <p className="mb-0.5 text-fg-subtle uppercase">Homepage</p>
+                <p className="mb-0.5 text-fg-subtle">Homepage</p>
                 <p className="break-all text-fg-muted">{data.homepage}</p>
               </div>
             )}
 
             {data.dependencies.length > 0 && (
               <div>
-                <p className="mb-1 text-xs font-medium text-fg-subtle uppercase">
+                <p className="mb-1 text-xs font-medium text-fg-subtle">
                   Dependencies ({data.dependencies.length})
                 </p>
                 <div className="flex flex-wrap gap-1">

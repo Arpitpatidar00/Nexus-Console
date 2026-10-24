@@ -68,9 +68,7 @@ export const EditHostDialog = ({
         <div className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-muted/20 p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-foreground">
-                Connect when Stackroost opens
-              </span>
+              <span className="text-xs font-medium text-fg">Connect when Stackroost opens</span>
               <span className="text-[11px] text-muted-foreground">
                 Automatically check this server on startup
               </span>

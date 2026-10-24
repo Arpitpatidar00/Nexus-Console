@@ -10,7 +10,7 @@ export const Card = ({ title, aside, className, children }: CardProps) => (
     )}
   >
     <header className="flex items-center justify-between gap-3 border-b border-hairline px-5 py-3.5">
-      <h2 className="font-display text-sm font-semibold text-foreground">{title}</h2>
+      <h2 className="font-display text-sm font-semibold text-fg">{title}</h2>
       {aside}
     </header>
     {children}

@@ -22,7 +22,7 @@ export const KIND_CLS: Record<ValueKind, string> = {
   boolean: 'text-chart-5',
   null: 'text-muted-foreground italic',
   objectId: 'text-chart-1',
-  date: 'text-foreground',
+  date: 'text-fg',
   array: 'text-muted-foreground',
   object: 'text-muted-foreground',
 };
@@ -89,7 +89,7 @@ const Field = ({ name, value, depth, link }: FieldProps) => {
             <button
               type="button"
               onClick={() => setOpen(!open)}
-              className="cursor-pointer text-muted-foreground hover:text-foreground"
+              className="cursor-pointer text-muted-foreground hover:text-fg"
             >
               {Array.isArray(value) ? 'Array' : 'Object'} {preview(value)}
             </button>
@@ -168,7 +168,7 @@ export const DocumentCard = ({
         onClick={copy}
         aria-label="Copy this row as JSON"
         title="Copy as JSON"
-        className="float-right -mt-0.5 cursor-pointer rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover/doc:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100"
+        className="float-right -mt-0.5 cursor-pointer rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover/doc:opacity-100 hover:bg-accent hover:text-fg focus-visible:opacity-100"
       >
         <Copy className="size-3.5" />
       </button>

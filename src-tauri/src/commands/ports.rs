@@ -133,7 +133,7 @@ fn collect_ports(listening_only: bool) -> AppResult<Vec<PortDto>> {
 }
 
 /// SIGTERM (or SIGKILL when `force`). `sudo` escalates via the native admin prompt.
-/// Guards: never signal pid < 2 (kernel/launchd) or Nexus itself.
+/// Guards: never signal pid < 2 (kernel/launchd) or Stackroost itself.
 #[tauri::command]
 pub async fn kill_process(pid: u32, force: bool, sudo: bool) -> AppResult<()> {
     if pid < 2 {

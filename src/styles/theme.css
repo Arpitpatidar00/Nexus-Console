@@ -172,6 +172,26 @@
   --danger-dot: var(--destructive);
 }
 
+/* Dark mode is flat — 1px borders + tonal surfaces, no shadows (PRODUCT.md).
+ * Tailwind's native shadow scale isn't theme-aware on its own, so without
+ * this, every `shadow-sm`/`shadow-md`/etc (78 at last count, AUDIT-2026-10-24
+ * DES-01) rendered in dark mode too. A descendant selector + !important
+ * wins regardless of Tailwind's own rule's specificity or source order.
+ * This does not touch the design system's own `shadow-edge`/`shadow-float`/
+ * `shadow-ring-ember` tokens above (registered as `@theme` shadow keys
+ * below) — those already resolve through theme-aware CSS variables and are
+ * used deliberately in both themes. */
+[data-theme='dark'] .shadow-xs,
+[data-theme='dark'] .shadow-sm,
+[data-theme='dark'] .shadow-md,
+[data-theme='dark'] .shadow-lg,
+[data-theme='dark'] .shadow-xl,
+[data-theme='dark'] .shadow-2xl,
+[data-theme='dark'] .shadow-inner,
+[data-theme='dark'] .shadow {
+  box-shadow: none !important;
+}
+
 @theme inline {
   --font-sans: 'Outfit Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display:

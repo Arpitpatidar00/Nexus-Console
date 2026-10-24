@@ -198,7 +198,7 @@ export const EnergyPage = () => {
       <div className="overflow-hidden rounded-xl border border-border bg-paper shadow-sm">
         <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="border-b border-border bg-muted text-[11px] font-semibold tracking-wider text-fg-muted uppercase">
+            <tr className="border-b border-border bg-muted text-[11px] font-semibold text-fg-muted">
               <th className="px-4 py-2.5">PID</th>
               <th className="px-4 py-2.5">Process Name</th>
               <th className="px-4 py-2.5">Category</th>

@@ -40,7 +40,7 @@ export const macleanRulesSchema = z.object({
 });
 export type MacleanRules = z.infer<typeof macleanRulesSchema>;
 
-export const nexusBlueprintSchema = z.object({
+export const macBlueprintSchema = z.object({
   schemaVersion: z.number(),
   exportedAtEpoch: z.number(),
   macHostname: z.string(),
@@ -52,7 +52,7 @@ export const nexusBlueprintSchema = z.object({
   macleanRules: macleanRulesSchema.nullable().optional(),
   vscodeExtensions: z.array(z.string()),
 });
-export type NexusBlueprint = z.infer<typeof nexusBlueprintSchema>;
+export type MacBlueprint = z.infer<typeof macBlueprintSchema>;
 
 export const blueprintDiffReportSchema = z.object({
   missingFormulae: z.array(z.string()),

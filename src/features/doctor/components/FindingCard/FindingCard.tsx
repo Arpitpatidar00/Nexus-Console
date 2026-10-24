@@ -90,7 +90,7 @@ export const FindingCard = ({ finding, subFindings }: FindingCardProps) => {
       >
         <span className={cn('size-2.5 shrink-0 rounded-full', DOT[finding.severity])} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-foreground">{title}</span>
+          <span className="block truncate text-sm font-medium text-fg">{title}</span>
           {metaLine && (
             <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground tabular-nums">
               {metaLine}
@@ -134,7 +134,7 @@ export const FindingCard = ({ finding, subFindings }: FindingCardProps) => {
                 {subFindings.map((sf) => (
                   <div key={sf.summary} className="flex items-center gap-2.5 px-3 py-2 text-xs">
                     <span className={cn('size-1.5 shrink-0 rounded-full', DOT[sf.severity])} />
-                    <span className="truncate font-mono text-foreground">{sf.summary}</span>
+                    <span className="truncate font-mono text-fg">{sf.summary}</span>
                   </div>
                 ))}
               </div>

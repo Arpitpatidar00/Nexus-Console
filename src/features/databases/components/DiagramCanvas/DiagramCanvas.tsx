@@ -186,7 +186,7 @@ export const DiagramCanvas = ({
               }}
               placeholder="Find a table"
               aria-label="Find a table in the diagram"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-muted-foreground"
             />
           </label>
           {matches.length > 0 && (
@@ -199,7 +199,7 @@ export const DiagramCanvas = ({
                       centerOn(m.id);
                       setFind('');
                     }}
-                    className="w-full cursor-pointer truncate px-3 py-1.5 text-left font-mono text-xs text-foreground hover:bg-accent"
+                    className="w-full cursor-pointer truncate px-3 py-1.5 text-left font-mono text-xs text-fg hover:bg-accent"
                   >
                     {m.id}
                   </button>
@@ -223,7 +223,7 @@ export const DiagramCanvas = ({
             type="button"
             onClick={() => zoomBy(1 / view.k)}
             title="Actual size"
-            className="w-12 cursor-pointer text-center text-xs text-muted-foreground tabular-nums hover:text-foreground"
+            className="w-12 cursor-pointer text-center text-xs text-muted-foreground tabular-nums hover:text-fg"
           >
             {Math.round(view.k * 100)}%
           </button>

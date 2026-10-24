@@ -107,9 +107,9 @@ export const AiExplainModal = ({
           <div className="mt-3 flex items-start gap-2 rounded border border-success-soft bg-success-soft p-2.5 text-xs text-success">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
             <div>
-              <span className="font-bold">Privacy Guaranteed (T-11):</span> Calls local Ollama via
-              direct native HTTP to <code className="font-mono">127.0.0.1:11434</code> without shell
-              or argv interpolation. Secrets matching known patterns (AWS, Stripe, GitHub, etc.) are
+              <span className="font-bold">Privacy guaranteed:</span> Calls local Ollama via direct
+              native HTTP to <code className="font-mono">127.0.0.1:11434</code> without shell or
+              argv interpolation. Secrets matching known patterns (AWS, Stripe, GitHub, etc.) are
               redacted before transmission.
             </div>
           </div>

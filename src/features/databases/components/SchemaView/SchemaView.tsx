@@ -54,7 +54,7 @@ export const SchemaView = ({ table, links, nameOf, onOpenTable }: Props) => {
                 <tr key={c.name} className="align-top">
                   <td className="border-b border-hairline py-2 pr-3">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-foreground">{c.name}</span>
+                      <span className="font-mono text-fg">{c.name}</span>
                       {c.isPrimary && <Key k="PK" />}
                       {l && <Key k="FK" />}
                       {c.isUnique && !c.isPrimary && <Key k="UK" />}
@@ -85,7 +85,7 @@ export const SchemaView = ({ table, links, nameOf, onOpenTable }: Props) => {
                     ) : c.nullable ? (
                       <span className="text-muted-foreground">optional</span>
                     ) : (
-                      <span className="text-foreground">required</span>
+                      <span className="text-fg">required</span>
                     )}
                   </td>
                   <td
@@ -130,7 +130,7 @@ export const SchemaView = ({ table, links, nameOf, onOpenTable }: Props) => {
       </div>
       {incoming.length > 0 && (
         <section className="border-t border-hairline px-4 py-3">
-          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg">
             <CornerDownRight className="size-4 text-muted-foreground" aria-hidden />
             Referenced by
           </h3>

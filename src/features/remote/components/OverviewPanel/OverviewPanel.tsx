@@ -44,7 +44,7 @@ const Tile = ({ label, value, status, level: lv, detail, trend }: TileProps) => 
       <span className={cn('font-medium', LEVEL_TEXT[lv])}>{status}</span>
     </div>
     <div className="flex items-end justify-between gap-3">
-      <span className="text-xl font-semibold text-foreground tabular-nums">{value}</span>
+      <span className="text-xl font-semibold text-fg tabular-nums">{value}</span>
       {trend && trend.filter((v) => v != null).length > 1 && (
         <Sparkline
           values={trend}
@@ -74,12 +74,7 @@ const Row = ({ label, value, tone = 'none', onOpen }: RowProps) => {
     <>
       <span className="text-muted-foreground">{label}</span>
       <span className="flex min-w-0 items-center gap-1">
-        <span
-          className={cn(
-            'truncate text-right',
-            tone === 'none' ? 'text-foreground' : LEVEL_TEXT[tone],
-          )}
-        >
+        <span className={cn('truncate text-right', tone === 'none' ? 'text-fg' : LEVEL_TEXT[tone])}>
           {value}
         </span>
         {onOpen && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />}
@@ -110,7 +105,7 @@ const Row = ({ label, value, tone = 'none', onOpen }: RowProps) => {
 const Fact = ({ k, v }: { k: string; v: string }) => (
   <div className="flex items-baseline justify-between gap-4 py-2 text-sm">
     <dt className="shrink-0 text-muted-foreground">{k}</dt>
-    <dd className="min-w-0 truncate text-right text-foreground" title={v}>
+    <dd className="min-w-0 truncate text-right text-fg" title={v}>
       {v}
     </dd>
   </div>
@@ -272,7 +267,7 @@ export const OverviewPanel = ({
           <button
             type="button"
             onClick={() => onOpen('disk')}
-            className="cursor-pointer text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="cursor-pointer text-xs text-muted-foreground transition-colors hover:text-fg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             Disk & cleanup
           </button>

@@ -28,11 +28,11 @@ export const SessionCard = ({ formula, displayName, runs }: Props) => {
         onClick={() => setOpen((o) => !o)}
         className="flex w-full cursor-pointer items-center gap-3 p-4 text-left select-none"
       >
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-fg">
           <Icon className="size-4" />
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate font-semibold text-foreground">{displayName}</span>
+          <span className="truncate font-semibold text-fg">{displayName}</span>
           {liveUptime !== null && (
             <Badge tone="success" size="sm" dot>
               up {formatDuration(liveUptime)}
@@ -40,11 +40,11 @@ export const SessionCard = ({ formula, displayName, runs }: Props) => {
           )}
         </div>
         <div className="shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
-          <div className="font-semibold text-foreground">{formatDuration(totalSecs)}</div>
+          <div className="font-semibold text-fg">{formatDuration(totalSecs)}</div>
           <div>Total uptime</div>
         </div>
         <div className="w-12 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
-          <div className="font-semibold text-foreground">{runs.length}</div>
+          <div className="font-semibold text-fg">{runs.length}</div>
           <div>Runs</div>
         </div>
         {runs.length > 0 ? (

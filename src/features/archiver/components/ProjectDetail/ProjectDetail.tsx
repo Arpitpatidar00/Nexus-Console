@@ -424,7 +424,7 @@ const Stat = ({
   tone?: 'success';
 }) => (
   <div className="flex flex-col items-end" title={hint}>
-    <dt className="text-[11px] font-medium tracking-wide text-fg-subtle uppercase">{label}</dt>
+    <dt className="text-[11px] font-medium text-fg-subtle">{label}</dt>
     <dd
       className={cn(
         'font-mono text-sm font-semibold tabular-nums',

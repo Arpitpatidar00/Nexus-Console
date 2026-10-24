@@ -69,14 +69,14 @@ const DiagnosisBody = ({ d, onDone }: { d: ServiceDiagnosis; onDone: () => void 
         <div className="flex gap-3 rounded-lg border border-destructive/30 bg-danger-soft p-4">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
           <div className="flex min-w-0 flex-col gap-1">
-            <p className="text-sm font-medium break-words text-foreground">{d.cause}</p>
+            <p className="text-sm font-medium break-words text-fg">{d.cause}</p>
             {fix && <p className="text-[13px] text-muted-foreground">{fix.summary}</p>}
           </div>
         </div>
       ) : (
         <div className="flex gap-3 rounded-lg border border-success/30 bg-success-soft p-4">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-          <p className="text-sm text-foreground">
+          <p className="text-sm text-fg">
             No known problem found. If it still won't start, the log below shows its last words.
           </p>
         </div>
@@ -139,10 +139,10 @@ const DiagnosisBody = ({ d, onDone }: { d: ServiceDiagnosis; onDone: () => void 
 
       {d.checks.map((c) => (
         <section key={c.command} className="flex flex-col gap-1.5">
-          <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <h4 className="text-xs font-medium text-muted-foreground">
             {c.label} · {c.ok ? 'passed' : 'failed'}
           </h4>
-          <pre className="selectable max-h-40 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap text-foreground">
+          <pre className="selectable max-h-40 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap text-fg">
             $ {c.command}
             {'\n'}
             {c.output || '(no output)'}
@@ -152,13 +152,13 @@ const DiagnosisBody = ({ d, onDone }: { d: ServiceDiagnosis; onDone: () => void 
 
       {d.logPath && (
         <section className="flex flex-col gap-1.5">
-          <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <h4 className="text-xs font-medium text-muted-foreground">
             Log · <span className="font-mono normal-case">{d.logPath}</span>
           </h4>
           {d.logTail.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">The log is empty or missing.</p>
           ) : (
-            <pre className="selectable max-h-56 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap text-foreground">
+            <pre className="selectable max-h-56 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap text-fg">
               {d.logTail.join('\n')}
             </pre>
           )}

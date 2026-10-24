@@ -18,11 +18,11 @@ export const Meter = ({ label, pct, detail, warnAt = 85, critAt = 95 }: MeterPro
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="min-w-0 truncate font-mono text-foreground" title={label}>
+        <span className="min-w-0 truncate font-mono text-fg" title={label}>
           {label}
         </span>
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-          {pct != null && <span className="text-foreground">{Math.round(pct)}% · </span>}
+          {pct != null && <span className="text-fg">{Math.round(pct)}% · </span>}
           {detail}
         </span>
       </div>

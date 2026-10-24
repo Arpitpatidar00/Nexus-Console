@@ -86,9 +86,7 @@ const SourceButton = ({
     aria-pressed={active}
     className={cn(
       'flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-      active
-        ? 'bg-accent text-foreground'
-        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+      active ? 'bg-accent text-fg' : 'text-muted-foreground hover:bg-accent hover:text-fg',
     )}
   >
     {children}
@@ -229,14 +227,14 @@ export const LogsViewer = ({ host, snapshot }: Props) => {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search these lines"
               aria-label="Search log lines"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-muted-foreground"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
                 aria-label="Clear search"
-                className="cursor-pointer text-muted-foreground hover:text-foreground"
+                className="cursor-pointer text-muted-foreground hover:text-fg"
               >
                 <X className="size-3.5" />
               </button>
@@ -317,7 +315,7 @@ export const LogsViewer = ({ host, snapshot }: Props) => {
               <select
                 value={tail}
                 onChange={(e) => setTail(Number(e.target.value))}
-                className="cursor-pointer rounded border border-hairline bg-muted px-1 py-0.5 text-xs text-foreground"
+                className="cursor-pointer rounded border border-hairline bg-muted px-1 py-0.5 text-xs text-fg"
               >
                 {TAILS.map((t) => (
                   <option key={t} value={t}>
@@ -403,7 +401,7 @@ export const LogsViewer = ({ host, snapshot }: Props) => {
                     className={cn(
                       'min-w-0 flex-1 pr-4',
                       wrap ? 'break-words whitespace-pre-wrap' : 'whitespace-pre',
-                      e.level === 'debug' ? 'text-muted-foreground' : 'text-foreground',
+                      e.level === 'debug' ? 'text-muted-foreground' : 'text-fg',
                     )}
                   >
                     <Message e={e} onTrace={setQuery} />

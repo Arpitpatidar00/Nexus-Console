@@ -15,7 +15,7 @@ import type { ReconciledService } from '@/shared/brew';
 
 const itemCls =
   'flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-list data-[disabled]:pointer-events-none data-[disabled]:opacity-100';
-const labelCls = 'px-2.5 pt-2 pb-1 text-xs font-medium tracking-wide text-fg-subtle uppercase';
+const labelCls = 'px-2.5 pt-2 pb-1 text-xs font-medium text-fg-subtle';
 
 export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
   const [open, setOpen] = useState(false);

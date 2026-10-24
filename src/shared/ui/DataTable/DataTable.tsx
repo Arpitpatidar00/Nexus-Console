@@ -55,7 +55,7 @@ export function DataTable<T>({
               style={{ width: h.getSize(), flexGrow: h.column.columnDef.meta?.grow ? 1 : 0 }}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors select-none',
-                'enabled:hover:text-foreground disabled:cursor-default',
+                'enabled:hover:text-fg disabled:cursor-default',
                 alignRight ? 'justify-end text-right' : 'text-left',
               )}
             >

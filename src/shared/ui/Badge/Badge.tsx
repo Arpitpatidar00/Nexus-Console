@@ -7,8 +7,8 @@ export const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-muted text-foreground border-hairline',
-        neutral: 'bg-muted text-foreground border-hairline',
+        default: 'bg-muted text-fg border-hairline',
+        neutral: 'bg-muted text-fg border-hairline',
         success: 'bg-success-soft text-success border-transparent',
         warning: 'bg-warning-soft text-warning border-transparent',
         info: 'bg-info-soft text-info border-transparent',

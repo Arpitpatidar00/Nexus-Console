@@ -97,9 +97,7 @@ export const NetworkPage = () => {
           {/* Top Interface Cards */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
-              <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-                Primary Network Interface
-              </span>
+              <span className="text-xs font-semibold text-fg-muted">Primary Network Interface</span>
               <div className="mt-2 flex items-center justify-between">
                 <div>
                   <div className="text-lg font-bold text-fg">
@@ -117,9 +115,7 @@ export const NetworkPage = () => {
 
             <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-                  System DNS Resolvers
-                </span>
+                <span className="text-xs font-semibold text-fg-muted">System DNS Resolvers</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -216,7 +212,7 @@ export const NetworkPage = () => {
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
             <div>
-              <span className="font-bold">Coming back after safety review (T-05):</span>
+              <span className="font-bold">Coming back after a safety review:</span>
               <p className="mt-0.5 text-warning">
                 The /etc/hosts editor is temporarily frozen while being rewritten with atomic file
                 writes, line preservation, input validation, and mutation gates.

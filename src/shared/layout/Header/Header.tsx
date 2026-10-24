@@ -23,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand }) => {
     >
       {/* Title & subtitle on left */}
       <div className="pointer-events-none flex min-w-0 flex-col justify-center">
-        <h1 className="sr-h-display truncate font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="sr-h-display truncate font-display text-2xl font-semibold tracking-tight text-fg">
           {title}
         </h1>
       </div>

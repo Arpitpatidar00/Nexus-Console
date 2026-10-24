@@ -1,4 +1,4 @@
-# Nexus Remote probe (docs/remote/PLAN.md §4.5). Piped to `sh -s` over ssh.
+# Stackroost Remote probe (docs/remote/PLAN.md §4.5). Piped to `sh -s` over ssh.
 # Read-only: never sudo, never writes outside one mktemp file for stderr.
 # Each section starts with `@@NX:<name>@@`; a missing tool prints
 # `@@NX:<name>:absent@@`; a tool that failed prints `@@NX:<name>:error@@` and

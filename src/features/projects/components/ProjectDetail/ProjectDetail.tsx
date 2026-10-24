@@ -48,7 +48,7 @@ const Section = ({
 }) => (
   <section className="border-b border-hairline px-6 py-4 last:border-b-0">
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <h3 className="text-sm font-semibold text-fg">{title}</h3>
       {aside}
     </div>
     {children}
@@ -141,7 +141,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
         type="button"
         onClick={() => copy(f.text)}
         title="Copy"
-        className="flex max-w-full cursor-pointer items-center gap-1.5 rounded-md border border-hairline px-2 py-1 font-mono text-xs text-foreground hover:bg-accent"
+        className="flex max-w-full cursor-pointer items-center gap-1.5 rounded-md border border-hairline px-2 py-1 font-mono text-xs text-fg hover:bg-accent"
       >
         <Copy className="size-3 shrink-0" aria-hidden />
         <span className="truncate">{f.text}</span>
@@ -153,7 +153,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-hairline px-6 py-3.5">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="truncate text-base font-semibold text-foreground">{project.name}</h2>
+          <h2 className="truncate text-base font-semibold text-fg">{project.name}</h2>
           {(p?.frameworks.length ? p.frameworks : [project.framework]).map((f) => (
             <span key={f} className="rounded bg-muted px-1.5 text-[11px] text-muted-foreground">
               {f}
@@ -247,7 +247,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
                   className="flex flex-wrap items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm"
                 >
                   <span className="size-2 rounded-full bg-success" aria-hidden />
-                  <span className="text-foreground">
+                  <span className="text-fg">
                     Running on <span className="font-mono">localhost:{r.port}</span>
                   </span>
                   <span className="text-xs text-muted-foreground">
@@ -287,7 +287,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
                 aria-label="Task to run"
                 value={selectedId ?? ''}
                 onChange={(e) => setChosen(e.target.value)}
-                className="h-9 min-w-48 cursor-pointer rounded-full border border-hairline bg-muted px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="h-9 min-w-48 cursor-pointer rounded-full border border-hairline bg-muted px-3 text-sm text-fg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 {groupTasks(runnable).map((g) => (
                   <optgroup key={g.title} label={g.title}>
@@ -332,9 +332,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
               {plan.map((step, i) => (
                 <span key={i} className="flex items-center gap-2">
                   {i > 0 && <span aria-hidden>→</span>}
-                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
-                    {step}
-                  </code>
+                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-fg">{step}</code>
                 </span>
               ))}
               {p.expectedPort != null && p.running.length === 0 && (
@@ -351,14 +349,14 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
               <li key={c.id} className="flex flex-wrap items-start gap-3">
                 <span className="mt-0.5">{LEVEL_ICON[c.level]}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground">{c.title}</p>
+                  <p className="text-sm text-fg">{c.title}</p>
                   {c.detail && <p className="text-xs text-muted-foreground">{c.detail}</p>}
                 </div>
                 {fix(c)}
               </li>
             ))}
             {p.checks.length === 0 && (
-              <li className="flex items-center gap-3 text-sm text-foreground">
+              <li className="flex items-center gap-3 text-sm text-fg">
                 {LEVEL_ICON.ok}
                 Nothing to set up.
               </li>
@@ -386,7 +384,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
                     <li key={t.id} className="flex items-center gap-3 px-3 py-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm text-foreground">{t.label}</span>
+                          <span className="text-sm text-fg">{t.label}</span>
                           {t.id === p.primary && (
                             <span className="rounded bg-ember-soft px-1.5 text-[11px] text-ember-text">
                               default
@@ -431,9 +429,7 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
                   title={t.found ? `Needed for ${t.neededFor}` : `Install: ${t.install}`}
                   className={cn(
                     'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs',
-                    t.found
-                      ? 'border-hairline text-foreground'
-                      : 'border-destructive text-destructive',
+                    t.found ? 'border-hairline text-fg' : 'border-destructive text-destructive',
                   )}
                 >
                   {t.found ? (

@@ -89,7 +89,7 @@ impl Prepared {
             }
         };
         format!(
-            "{} · {env}\n\nNexus will run:  docker {} {}\n\n{what}",
+            "{} · {env}\n\nStackroost will run:  docker {} {}\n\n{what}",
             self.host_label,
             self.action.verb(),
             self.container

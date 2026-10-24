@@ -21,7 +21,7 @@ export const Switch = ({ checked, onChange, ariaLabel, disabled, id }: SwitchPro
       <motion.span
         className={cn(
           'inline-block size-5 rounded-full shadow-sm',
-          checked ? 'bg-ember-foreground' : 'bg-foreground',
+          checked ? 'bg-ember-foreground' : 'bg-fg',
         )}
         animate={{ x: checked ? 20 : 2 }}
         transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 34 }}

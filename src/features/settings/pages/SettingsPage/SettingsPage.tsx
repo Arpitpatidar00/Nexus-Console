@@ -55,7 +55,7 @@ export const SettingsPage = () => {
           <div className="divide-y divide-hairline">
             <div className="flex items-center justify-between gap-4 py-3.5">
               <div>
-                <p className="text-sm font-medium text-foreground">Theme</p>
+                <p className="text-sm font-medium text-fg">Theme</p>
                 <p className="text-xs text-muted-foreground">
                   Match system, or force Frost/Smoked.
                 </p>
@@ -69,7 +69,7 @@ export const SettingsPage = () => {
             </div>
             <div className="flex items-center justify-between gap-4 py-3.5">
               <div>
-                <p className="text-sm font-medium text-foreground">Default layout</p>
+                <p className="text-sm font-medium text-fg">Default layout</p>
                 <p className="text-xs text-muted-foreground">
                   How services are shown on the Services tab.
                 </p>
@@ -88,13 +88,13 @@ export const SettingsPage = () => {
         <Panel title="Shortcuts" subtitle="System-wide hotkeys">
           <div className="flex items-center justify-between gap-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">Global toggle hotkey</p>
+              <p className="text-sm font-medium text-fg">Global toggle hotkey</p>
               <p className="text-xs text-muted-foreground">
                 Show and focus Stackroost from anywhere; press again to hide.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded bg-muted px-2.5 py-1 font-mono text-xs text-foreground">
+              <span className="rounded bg-muted px-2.5 py-1 font-mono text-xs text-fg">
                 {globalHotkey ? '⌃⌥Space — shows or hides Stackroost' : 'Off · ⌃⌥Space'}
               </span>
               <Button

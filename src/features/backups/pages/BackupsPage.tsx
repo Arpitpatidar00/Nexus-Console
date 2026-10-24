@@ -44,7 +44,7 @@ export const BackupsPage = () => {
       <div className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
         <Lock className="h-5 w-5 shrink-0 text-warning" />
         <div>
-          <span className="font-bold">Coming back after safety review (T-01, T-19):</span>
+          <span className="font-bold">Coming back after a safety review:</span>
           <p className="mt-0.5 text-warning">
             Database dump and environment archiving features are temporarily frozen while shell-free
             argv streaming pipelines, destination validation, and strict 0600 atomic file creation

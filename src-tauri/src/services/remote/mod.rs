@@ -1,4 +1,4 @@
-// Nexus Remote — the user's own Linux servers over the system ssh client
+// Stackroost Remote — the user's own Linux servers over the system ssh client
 // (docs/remote/PLAN.md). Agentless and read-only by default: every remote
 // mutation is a fixed argv, confirmed natively and journaled.
 

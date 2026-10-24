@@ -43,7 +43,7 @@ export const SearchField: React.FC<SearchFieldProps> = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="sr-search__input min-w-0 flex-1 border-none bg-transparent font-sans text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        className="sr-search__input min-w-0 flex-1 border-none bg-transparent font-sans text-sm text-fg outline-none placeholder:text-muted-foreground"
         {...props}
       />
       {shortcut && (

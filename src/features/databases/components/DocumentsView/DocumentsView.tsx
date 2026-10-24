@@ -66,7 +66,7 @@ interface Props {
 }
 
 const selectCls =
-  'h-8 cursor-pointer rounded-full border border-hairline bg-muted px-2.5 text-[13px] text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+  'h-8 cursor-pointer rounded-full border border-hairline bg-muted px-2.5 text-[13px] text-fg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 
 /** Browse a table like Compass browses a collection: a query bar of plain
  * filters (no SQL), documents or a grid, and pages that say how many match. */
@@ -158,7 +158,7 @@ export const DocumentsView = ({
               onKeyDown={(e) => e.key === 'Enter' && apply()}
               placeholder={isRedis ? 'Keys containing…' : 'Search every column…'}
               aria-label="Search"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-muted-foreground"
             />
           </label>
           {!isRedis && (
@@ -280,7 +280,7 @@ export const DocumentsView = ({
                     onKeyDown={(e) => e.key === 'Enter' && apply()}
                     placeholder="value"
                     aria-label="Value"
-                    className="h-8 min-w-40 flex-1 rounded-full border border-hairline bg-muted px-3 font-mono text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-8 min-w-40 flex-1 rounded-full border border-hairline bg-muted px-3 font-mono text-[13px] text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 )}
                 <Button
@@ -349,7 +349,7 @@ export const DocumentsView = ({
                     return (
                       <th
                         key={c}
-                        className="border-b border-hairline px-3 py-2 text-left font-medium whitespace-nowrap text-foreground"
+                        className="border-b border-hairline px-3 py-2 text-left font-medium whitespace-nowrap text-fg"
                       >
                         <button
                           type="button"
@@ -456,7 +456,7 @@ export const DocumentsView = ({
           <select
             value={query.limit}
             onChange={(e) => setQuery((q) => ({ ...q, limit: Number(e.target.value), page: 0 }))}
-            className="cursor-pointer rounded border border-hairline bg-muted px-1 py-0.5 text-xs text-foreground"
+            className="cursor-pointer rounded border border-hairline bg-muted px-1 py-0.5 text-xs text-fg"
           >
             {PAGE_SIZES.map((n) => (
               <option key={n} value={n}>

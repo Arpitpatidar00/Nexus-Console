@@ -59,7 +59,7 @@ export const Sparkline: React.FC<SparklineProps> = ({
 
   const toneClass = {
     ember: 'sr-spark--ember text-ember stroke-ember',
-    ivory: 'sr-spark--ivory text-foreground stroke-foreground',
+    ivory: 'sr-spark--ivory text-fg stroke-fg',
     lime: 'sr-spark--lime text-success stroke-success',
     info: 'sr-spark--info text-info stroke-info',
     success: 'sr-spark--lime text-success stroke-success',

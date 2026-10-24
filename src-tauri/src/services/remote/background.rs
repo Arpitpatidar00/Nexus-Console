@@ -133,7 +133,7 @@ fn notify(app: &tauri::AppHandle, body: &str) {
     let _ = app
         .notification()
         .builder()
-        .title("Nexus Servers")
+        .title("Stackroost Servers")
         .body(body)
         .show();
 }

@@ -69,9 +69,7 @@ export const ReleasesPage = () => {
       {/* Release Overview Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
-          <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-            Detected Platform
-          </span>
+          <span className="text-xs font-semibold text-fg-muted">Detected Platform</span>
           <div className="mt-2 flex items-center gap-2">
             <Badge variant="default" className="text-xs uppercase">
               {releaseConfig?.platform || 'Detecting...'}
@@ -80,9 +78,7 @@ export const ReleasesPage = () => {
         </div>
 
         <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
-          <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-            Version & Build
-          </span>
+          <span className="text-xs font-semibold text-fg-muted">Version & Build</span>
           <div className="mt-1 font-mono text-lg font-bold text-fg">
             v{releaseConfig?.version_name || '1.0.0'}
             {releaseConfig?.build_number && (
@@ -94,9 +90,7 @@ export const ReleasesPage = () => {
         </div>
 
         <div className="rounded-lg border border-border bg-card/40 p-4 shadow-sm">
-          <span className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-            Fastlane Status
-          </span>
+          <span className="text-xs font-semibold text-fg-muted">Fastlane Status</span>
           <div className="mt-2 flex items-center gap-2">
             <Badge
               variant={releaseConfig?.has_fastlane ? 'success' : 'neutral'}

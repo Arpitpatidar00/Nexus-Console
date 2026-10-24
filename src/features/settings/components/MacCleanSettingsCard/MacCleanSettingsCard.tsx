@@ -43,7 +43,7 @@ const Form = ({ rules }: { rules: CleanRules }) => {
   // a new type every render and the input would lose focus on each keystroke.
   const day = (k: keyof typeof days, label: string) => (
     <label key={k} className={rowCls}>
-      <span className={`${copyCls} text-sm text-foreground`}>{label}</span>
+      <span className={`${copyCls} text-sm text-fg`}>{label}</span>
       <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
         <Input
           size="sm"
@@ -61,7 +61,7 @@ const Form = ({ rules }: { rules: CleanRules }) => {
   return (
     <div className="divide-y divide-hairline">
       <label htmlFor="maclean-protected" className="flex flex-col gap-1.5 py-3.5">
-        <span className="text-sm font-medium text-foreground">Never touch paths containing</span>
+        <span className="text-sm font-medium text-fg">Never touch paths containing</span>
         <Input
           id="maclean-protected"
           size="sm"
@@ -160,7 +160,7 @@ export const MacCleanSettingsCard = () => {
   const rules = useCleanRules();
   return (
     <section className="rounded-xl p-6 text-card-foreground shadow-edge glass">
-      <h2 className="font-display text-base font-semibold text-foreground">Mac Clean</h2>
+      <h2 className="font-display text-base font-semibold text-fg">Mac Clean</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         The same rules as mac-clean.sh. Checked again in Rust on every clean.
       </p>

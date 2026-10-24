@@ -62,7 +62,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
       {/* Safety Freeze Notice */}
       <div className="flex items-start gap-3 rounded-2xl border border-warning-soft bg-warning-soft p-4 text-xs text-warning">
         <div>
-          <span className="font-bold">Coming back after safety review (T-03):</span>
+          <span className="font-bold">Coming back after a safety review:</span>
           <p className="mt-0.5 text-warning">
             Remote deploy, rollback, and promotion are temporarily frozen while docker compose argv
             pipelines, snapshot verification, and Rust mutation gates are implemented.
@@ -78,7 +78,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
             <h4 className="text-sm font-semibold text-fg">Deploy Preview: {selectedProject}</h4>
           </div>
           <Badge variant="warning" className="text-xs">
-            Deploy Frozen (T-03)
+            Deploy not available yet
           </Badge>
         </div>
 
@@ -163,7 +163,7 @@ export const DeployCenterView = ({ host, snapshot, connected }: Props) => {
                   <p className="mt-1 text-xs text-fg-muted">{record.message}</p>
                 </div>
 
-                <span className="text-xs text-fg-subtle italic">Rollback frozen (T-03)</span>
+                <span className="text-xs text-fg-subtle italic">Rollback not available yet</span>
               </div>
             ))}
           </div>

@@ -13,7 +13,7 @@ export const ProcessCell = ({
 }) => (
   <div className="flex min-w-0 flex-col">
     <div className="flex items-center gap-2">
-      <span className="truncate text-sm font-medium text-foreground">{command}</span>
+      <span className="truncate text-sm font-medium text-fg">{command}</span>
       {detached && (
         <Badge
           tone="warning"
@@ -29,7 +29,7 @@ export const ProcessCell = ({
       {project && (
         <>
           <span>·</span>
-          <span className="truncate font-mono text-[11px] text-foreground/80">{project}</span>
+          <span className="truncate font-mono text-[11px] text-fg/80">{project}</span>
         </>
       )}
     </div>

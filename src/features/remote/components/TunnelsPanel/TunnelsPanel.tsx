@@ -79,7 +79,7 @@ export const TunnelsPanel = ({ host }: TunnelsPanelProps) => {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h3 className="font-display text-base font-semibold text-foreground">SSH Port Tunnels</h3>
+          <h3 className="font-display text-base font-semibold text-fg">SSH Port Tunnels</h3>
           <p className="font-sans text-xs text-muted-foreground">
             Forward local loopback ports (127.0.0.1) securely to remote targets. Reuses
             ControlMaster when active.
@@ -136,7 +136,7 @@ export const TunnelsPanel = ({ host }: TunnelsPanelProps) => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-display text-sm font-semibold text-foreground">
+                      <span className="font-display text-sm font-semibold text-fg">
                         {t.config.name}
                       </span>
                       {targetHost && !host && (
@@ -151,9 +151,7 @@ export const TunnelsPanel = ({ host }: TunnelsPanelProps) => {
                       )}
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        127.0.0.1:{t.config.localPort}
-                      </span>
+                      <span className="font-medium text-fg">127.0.0.1:{t.config.localPort}</span>
                       <ArrowRight className="size-3 text-muted-foreground/60" />
                       <span>
                         {t.config.remoteHost}:{t.config.remotePort}

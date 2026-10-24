@@ -29,7 +29,7 @@ export const TerminalDrawer = () => {
           type="button"
           aria-label="Hide terminal"
           onClick={() => dispatch(setDrawerOpen(false))}
-          className="flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-fg"
         >
           <X className="size-4" />
         </button>

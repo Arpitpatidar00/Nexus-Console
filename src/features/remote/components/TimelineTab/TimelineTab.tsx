@@ -89,7 +89,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
               return (
                 <li key={i} className="flex min-w-0 items-center gap-3 px-3 py-2.5 text-sm">
                   <Icon className={cn('size-4 shrink-0', className)} aria-hidden />
-                  <span className="shrink-0 text-foreground">{c.text}</span>
+                  <span className="shrink-0 text-fg">{c.text}</span>
                   {c.subject && (
                     <span
                       className="min-w-0 truncate font-mono text-xs text-muted-foreground"
@@ -129,7 +129,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
               return (
                 <li key={inc.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-sm text-foreground">{humanizeId(inc.title)}</p>
+                    <p className="truncate text-sm text-fg">{humanizeId(inc.title)}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">
                       Started {time(inc.openedAtEpoch)} ·{' '}
                       {open ? `ongoing for ${formatSpan(span)}` : `lasted ${formatSpan(span)}`}
@@ -169,9 +169,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
                   .reverse()
                   .map((c) => (
                     <tr key={c.atEpoch}>
-                      <td className="px-3 py-2 whitespace-nowrap text-foreground">
-                        {time(c.atEpoch)}
-                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-fg">{time(c.atEpoch)}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground">
                         {c.containerNames.length}
                       </td>

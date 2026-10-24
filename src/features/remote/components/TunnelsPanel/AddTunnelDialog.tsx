@@ -90,14 +90,14 @@ export const AddTunnelDialog = ({
         }}
       >
         <div className="space-y-1.5">
-          <label htmlFor="target-server-select" className="text-xs font-medium text-foreground">
+          <label htmlFor="target-server-select" className="text-xs font-medium text-fg">
             Target Server
           </label>
           <select
             id="target-server-select"
             value={hostId}
             onChange={(e) => setHostId(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-fg outline-none focus:border-ring"
           >
             {hosts.map((h) => (
               <option key={h.id} value={h.id}>
@@ -158,7 +158,7 @@ export const AddTunnelDialog = ({
           />
           <button
             type="button"
-            className="cursor-pointer border-none bg-transparent p-0 text-left text-xs text-foreground"
+            className="cursor-pointer border-none bg-transparent p-0 text-left text-xs text-fg"
             onClick={() => setAutoStart(!autoStart)}
           >
             Auto-start tunnel when Stackroost connects

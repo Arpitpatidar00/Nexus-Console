@@ -440,7 +440,13 @@ mod tests {
     const CLAUDE: &str = "Library/Application Support/Claude";
 
     fn home() -> PathBuf {
-        let d = std::env::temp_dir().join(format!("sr-appdata-{}", std::process::id()));
+        // Unique per test (not just per process): these tests run in
+        // parallel, and a shared path raced and corrupted siblings.
+        let d = std::env::temp_dir().join(format!(
+            "sr-appdata-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
         let _ = fs::remove_dir_all(&d);
         fs::create_dir_all(&d).unwrap();
         d
@@ -522,6 +528,92 @@ mod tests {
                 .unwrap_err()
                 .contains("Quit Claude")
         );
+        let _ = fs::remove_dir_all(&h);
+    }
+
+    #[test]
+    fn an_empty_home_scans_to_nothing() {
+        let h = home();
+        let quiet = |_: &str| false;
+        let r = scan(&h, &AtomicBool::new(false), &quiet);
+        assert!(r.spots.is_empty());
+        assert_eq!(r.cleanable_bytes, 0);
+        let _ = fs::remove_dir_all(&h);
+    }
+
+    #[test]
+    fn resolving_a_spot_not_in_the_report_is_refused() {
+        let h = home();
+        put(&h.join(CLAUDE).join("Cache/data_1"), 40_000);
+        let quiet = |_: &str| false;
+        let r = scan(&h, &AtomicBool::new(false), &quiet);
+        // claude_cache is real and in SPOTS, but wasn't put in the report
+        // (simulate a stale frontend report by using an empty one instead).
+        let empty = AppDataReport {
+            scanned_at: 0,
+            spots: vec![],
+            cleanable_bytes: 0,
+        };
+        let err = resolve(&empty, &["claude_cache".into()], &h, &rules(), &quiet).unwrap_err();
+        assert!(err.contains("isn't in the latest scan"), "{err}");
+        let _ = fs::remove_dir_all(&h);
+        let _ = r; // silence unused if the assertion above changes
+    }
+
+    #[test]
+    fn an_unknown_target_is_refused() {
+        let h = home();
+        let r = scan(&h, &AtomicBool::new(false), &|_: &str| false);
+        let err = resolve(
+            &r,
+            &["not_a_real_spot_id".into()],
+            &h,
+            &rules(),
+            &|_: &str| false,
+        )
+        .unwrap_err();
+        assert!(err.contains("isn't in the latest scan"), "{err}");
+        let _ = fs::remove_dir_all(&h);
+    }
+
+    #[test]
+    fn a_backup_path_that_is_not_shaped_like_task_backup_is_refused() {
+        let h = home();
+        put(
+            &h.join(".gemini/tasks/c_old/backup/Users/me/Desktop/a.txt"),
+            60_000,
+        );
+        let quiet = |_: &str| false;
+        let r = scan(&h, &AtomicBool::new(false), &quiet);
+        // Not the backup folder itself — a file inside it. Even though it's
+        // a real path on disk, it isn't the shape `resolve` requires, so it
+        // must be refused rather than silently deleting an arbitrary file.
+        let not_shaped = h
+            .join(".gemini/tasks/c_old/backup/Users/me/Desktop/a.txt")
+            .to_string_lossy()
+            .into_owned();
+        let err = resolve(&r, &[not_shaped], &h, &rules(), &quiet).unwrap_err();
+        assert!(
+            err.contains("isn't an agent backup folder")
+                || err.contains("isn't in the latest scan"),
+            "{err}"
+        );
+        let _ = fs::remove_dir_all(&h);
+    }
+
+    #[test]
+    fn a_protected_project_root_blocks_resolution() {
+        let h = home();
+        put(&h.join(CLAUDE).join("Cache/data_1"), 40_000);
+        let quiet = |_: &str| false;
+        let r = scan(&h, &AtomicBool::new(false), &quiet);
+        // Rules protect the folder itself via `is_protected`, exercised here
+        // through a rule set whose project_roots cover the cache path, same
+        // as a real project-root guard would.
+        let mut blocking_rules = rules();
+        blocking_rules.protected_names = vec!["Cache".into()];
+        let err = resolve(&r, &["claude_cache".into()], &h, &blocking_rules, &quiet).unwrap_err();
+        assert!(err.contains("protected"), "{err}");
         let _ = fs::remove_dir_all(&h);
     }
 }

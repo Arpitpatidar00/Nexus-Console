@@ -155,6 +155,35 @@ pub fn env_file_kind(rel: &str) -> Option<EnvFile> {
     })
 }
 
+/// Paths that are, by convention across the ecosystems this scanner sees
+/// (Rust, TS/JS, Python, Go), test files or fixtures rather than shipped
+/// code — a fake credential there is the point, not a leak
+/// (AUDIT-2026-10-24 BUG-13).
+fn looks_like_test_path(rel: &str) -> bool {
+    let lower = rel.to_ascii_lowercase();
+    lower.split('/').any(|seg| {
+        matches!(
+            seg,
+            "test" | "tests" | "__tests__" | "fixtures" | "fixture" | "testdata" | "mocks" | "mock"
+        )
+    }) || lower.contains(".test.")
+        || lower.contains(".spec.")
+        || lower.ends_with("_test.go")
+        || lower.ends_with("_test.py")
+}
+
+/// For a Rust file, the 1-based line its first `#[cfg(test)]` module starts
+/// on — this repo's convention (and most others') keeps the test module at
+/// the bottom of the file, so a match from this line on is test code even
+/// when the file itself isn't under a `tests/` path.
+fn rust_test_region_start(rel: &str, content: &str) -> Option<usize> {
+    if !rel.ends_with(".rs") {
+        return None;
+    }
+    let idx = content.find("#[cfg(test)]")?;
+    Some(content[..idx].matches('\n').count() + 1)
+}
+
 /// Values that only look like keys: docs examples and fill-me-in markers.
 pub fn looks_like_placeholder(value: &str) -> bool {
     let v = value.to_ascii_lowercase();
@@ -270,6 +299,10 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
 
             // Read file content and check regexes
             if let Ok(content) = std::fs::read_to_string(&full_file) {
+                let file_start = findings.len();
+                let path_is_test = looks_like_test_path(rel);
+                let test_region_start = rust_test_region_start(rel, &content);
+
                 for (idx, line) in content.lines().enumerate() {
                     let line_no = idx + 1;
                     let tline = line.trim();
@@ -403,6 +436,29 @@ pub fn scan_projects(paths: &[PathBuf]) -> AppResult<SecretsScanResult> {
                                             .into(),
                                 });
                             }
+                        }
+                    }
+                }
+
+                // Downgrade matches that are clearly test code or fixtures
+                // instead of hiding them outright — a real credential
+                // sitting in a test file is still worth flagging, just not
+                // at the same severity as one in shipped code
+                // (AUDIT-2026-10-24 BUG-13).
+                if path_is_test || test_region_start.is_some() {
+                    for f in &mut findings[file_start..] {
+                        let in_test_region = path_is_test
+                            || test_region_start
+                                .is_some_and(|start| f.line_number.is_some_and(|n| n >= start));
+                        if in_test_region {
+                            f.severity = "low".into();
+                            if !f.rule_name.ends_with(" (test code)") {
+                                f.rule_name = format!("{} (test code)", f.rule_name);
+                            }
+                            f.remediation = format!(
+                                "{rel} looks like test code or a fixture — likely a fake credential \
+                                 used for testing, not a real secret. Verify before rotating anything."
+                            );
                         }
                     }
                 }
@@ -592,6 +648,90 @@ mod tests {
             got.contains(&("apps/web/.env".into(), "tracked_env".into())),
             "{got:?}"
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn fake_keys_in_test_files_and_fixtures_are_downgraded_not_hidden() {
+        // AUDIT-2026-10-24 BUG-13: a fake credential used for testing was
+        // reported at the same "critical" severity as a real leak.
+        let dir = std::env::temp_dir().join(format!("sr-secrets-testctx-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src/fixtures")).unwrap();
+        let git = |args: &[&str]| {
+            let ok = Command::new("git")
+                .current_dir(&dir)
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success();
+            assert!(ok, "git {args:?}");
+        };
+        git(&["init", "-q"]);
+        // A path-based test file (TS convention).
+        std::fs::write(
+            dir.join("src/fixtures/aws.test.ts"),
+            "export const key = 'AKIA2E0A8F3B4C5D6E7F';\n",
+        )
+        .unwrap();
+        // A Rust file with a real-looking key only inside its #[cfg(test)]
+        // module — the module, not the path, is what makes it test code.
+        std::fs::write(
+            dir.join("real_code.rs"),
+            "fn ship() {}\n\n#[cfg(test)]\nmod tests {\n    const KEY: &str = \"AKIA2E0A8F3B4C5D6E7F\";\n}\n",
+        )
+        .unwrap();
+        git(&["add", "-A"]);
+        let r = scan_projects(std::slice::from_ref(&dir)).unwrap();
+
+        let ts_finding = r
+            .findings
+            .iter()
+            .find(|f| f.file_path == "src/fixtures/aws.test.ts")
+            .expect("the key in the test file is still reported");
+        assert_eq!(ts_finding.severity, "low");
+        assert!(ts_finding.rule_name.contains("test code"));
+
+        let rust_finding = r
+            .findings
+            .iter()
+            .find(|f| f.file_path == "real_code.rs")
+            .expect("the key inside #[cfg(test)] is still reported");
+        assert_eq!(rust_finding.severity, "low");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_real_looking_key_outside_any_test_region_stays_critical() {
+        let dir = std::env::temp_dir().join(format!("sr-secrets-prodctx-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let git = |args: &[&str]| {
+            let ok = Command::new("git")
+                .current_dir(&dir)
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success();
+            assert!(ok, "git {args:?}");
+        };
+        git(&["init", "-q"]);
+        std::fs::write(
+            dir.join("config.rs"),
+            "const KEY: &str = \"AKIA2E0A8F3B4C5D6E7F\";\n",
+        )
+        .unwrap();
+        git(&["add", "-A"]);
+        let r = scan_projects(std::slice::from_ref(&dir)).unwrap();
+        let finding = r
+            .findings
+            .iter()
+            .find(|f| f.file_path == "config.rs")
+            .expect("real key is reported");
+        assert_eq!(finding.severity, "critical");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

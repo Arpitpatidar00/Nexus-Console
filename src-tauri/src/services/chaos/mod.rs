@@ -70,13 +70,6 @@ impl ChaosManager {
             ));
         }
 
-        let proxy_id = format!("chaos_{chaos_port}");
-        let mut map = self.proxies.lock().await;
-
-        if let Some(existing) = map.remove(&proxy_id) {
-            let _ = existing.stop_tx.send(true);
-        }
-
         let listener = match TcpListener::bind(format!("127.0.0.1:{chaos_port}")).await {
             Ok(l) => l,
             Err(e) => {
@@ -85,6 +78,43 @@ impl ChaosManager {
                 )));
             }
         };
+        self.start_proxy_on(listener, target_port, chaos_port, profile)
+            .await
+    }
+
+    /// Test-only entry point that takes an already-bound listener, so a test
+    /// can reserve an ephemeral port and hand it straight to the manager
+    /// instead of binding to port 0, reading back the port, dropping the
+    /// listener and asking `start_proxy` to rebind it — a window in which
+    /// another test (or process) can steal the port (AUDIT-2026-10-24 BUG-14).
+    #[cfg(test)]
+    async fn start_proxy_with_listener(
+        &self,
+        listener: TcpListener,
+        target_port: u16,
+        profile: ChaosProfile,
+    ) -> AppResult<ChaosProxyInfo> {
+        let chaos_port = listener
+            .local_addr()
+            .map_err(|e| AppError::Io(e.to_string()))?
+            .port();
+        self.start_proxy_on(listener, target_port, chaos_port, profile)
+            .await
+    }
+
+    async fn start_proxy_on(
+        &self,
+        listener: TcpListener,
+        target_port: u16,
+        chaos_port: u16,
+        profile: ChaosProfile,
+    ) -> AppResult<ChaosProxyInfo> {
+        let proxy_id = format!("chaos_{chaos_port}");
+        let mut map = self.proxies.lock().await;
+
+        if let Some(existing) = map.remove(&proxy_id) {
+            let _ = existing.stop_tx.send(true);
+        }
 
         let (stop_tx, mut stop_rx) = watch::channel(false);
         let profile_clone = profile.clone();
@@ -277,10 +307,11 @@ mod tests {
         });
 
         let mgr = ChaosManager::new();
-        // Bind chaos on port 0 by letting start_proxy pick or binding manually
+        // Reserve an ephemeral port and hand the live listener straight to
+        // the manager — no bind/drop/rebind window for another test or
+        // process to steal the port (AUDIT-2026-10-24 BUG-14).
         let chaos_bind = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let chaos_port = chaos_bind.local_addr().unwrap().port();
-        drop(chaos_bind); // Free the port so chaos proxy can bind it
 
         let profile = ChaosProfile {
             latency_ms: 10,
@@ -289,7 +320,7 @@ mod tests {
         };
 
         let proxy_info = mgr
-            .start_proxy(target_port, chaos_port, profile)
+            .start_proxy_with_listener(chaos_bind, target_port, profile)
             .await
             .unwrap();
         assert_eq!(proxy_info.chaos_port, chaos_port);
@@ -314,7 +345,6 @@ mod tests {
         let mgr = ChaosManager::new();
         let chaos_bind = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let chaos_port = chaos_bind.local_addr().unwrap().port();
-        drop(chaos_bind);
 
         let profile = ChaosProfile {
             latency_ms: 0,
@@ -322,16 +352,29 @@ mod tests {
             reject: true,
         };
 
-        let info = mgr.start_proxy(8080, chaos_port, profile).await.unwrap();
+        let info = mgr
+            .start_proxy_with_listener(chaos_bind, 8080, profile)
+            .await
+            .unwrap();
         let mut client = TcpStream::connect(format!("127.0.0.1:{chaos_port}"))
             .await
             .unwrap();
         let mut buf = [0u8; 16];
-        let n = client.read(&mut buf).await.unwrap();
-        assert_eq!(
-            n, 0,
-            "Rejected connection must close immediately with 0 bytes"
-        );
+        // An immediately-shutdown connection surfaces as a clean EOF
+        // (`Ok(0)`) on most platforms, but can legitimately arrive as
+        // `ConnectionReset`/`ConnectionAborted` too — both mean the same
+        // thing here ("rejected"), so treat both as pass instead of
+        // `unwrap()`-ing into a flaky failure (AUDIT-2026-10-24 BUG-14).
+        match client.read(&mut buf).await {
+            Ok(0) => {}
+            Ok(n) => panic!("expected the rejected connection to send no bytes, got {n}"),
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::ConnectionAborted
+                ) => {}
+            Err(e) => panic!("unexpected error reading from rejected connection: {e}"),
+        }
 
         mgr.stop_proxy(&info.id).await.unwrap();
     }

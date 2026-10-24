@@ -3,8 +3,16 @@ use crate::error::{AppError, AppResult};
 use crate::remote::docker::{ComposeAction, DockerAction};
 use crate::remote::parse::docker::Container;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 use std::time::Duration;
+
+/// Short timeout for read-only probes — these run on every poll tick, so a
+/// hung `docker` CLI (daemon half-started, socket stuck) must not block the
+/// thread indefinitely (AUDIT-2026-10-24 ARC-02).
+fn probe_opts() -> ExecOpts {
+    ExecOpts::default()
+        .with_timeout(Duration::from_secs(5))
+        .no_check_exit()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,12 +25,9 @@ pub struct DockerRuntimeStatus {
 
 pub fn probe_runtime() -> DockerRuntimeStatus {
     // 1. Detect context/runtime
-    let context_out = Command::new("docker")
-        .args(["context", "show"])
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|| "default".to_string());
+    let context_out = exec::run("docker", &["context", "show"], probe_opts())
+        .map(|o| o.stdout_str.trim().to_string())
+        .unwrap_or_else(|_| "default".to_string());
 
     let runtime = if context_out.contains("orbstack") {
         "OrbStack".to_string()
@@ -33,18 +38,17 @@ pub fn probe_runtime() -> DockerRuntimeStatus {
     };
 
     // 2. Check docker info
-    let info_out = Command::new("docker")
-        .args(["info", "--format", "{{.ServerVersion}}"])
-        .output();
+    let info_out = exec::run(
+        "docker",
+        &["info", "--format", "{{.ServerVersion}}"],
+        probe_opts(),
+    );
 
     match info_out {
         Ok(out) if out.status.success() => {
-            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            let count_out = Command::new("docker")
-                .args(["ps", "-q"])
-                .output()
-                .ok()
-                .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
+            let version = out.stdout_str.trim().to_string();
+            let count_out = exec::run("docker", &["ps", "-q"], probe_opts())
+                .map(|o| o.stdout_str.lines().count())
                 .unwrap_or(0);
 
             DockerRuntimeStatus {
@@ -68,21 +72,23 @@ pub fn probe_runtime() -> DockerRuntimeStatus {
 }
 
 pub fn list_containers() -> AppResult<Vec<Container>> {
-    let out = Command::new("docker")
-        .args([
+    let out = exec::run(
+        "docker",
+        &[
             "ps",
             "-a",
             "--format",
             "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.State}}\t{{.Status}}\t{{.Ports}}\t{{.Label \"com.docker.compose.project\"}}\t{{.CreatedAt}}",
-        ])
-        .output()
-        .map_err(|e| AppError::Io(format!("list local containers: {e}")))?;
+        ],
+        probe_opts(),
+    )
+    .map_err(|e| AppError::Io(format!("list local containers: {e}")))?;
 
     if !out.status.success() {
         return Ok(Vec::new());
     }
 
-    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stdout = out.stdout_str;
     let mut list = Vec::new();
 
     for line in stdout.lines() {
@@ -181,5 +187,72 @@ mod tests {
             version: None,
         };
         assert!(!status.running);
+    }
+
+    // These don't require the Docker daemon to be running — only that a
+    // failure (no daemon, no such container, `docker` not installed) comes
+    // back with a real reason attached instead of the old bare
+    // "docker rm <name> failed" with stderr dropped (AUDIT-2026-10-24 BUG-07).
+    // They do assume no real container exists with this name.
+
+    #[test]
+    fn start_on_a_missing_container_reports_why() {
+        let name = format!("stackroost-test-missing-{}", std::process::id());
+        let err = container_action(&name, DockerAction::Start).unwrap_err();
+        let msg = err.to_string();
+        assert_ne!(
+            msg,
+            format!("docker start {name} failed"),
+            "bare message leaked back in: {msg}"
+        );
+        assert!(msg.len() > 20, "expected a detailed error, got: {msg}");
+    }
+
+    #[test]
+    fn remove_on_a_missing_container_retries_with_force_and_still_reports_why() {
+        let name = format!("stackroost-test-missing-{}", std::process::id());
+        let err = container_action(&name, DockerAction::Remove).unwrap_err();
+        let msg = err.to_string();
+        assert_ne!(
+            msg,
+            format!("docker rm {name} failed"),
+            "bare message leaked back in: {msg}"
+        );
+        assert!(msg.len() > 20, "expected a detailed error, got: {msg}");
+    }
+
+    #[test]
+    fn probe_runtime_never_panics_and_reports_not_running_when_the_daemon_is_down() {
+        // No daemon assumed running; the point is just that this read-only
+        // probe returns promptly (it now has a 5s timeout, AUDIT-2026-10-24
+        // ARC-02) instead of hanging, and never panics regardless of what
+        // `docker` is actually doing on this machine.
+        let status = probe_runtime();
+        assert!(!status.runtime.is_empty());
+        if !status.running {
+            assert_eq!(status.container_count, 0);
+            assert!(status.version.is_none());
+        }
+    }
+
+    #[test]
+    fn list_containers_never_errors_on_spawn_when_docker_exists() {
+        // Whether the daemon answers or not, a reachable `docker` binary
+        // must not turn into an Err here — only a missing binary should.
+        let result = list_containers();
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn compose_action_on_a_missing_project_reports_why() {
+        let project = format!("stackroost-test-missing-{}", std::process::id());
+        let err = compose_action(&project, ComposeAction::Stop).unwrap_err();
+        let msg = err.to_string();
+        assert_ne!(
+            msg,
+            format!("compose stop {project} failed"),
+            "bare message leaked back in: {msg}"
+        );
+        assert!(msg.len() > 20, "expected a detailed error, got: {msg}");
     }
 }

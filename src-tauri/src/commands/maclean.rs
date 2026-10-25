@@ -293,14 +293,30 @@ pub async fn maclean_deep_scan(app: AppHandle) -> AppResult<crate::maclean::deep
             .map_err(|_| AppError::Io("report lock poisoned".into()))?
             .clone()
             .ok_or_else(|| AppError::NotFound("Run a storage scan first.".into()))?;
-        let raw = crate::maclean::deep::run()?;
+        let raw = crate::maclean::deep::run_raw()?;
         let me = std::env::var("USER").unwrap_or_default();
-        Ok(crate::maclean::deep::build(
+        let snapshots = crate::maclean::disk::list_apfs_snapshots();
+        let purgeable = crate::maclean::disk::query_purgeable_bytes();
+        let report = crate::maclean::deep::build_report(
             &raw,
             &me,
             &last.map,
             last.disk.data_used_bytes,
-        ))
+            &snapshots,
+            purgeable,
+        );
+        let mut deep_paths = Vec::new();
+        for cat in &report.categories {
+            for sub in &cat.sub_items {
+                if !sub.path.is_empty() {
+                    deep_paths.push(sub.path.clone());
+                }
+            }
+        }
+        if let Ok(mut lock) = state.last_deep_paths.lock() {
+            *lock = deep_paths;
+        }
+        Ok(report)
     })
     .await
 }
@@ -343,7 +359,8 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
             // Ghost leftovers are revealable too — they're never in large_files,
             // so their Reveal button always failed with Forbidden.
             || state_ghost_listed(&app, &path)
-            || state_scan_listed(&app, &path);
+            || state_scan_listed(&app, &path)
+            || state_deep_listed(&app, &path);
         if !listed {
             return Err(AppError::Forbidden(
                 "Only files from the latest scan can be revealed.".into(),
@@ -354,6 +371,123 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
             .status()
             .map_err(|e| AppError::Shell(format!("open failed: {e}")))?;
         Ok(())
+    })
+    .await
+}
+
+/// Open macOS System Settings directly to Privacy & Security -> Full Disk Access.
+#[tauri::command]
+pub async fn maclean_open_full_disk_access() -> AppResult<()> {
+    blocking(move || {
+        std::process::Command::new("/usr/bin/open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+            .status()
+            .map_err(|e| AppError::Shell(format!("Failed to open Full Disk Access: {e}")))?;
+        Ok(())
+    })
+    .await
+}
+
+/// Open macOS System Settings directly to Users & Groups.
+#[tauri::command]
+pub async fn maclean_open_users_and_groups() -> AppResult<()> {
+    blocking(move || {
+        let res = std::process::Command::new("/usr/bin/open")
+            .arg("x-apple.systempreferences:com.apple.Users-Profiles-Settings.extension")
+            .status();
+        if res.is_err() || !res.as_ref().unwrap().success() {
+            let _ = std::process::Command::new("/usr/bin/open")
+                .arg("/System/Library/PreferencePanes/Accounts.prefPane")
+                .status();
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// Thin local APFS snapshots safely via tmutil.
+#[tauri::command]
+pub async fn maclean_thin_snapshots() -> AppResult<String> {
+    blocking(move || {
+        let out = std::process::Command::new("/usr/bin/tmutil")
+            .args(["thinlocalsnapshots", "/", "999999999999", "4"])
+            .output()
+            .map_err(|e| AppError::Shell(format!("Failed to run tmutil: {e}")))?;
+        let msg = String::from_utf8_lossy(&out.stdout).to_string();
+        Ok(msg)
+    })
+    .await
+}
+
+/// Delete a specific local APFS snapshot by identifier/date.
+#[tauri::command]
+pub async fn maclean_delete_snapshot(app: AppHandle, date: String) -> AppResult<String> {
+    blocking(move || {
+        confirm_action(
+            &app,
+            &format!("Delete local snapshot {}?", date),
+            "This will delete the local APFS Time Machine snapshot to reclaim disk space.",
+            "Delete",
+            true,
+        )?;
+        if date.contains('/') || date.contains(';') || date.contains('&') || date.contains(' ') {
+            return Err(AppError::InvalidName("Invalid snapshot identifier".into()));
+        }
+        let out = std::process::Command::new("/usr/bin/tmutil")
+            .args(["deletelocalsnapshots", &date])
+            .output()
+            .map_err(|e| AppError::Shell(format!("Failed to run tmutil: {e}")))?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(AppError::Shell(format!("Failed to delete snapshot: {err}")));
+        }
+        let msg = String::from_utf8_lossy(&out.stdout).to_string();
+        Ok(msg)
+    })
+    .await
+}
+
+/// Delete or move to trash a safe item (such as installer leftover or cache) from deep scan.
+#[tauri::command]
+pub async fn maclean_delete_path(app: AppHandle, path: String) -> AppResult<String> {
+    blocking(move || {
+        confirm_action(
+            &app,
+            &format!("Delete item at {}?", path),
+            "This will delete or move the selected item to Trash to reclaim disk space.",
+            "Delete",
+            true,
+        )?;
+        let p = std::path::PathBuf::from(&path);
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        let state = app.state::<MacleanState>();
+        let rules = state.read()?.rules.clone();
+
+        let in_home = p.starts_with(&home);
+        let is_installer =
+            path.starts_with("/Library/Updates") || path.starts_with("/macOS Install Data");
+
+        if !in_home && !is_installer {
+            return Err(AppError::InvalidName(
+                "Path is not in a deletable category".into(),
+            ));
+        }
+
+        if in_home {
+            if let Some(why) = clean::refuse_reason(&p, &home, &rules) {
+                return Err(AppError::InvalidName(format!("Protected path: {why}")));
+            }
+            clean::move_to_trash(&p, &home).map_err(AppError::Io)?;
+            Ok("Moved to Trash".into())
+        } else {
+            if p.is_dir() {
+                std::fs::remove_dir_all(&p).map_err(|e| AppError::Io(e.to_string()))?;
+            } else if p.is_file() {
+                std::fs::remove_file(&p).map_err(|e| AppError::Io(e.to_string()))?;
+            }
+            Ok("Deleted".into())
+        }
     })
     .await
 }
@@ -388,6 +522,13 @@ fn state_scan_listed(app: &AppHandle, path: &str) -> bool {
 fn state_ghost_listed(app: &AppHandle, path: &str) -> bool {
     app.state::<MacleanState>()
         .last_ghost_paths
+        .lock()
+        .is_ok_and(|p| p.iter().any(|x| x == path))
+}
+
+fn state_deep_listed(app: &AppHandle, path: &str) -> bool {
+    app.state::<MacleanState>()
+        .last_deep_paths
         .lock()
         .is_ok_and(|p| p.iter().any(|x| x == path))
 }

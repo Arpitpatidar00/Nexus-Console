@@ -67,6 +67,52 @@ test('deep report and drill rows', () => {
   expect(drillSchema.parse([{ name: 'Caches', bytes: 3 }])).toHaveLength(1);
 });
 
+test('parses rich deepReportSchema with categories and sub-items', () => {
+  const sample = {
+    entries: [{ label: 'User: arpit', why: 'x', bytes: 12, flagged: true }],
+    causes: [{ bytes: 12, text: 't', fix: 'f' }],
+    categories: [
+      {
+        id: 'snapshots_purgeable',
+        title: 'Snapshots & Purgeable',
+        subtitle: 'APFS copy-on-write snapshots and macOS evictable caches',
+        totalBytes: 52_000_000_000,
+        percentageOfVolume: 21.5,
+        severity: 'actionable',
+        permissionBlockedCount: 0,
+        subItems: [
+          {
+            name: 'com.apple.TimeMachine.2026-10-24-220511.local',
+            path: 'com.apple.TimeMachine.2026-10-24-220511.local',
+            bytes: 12_000_000_000,
+            kind: 'time_machine',
+            isDeletable: true,
+          },
+          {
+            name: 'macOS Purgeable Cache',
+            path: 'macOS Purgeable Cache',
+            bytes: 40_000_000_000,
+            kind: 'cache',
+            isDeletable: false,
+          },
+        ],
+        availableActions: ['thin_snapshots'],
+      },
+    ],
+    purgeableBytes: 40_000_000_000,
+    permissionDeniedPaths: ['/Library/Application Support/com.apple.TCC'],
+    totalDataUsedBytes: 240_000_000_000,
+    scanDurationMs: 4200,
+  };
+  const parsed = deepReportSchema.parse(sample);
+  expect(parsed.categories).toHaveLength(1);
+  expect(parsed.categories?.[0].subItems).toHaveLength(2);
+  expect(parsed.categories?.[0].severity).toBe('actionable');
+  expect(parsed.categories?.[0].availableActions).toContain('thin_snapshots');
+  expect(parsed.purgeableBytes).toBe(40_000_000_000);
+  expect(parsed.permissionDeniedPaths).toContain('/Library/Application Support/com.apple.TCC');
+});
+
 test('parses ghostScanReportSchema', () => {
   const sample = {
     leftovers: [

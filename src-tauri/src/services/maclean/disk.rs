@@ -164,6 +164,141 @@ pub fn local_snapshots() -> LocalSnapshots {
         .unwrap_or_default()
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotInfo {
+    pub name: String,
+    pub date: String,
+    pub kind: String, // "time_machine" | "system_update" | "third_party"
+    pub is_deletable: bool,
+    pub purgeable: bool,
+    pub xid: Option<String>,
+}
+
+pub fn parse_apfs_snapshots(out: &str) -> Vec<SnapshotInfo> {
+    let mut snapshots = Vec::new();
+    let mut current_name = String::new();
+    let mut current_xid: Option<String> = None;
+    let mut current_purgeable = false;
+
+    let flush = |snapshots: &mut Vec<SnapshotInfo>,
+                 name: &mut String,
+                 xid: &mut Option<String>,
+                 purgeable: &mut bool| {
+        if !name.is_empty() {
+            let n = name.clone();
+            let is_tm = n.contains("com.apple.TimeMachine.");
+            let is_up = n.contains("update") || n.contains("MSUPrepareUpdate");
+            let kind = if is_tm {
+                "time_machine".to_string()
+            } else if is_up {
+                "system_update".to_string()
+            } else {
+                "third_party".to_string()
+            };
+            let is_deletable = is_tm;
+            let date = if is_tm {
+                n.strip_prefix("com.apple.TimeMachine.")
+                    .and_then(|s| s.strip_suffix(".local").or(Some(s)))
+                    .unwrap_or(&n)
+                    .to_string()
+            } else {
+                String::new()
+            };
+            snapshots.push(SnapshotInfo {
+                name: n,
+                date,
+                kind,
+                is_deletable,
+                purgeable: *purgeable,
+                xid: xid.take(),
+            });
+            name.clear();
+            *purgeable = false;
+        }
+    };
+
+    for line in out.lines() {
+        let trimmed = line
+            .trim_start_matches(|c: char| c == '|' || c == '+' || c == '-' || c.is_whitespace());
+        if let Some(rest) = trimmed.strip_prefix("Name:") {
+            flush(
+                &mut snapshots,
+                &mut current_name,
+                &mut current_xid,
+                &mut current_purgeable,
+            );
+            current_name = rest.trim().to_string();
+        } else if let Some(rest) = trimmed.strip_prefix("XID:") {
+            current_xid = Some(rest.trim().to_string());
+        } else if let Some(rest) = trimmed.strip_prefix("Purgeable:") {
+            current_purgeable = rest.trim().eq_ignore_ascii_case("yes");
+        } else if trimmed.starts_with("com.apple.") {
+            flush(
+                &mut snapshots,
+                &mut current_name,
+                &mut current_xid,
+                &mut current_purgeable,
+            );
+            current_name = trimmed.to_string();
+        }
+    }
+    flush(
+        &mut snapshots,
+        &mut current_name,
+        &mut current_xid,
+        &mut current_purgeable,
+    );
+
+    snapshots
+}
+
+pub fn list_apfs_snapshots() -> Vec<SnapshotInfo> {
+    if let Ok(o) = Command::new("diskutil")
+        .args(["apfs", "listSnapshots", DATA_VOLUME])
+        .output()
+    {
+        let stdout = String::from_utf8_lossy(&o.stdout);
+        let parsed = parse_apfs_snapshots(&stdout);
+        if !parsed.is_empty() {
+            return parsed;
+        }
+    }
+    if let Ok(o) = Command::new("tmutil")
+        .args(["listlocalsnapshots", "/"])
+        .output()
+    {
+        let stdout = String::from_utf8_lossy(&o.stdout);
+        return parse_apfs_snapshots(&stdout);
+    }
+    Vec::new()
+}
+
+pub fn query_purgeable_bytes() -> u64 {
+    if let Ok(out) = Command::new("/usr/bin/swift")
+        .args([
+            "-e",
+            r#"import Foundation
+let u = URL(fileURLWithPath: "/System/Volumes/Data")
+if let v = try? u.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey]) {
+    let a = Int64(v.volumeAvailableCapacity ?? 0)
+    let i = v.volumeAvailableCapacityForImportantUsage ?? 0
+    print(max(Int64(0), i - a))
+}"#,
+        ])
+        .output()
+    {
+        if out.status.success() {
+            if let Ok(s) = std::str::from_utf8(&out.stdout) {
+                if let Ok(b) = s.trim().parse::<u64>() {
+                    return b;
+                }
+            }
+        }
+    }
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +351,32 @@ mod tests {
         );
         assert!(s.pending_update);
         assert_eq!(s.time_machine, 2);
+    }
+
+    #[test]
+    fn parse_apfs_snapshots_formats() {
+        let text = r#"Snapshots for disk3s7 (2 found)
+|
++-- Name:        com.apple.TimeMachine.2026-10-24-220511.local
+|   XID:         12345
+|   Purgeable:   Yes
+|   NOTE:        This snapshot is purgeable
+|
++-- Name:        com.apple.os.update-MSUPrepareUpdate
+    XID:         12346
+    Purgeable:   No
+"#;
+        let list = parse_apfs_snapshots(text);
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0].kind, "time_machine");
+        assert!(list[0].is_deletable);
+        assert!(list[0].purgeable);
+        assert_eq!(list[0].date, "2026-10-24-220511");
+        assert_eq!(list[0].xid.as_deref(), Some("12345"));
+
+        assert_eq!(list[1].kind, "system_update");
+        assert!(!list[1].is_deletable);
+        assert!(!list[1].purgeable);
+        assert_eq!(list[1].xid.as_deref(), Some("12346"));
     }
 }

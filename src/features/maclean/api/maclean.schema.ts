@@ -106,11 +106,37 @@ export type MemoryReport = z.infer<typeof memorySchema>;
 
 const causeSchema = z.object({ bytes: z.number().nullable(), text: z.string(), fix: z.string() });
 
+export const deepSubItemSchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  bytes: z.number(),
+  isDeletable: z.boolean(),
+  kind: z.string(),
+});
+export type DeepSubItem = z.infer<typeof deepSubItemSchema>;
+
+export const deepCategorySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+  totalBytes: z.number(),
+  percentageOfVolume: z.number(),
+  severity: z.enum(['normal', 'warning', 'actionable']),
+  permissionBlockedCount: z.number().default(0),
+  subItems: z.array(deepSubItemSchema).default([]),
+  availableActions: z.array(z.string()).default([]),
+});
+export type DeepCategory = z.infer<typeof deepCategorySchema>;
+
 export const deepReportSchema = z.object({
+  categories: z.array(deepCategorySchema).optional(),
   entries: z.array(
     z.object({ label: z.string(), why: z.string(), bytes: z.number(), flagged: z.boolean() }),
   ),
   causes: z.array(causeSchema),
+  totalDataUsedBytes: z.number().optional(),
+  purgeableBytes: z.number().optional(),
+  permissionDeniedPaths: z.array(z.string()).optional(),
 });
 export type DeepReport = z.infer<typeof deepReportSchema>;
 

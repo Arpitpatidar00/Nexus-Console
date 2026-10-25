@@ -43,6 +43,8 @@ pub struct MacleanState {
     pub last_duplicates: Mutex<Option<duplicates::DuplicateReport>>,
     /// Paths from the latest ghost-leftovers scan — Reveal accepts these too.
     pub last_ghost_paths: Mutex<Vec<String>>,
+    /// Paths from the latest Deep Scan — Reveal accepts these too.
+    pub last_deep_paths: Mutex<Vec<String>>,
     /// The latest Projects scan: cleaning only accepts artifacts it listed.
     pub last_projects: Mutex<Option<projects::ProjectsReport>>,
     /// One Projects scan or clean at a time (independent of the main scan).
@@ -77,6 +79,7 @@ impl MacleanState {
             last_report: Mutex::new(None),
             last_duplicates: Mutex::new(None),
             last_ghost_paths: Mutex::new(Vec::new()),
+            last_deep_paths: Mutex::new(Vec::new()),
             last_projects: Mutex::new(None),
             last_appdata: Mutex::new(None),
             projects_busy: Mutex::new(()),

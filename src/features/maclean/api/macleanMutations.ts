@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ipc, ipcVoid, CMD } from '@/shared/tauri';
 import { macleanKeys } from './keys';
@@ -78,5 +79,37 @@ export function useReveal() {
   return useMutation({
     mutationFn: (path: string) => ipcVoid(CMD.MACLEAN_REVEAL, { path }),
     meta: { quiet: true },
+  });
+}
+
+export function useOpenFullDiskAccess() {
+  return useMutation({
+    mutationFn: () => ipcVoid(CMD.MACLEAN_OPEN_FULL_DISK_ACCESS),
+    meta: { quiet: true },
+  });
+}
+
+export function useOpenUsersAndGroups() {
+  return useMutation({
+    mutationFn: () => ipcVoid(CMD.MACLEAN_OPEN_USERS_AND_GROUPS),
+    meta: { quiet: true },
+  });
+}
+
+export function useThinSnapshots() {
+  return useMutation({
+    mutationFn: () => ipc(CMD.MACLEAN_THIN_SNAPSHOTS, undefined, z.string()),
+  });
+}
+
+export function useDeleteSnapshot() {
+  return useMutation({
+    mutationFn: (date: string) => ipc(CMD.MACLEAN_DELETE_SNAPSHOT, { date }, z.string()),
+  });
+}
+
+export function useDeletePath() {
+  return useMutation({
+    mutationFn: (path: string) => ipc(CMD.MACLEAN_DELETE_PATH, { path }, z.string()),
   });
 }

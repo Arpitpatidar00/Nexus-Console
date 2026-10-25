@@ -22,6 +22,7 @@ import {
 } from '@/features/databases/api/explorer.schema';
 import { useBrowse } from '@/features/databases/api/useExplorer';
 import { columnRefs, keyOf, type Link } from '@/features/databases/utils/relations';
+import { getEngineCapabilities } from '@/features/databases/utils/capabilities';
 import { kindOf, preview } from '@/features/databases/utils/values';
 import {
   DocumentCard,
@@ -79,15 +80,16 @@ export const DocumentsView = ({
   onOpenTable,
   initialFilter,
 }: Props) => {
-  const isRedis = engine === 'redis';
-  const isMongo = engine === 'mongo' || engine === 'mongodb';
+  const caps = getEngineCapabilities(engine);
+  const isRedis = caps.family === 'redis';
+  const isMongo = caps.family === 'mongodb';
   // Mongo fields include nested paths (a.b); the grid shows top-level ones.
   const columns = table.columns.map((c) => c.name);
   const topLevel = columns.filter((c) => !c.includes('.'));
   const pk = table.columns.find((c) => c.isPrimary)?.name ?? null;
   const defaultSort = isRedis || !pk ? null : { column: pk, desc: false };
 
-  const [mode, setMode] = useState<Mode>(isMongo || isRedis ? 'documents' : 'table');
+  const [mode, setMode] = useState<Mode>(caps.supportsDocumentBrowse ? 'documents' : 'table');
   const [query, setQuery] = useState<Query>({
     filters: initialFilter ? [initialFilter] : [],
     search: '',

@@ -10,17 +10,10 @@ import {
   unindexedForeignKeys,
   type Link,
 } from '@/features/databases/utils/relations';
+import { getEngineCapabilities } from '@/features/databases/utils/capabilities';
 import type { OpenTable } from '@/features/databases/components/DocumentCard';
 
 type SortKey = 'name' | 'rows' | 'size' | 'columns' | 'links';
-
-const ENGINE: Record<string, string> = {
-  postgres: 'PostgreSQL',
-  mysql: 'MySQL',
-  mongodb: 'MongoDB',
-  mongo: 'MongoDB',
-  redis: 'Redis',
-};
 
 interface Props {
   schema: DbSchema;
@@ -33,6 +26,8 @@ interface Props {
 export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'name', desc: false });
+  const caps = getEngineCapabilities(s.engine);
+
   const linkCount = (t: TableInfo) =>
     links.filter((l) => l.from === keyOf(t) || l.to === keyOf(t)).length;
   const value = (t: TableInfo, k: SortKey): number | string =>
@@ -55,11 +50,10 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
       return sort.desc ? -c : c;
     });
 
-  const isRedis = s.engine === 'redis';
   const views = s.tables.filter(
     (t) => t.kind !== 'table' && t.kind !== 'collection' && t.kind !== 'keyspace',
   ).length;
-  const noPk = isRedis || s.engine.startsWith('mongo') ? [] : tablesWithoutPrimaryKey(s);
+  const noPk = caps.supportsNativeForeignKeys ? tablesWithoutPrimaryKey(s) : [];
   const unindexed = s.tables.flatMap((t) => unindexedForeignKeys(t, links));
   const guessed = inferredLinks(s);
   const multi = s.schemas.length > 1;
@@ -79,15 +73,30 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <p className="border-b border-hairline px-4 py-3 text-sm text-muted-foreground tabular-nums">
-        <span className="text-fg">{ENGINE[s.engine] ?? s.engine}</span>
-        {s.serverVersion && ` ${s.serverVersion.split(' ')[0]}`}
-        {s.sizeBytes != null && ` · ${formatBytes(s.sizeBytes)}`}
-        {multi && ` · ${s.schemas.length} schemas`}
-        {` · ${s.tables.length - views} ${isRedis ? 'key prefixes' : s.engine.startsWith('mongo') ? 'collections' : 'tables'}`}
-        {views > 0 && ` · ${views} view${views === 1 ? '' : 's'}`}
-        {!isRedis && ` · ${s.relations.length} foreign key${s.relations.length === 1 ? '' : 's'}`}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-hairline px-4 py-3 text-sm text-muted-foreground tabular-nums">
+        <span className="font-medium text-fg">{caps.displayName}</span>
+        {s.serverVersion && <span>{s.serverVersion.split(' ')[0]}</span>}
+        {s.sizeBytes != null && <span>· {formatBytes(s.sizeBytes)}</span>}
+        {multi && <span>· {s.schemas.length} schemas</span>}
+        <span>
+          · {s.tables.length - views} {caps.tableEntityLabelPlural}
+        </span>
+        {views > 0 && (
+          <span>
+            · {views} view{views === 1 ? '' : 's'}
+          </span>
+        )}
+        {caps.supportsNativeForeignKeys ? (
+          <span>
+            · {s.relations.length} foreign key{s.relations.length === 1 ? '' : 's'}
+          </span>
+        ) : caps.isProbabilisticSchema ? (
+          <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
+            <Info className="size-3" aria-hidden />
+            Sampled schema (observed from documents)
+          </span>
+        ) : null}
+      </div>
 
       {(noPk.length > 0 || unindexed.length > 0 || guessed.length > 0) && (
         <section className="border-b border-hairline px-4 py-3">
@@ -174,7 +183,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder={`Filter ${s.tables.length} ${isRedis ? 'prefixes' : 'tables'}`}
+            placeholder={`Filter ${s.tables.length} ${caps.tableEntityLabelPlural}`}
             aria-label="Filter tables"
             className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-muted-foreground"
           />
@@ -183,10 +192,10 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
           <thead>
             <tr className="text-left text-xs text-muted-foreground">
               {th('name', 'Name')}
-              {th('rows', isRedis ? 'Keys' : 'Rows (≈)', true)}
+              {th('rows', caps.family === 'redis' ? 'Keys' : 'Rows (≈)', true)}
               {th('size', 'Size', true)}
-              {th('columns', s.engine.startsWith('mongo') ? 'Fields' : 'Columns', true)}
-              {!isRedis && th('links', 'Links', true)}
+              {th('columns', caps.family === 'mongodb' ? 'Fields' : 'Columns', true)}
+              {caps.supportsDiagram && th('links', 'Links', true)}
             </tr>
           </thead>
           <tbody className="tabular-nums">
@@ -227,7 +236,7 @@ export const DatabaseOverview = ({ schema: s, links, onOpenTable }: Props) => {
                 <td className="border-b border-hairline px-3 py-2 text-right text-muted-foreground">
                   {t.columns.length}
                 </td>
-                {!isRedis && (
+                {caps.supportsDiagram && (
                   <td className="border-b border-hairline px-3 py-2 text-right text-muted-foreground">
                     {linkCount(t) || ''}
                   </td>

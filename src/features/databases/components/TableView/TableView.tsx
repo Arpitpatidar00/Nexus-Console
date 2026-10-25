@@ -9,6 +9,7 @@ import { DiagramCanvas } from '@/features/databases/components/DiagramCanvas';
 import { DocumentsView } from '@/features/databases/components/DocumentsView';
 import { IndexesView } from '@/features/databases/components/IndexesView';
 import { SchemaView } from '@/features/databases/components/SchemaView';
+import { getEngineCapabilities } from '@/features/databases/utils/capabilities';
 import type { OpenTable } from '@/features/databases/components/DocumentCard';
 
 type Tab = 'documents' | 'schema' | 'indexes' | 'relations';
@@ -55,7 +56,7 @@ export const TableView = ({
     in: links.filter((l) => l.to === key).length,
     out: links.filter((l) => l.from === key).length,
   };
-  const isRedis = schema.engine === 'redis';
+  const caps = getEngineCapabilities(schema.engine);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -70,10 +71,10 @@ export const TableView = ({
           <p className="text-xs text-muted-foreground tabular-nums">
             {KIND_LABEL[table.kind] ?? table.kind}
             {table.rowEstimate != null &&
-              ` · ≈ ${table.rowEstimate.toLocaleString()} ${isRedis ? 'keys' : 'rows'}`}
+              ` · ≈ ${table.rowEstimate.toLocaleString()} ${caps.family === 'redis' ? 'keys' : 'rows'}`}
             {table.sizeBytes != null && ` · ${formatBytes(table.sizeBytes)}`}
-            {` · ${table.columns.length} ${schema.engine.startsWith('mongo') ? 'fields' : 'columns'}`}
-            {!isRedis && ` · links ${counts.out} out, ${counts.in} in`}
+            {` · ${table.columns.length} ${caps.family === 'mongodb' ? 'fields' : 'columns'}`}
+            {caps.supportsDiagram && ` · links ${counts.out} out, ${counts.in} in`}
             {table.comment && ` · ${table.comment}`}
           </p>
         </div>
@@ -82,12 +83,12 @@ export const TableView = ({
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'documents', label: isRedis ? 'Keys' : 'Documents' },
+            { value: 'documents', label: caps.family === 'redis' ? 'Keys' : 'Documents' },
             { value: 'schema', label: 'Schema' },
-            ...(isRedis
-              ? []
-              : [{ value: 'indexes' as const, label: `Indexes · ${table.indexes.length}` }]),
-            ...(isRedis ? [] : [{ value: 'relations' as const, label: 'Relations' }]),
+            ...(caps.supportsIndexes
+              ? [{ value: 'indexes' as const, label: `Indexes · ${table.indexes.length}` }]
+              : []),
+            ...(caps.supportsDiagram ? [{ value: 'relations' as const, label: 'Relations' }] : []),
           ]}
         />
       </div>

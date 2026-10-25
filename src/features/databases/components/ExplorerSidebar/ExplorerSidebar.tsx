@@ -25,6 +25,7 @@ import type {
 } from '@/features/databases/api/databases.schema';
 import type { DbSchema } from '@/features/databases/api/explorer.schema';
 import { keyOf } from '@/features/databases/utils/relations';
+import { getEngineCapabilities } from '@/features/databases/utils/capabilities';
 
 const ENGINE_SHORT: Record<string, string> = {
   postgres: 'PG',
@@ -245,11 +246,7 @@ export const ExplorerSidebar = ({
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                       placeholder={`${s?.tables.length ?? 0} ${
-                        s?.engine === 'redis'
-                          ? 'prefixes'
-                          : s?.engine?.startsWith('mongo')
-                            ? 'collections'
-                            : 'tables'
+                        s ? getEngineCapabilities(s.engine).tableEntityLabelPlural : 'tables'
                       }`}
                       aria-label="Filter tables"
                       className="min-w-0 flex-1 bg-transparent text-xs text-fg outline-none placeholder:text-muted-foreground"

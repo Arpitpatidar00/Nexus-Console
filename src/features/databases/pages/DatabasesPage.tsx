@@ -32,18 +32,12 @@ import { TableView } from '../components/TableView';
 
 type Tab = 'overview' | 'diagram' | 'sql' | 'branches';
 
+import { getEngineCapabilities } from '../utils/capabilities';
+
 interface Opened {
   key: string;
   filter?: Filter;
 }
-
-const ENGINE_LABEL: Record<string, string> = {
-  postgres: 'PostgreSQL',
-  mysql: 'MySQL',
-  mongodb: 'MongoDB',
-  mongo: 'MongoDB',
-  redis: 'Redis',
-};
 
 export function DatabasesPage() {
   const connectionsQ = useDbConnections();
@@ -72,6 +66,7 @@ export function DatabasesPage() {
   const [guesses, setGuesses] = useState(true);
 
   const active = connections.find((c) => c.id === selectedId) ?? connections[0];
+  const caps = getEngineCapabilities(active?.driver ?? '');
   const schemaQ = useDbSchema(active?.id ?? null);
   const schema = schemaQ.data;
   const links = schema ? (guesses ? linksOf(schema) : declaredLinks(schema)) : [];
@@ -225,6 +220,13 @@ export function DatabasesPage() {
               </Button>
             }
           />
+        ) : !caps.isSupported ? (
+          <div className="p-6">
+            <ErrorPanel
+              error={caps.unsupportedReason ?? `Driver "${active.driver}" is not supported.`}
+              fallback="Unsupported Database Engine"
+            />
+          </div>
         ) : (
           <>
             <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-hairline px-4">
@@ -252,7 +254,7 @@ export function DatabasesPage() {
                   {active.name}
                 </button>
                 <span className="hidden shrink-0 truncate font-mono text-xs text-muted-foreground md:inline">
-                  {ENGINE_LABEL[active.driver] ?? active.driver} · {active.host}
+                  {caps.displayName} · {active.host}
                   {active.database ? ` / ${active.database}` : ''}
                 </span>
                 {active.env === 'prod' || !active.allowWrites ? (
@@ -272,16 +274,12 @@ export function DatabasesPage() {
                   onChange={setTab}
                   options={[
                     { value: 'overview', label: 'Overview' },
-                    ...(active.driver === 'redis'
-                      ? []
-                      : [{ value: 'diagram' as const, label: 'Diagram' }]),
+                    ...(caps.supportsDiagram
+                      ? [{ value: 'diagram' as const, label: 'Diagram' }]
+                      : []),
                     {
                       value: 'sql',
-                      label: active.driver.startsWith('mongo')
-                        ? 'Shell'
-                        : active.driver === 'redis'
-                          ? 'Commands'
-                          : 'SQL',
+                      label: caps.queryEditorLabel,
                     },
                     ...(active.dataDir ? [{ value: 'branches' as const, label: 'Branches' }] : []),
                   ]}
@@ -315,13 +313,7 @@ export function DatabasesPage() {
                   key={active.id}
                   connectionId={active.id}
                   allowWrites={active.allowWrites && active.env !== 'prod'}
-                  defaultQuery={
-                    active.driver.startsWith('mongo')
-                      ? 'db.getCollectionNames()'
-                      : active.driver === 'redis'
-                        ? 'INFO keyspace'
-                        : 'SELECT 1;'
-                  }
+                  defaultQuery={caps.defaultQuery}
                 />
               </div>
             ) : tab === 'branches' ? (

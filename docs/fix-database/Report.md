@@ -260,17 +260,15 @@ pub struct DbStore {
 - Persisted candidate rejections via `DbRejectedCandidate` in `store.rs` and Tauri commands `db_reject_candidate` / `db_unreject_candidate`.
 - Displayed ambiguous relationship counts and visually distinct dashed warning edges in SVG diagrams with ARIA labels and tooltip titles.
 
-### ISS-02: Cross-Database Links Omitted from Detail Views (`TableView`, `SchemaView`, `DocumentCard`)
+### ISS-02 [Closed in Phase 4]: Cross-Database Links Omitted from Detail Views (`TableView`, `SchemaView`, `DocumentCard`)
 
 - **Severity**: **High**
-- **Location**: [DatabasesPage.tsx:63, 233-243](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/pages/DatabasesPage.tsx#L63), [TableView.tsx:50-57](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/components/TableView/TableView.tsx#L50-L57), [DocumentCard.tsx:185-198](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/components/DocumentCard/DocumentCard.tsx#L185-L198)
-- **Reproduction Scenario**:
-  In `MapView`, observe a dashed cross-database link between `chat.messages.user_id` and `auth.users.id`. Click on `messages` to open `TableView`. Switch to the **Relations** or **Schema** tab.
-- **Actual Impact**:
-  The `Relations` tab only renders tables from the local database. The `Schema` tab does not show `auth.users` in "Points to". In `DocumentsView`, no external link button is shown at all (**[Corrected]**: it never "fails to switch" because the link never reaches it). Note `MapView`'s own `onOpenTable` already takes `(connectionId, key)` — only the detail-view `OpenTable` type lacks it.
-- **Recommended Correction**:
-  Lift cross-database relationship resolution to a shared hook/context (`useGroupRelations(groupId)`). Pass group-level cross-links into `TableView`. Extend `onOpenTable` to accept `(connectionId: string, tableKey: string, filter?: Filter)`.
-- **Dependencies**: ISS-03 (Group context).
+- **Status**: **CLOSED** (Phase 4)
+- Lifted cross-database relationship management to `useGroupRelations` hook and unified `linksForTable(connectionId, tableKey)`.
+- Extended `OpenTable` navigation contract to accept `(connectionId, tableKey, filter?)` and implemented pure `navigationReducer` with deterministic back/history trail and breadcrumbs (`Group > Connection > Table`).
+- Integrated cross-database relationships into `SchemaView` (external target/source connection badges, provenance tags, and click-to-open actions).
+- Integrated cross-database jump buttons into `DocumentCard` with type-incompatibility and stale-target jump guards.
+- Added cross-database microservice relationships grid to `TableView` Relations tab, grouped by target connection.
 
 ### ISS-03 [Closed in Phase 1]: Lack of Group/Workspace Scoping in Connection Management
 

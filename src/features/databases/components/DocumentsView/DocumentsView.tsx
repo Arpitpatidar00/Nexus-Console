@@ -55,6 +55,8 @@ interface Query {
   page: number;
 }
 
+import type { DbConnection } from '@/features/databases/api/databases.schema';
+
 interface Props {
   connectionId: string;
   engine: string;
@@ -64,6 +66,7 @@ interface Props {
   onOpenTable: OpenTable;
   /** Arriving from a link: start filtered to the row(s) it points at. */
   initialFilter?: Filter;
+  connections?: DbConnection[];
 }
 
 const selectCls =
@@ -79,6 +82,7 @@ export const DocumentsView = ({
   nameOf,
   onOpenTable,
   initialFilter,
+  connections,
 }: Props) => {
   const caps = getEngineCapabilities(engine);
   const isRedis = caps.family === 'redis';
@@ -144,6 +148,8 @@ export const DocumentsView = ({
       nameOf={nameOf}
       onOpenTable={onOpenTable}
       className={className}
+      connectionId={connectionId}
+      connections={connections}
     />
   );
 

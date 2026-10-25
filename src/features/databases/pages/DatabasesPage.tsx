@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { ArrowLeft, Database } from 'lucide-react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
+import { ArrowLeft, ChevronRight, Database } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Switch } from '@/shared/ui/Switch';
+import { cn } from '@/shared/lib/cn';
 import {
   useAddDbConnection,
   useDbConnections,
@@ -14,11 +15,17 @@ import {
   useRemoveDbConnection,
 } from '../api/useDatabases';
 import { useDbSchema } from '../api/useExplorer';
+import { useGroupRelations } from '../api/useGroupRelations';
 import type { DbConnection, DbGroup, DiscoveredDb } from '../api/databases.schema';
 import type { Filter } from '../api/explorer.schema';
 import { buildDiagram, type Detail } from '../utils/diagram';
 import { fileStem, toMermaid } from '../utils/mermaid';
 import { declaredLinks, keyOf, linksOf } from '../utils/relations';
+import {
+  initialNavigationState,
+  navigationReducer,
+  reconcileNavigation,
+} from '../utils/navigation';
 import { AddConnectionDialog } from '../components/AddConnectionDialog';
 import { DatabaseOverview } from '../components/DatabaseOverview';
 import { DiagramCanvas } from '../components/DiagramCanvas';
@@ -29,31 +36,23 @@ import { MapView } from '../components/MapView';
 import { QueryEditor } from '../components/QueryEditor/QueryEditor';
 import { SnapshotsPanel } from '../components/SnapshotsPanel/SnapshotsPanel';
 import { TableView } from '../components/TableView';
+import { getEngineCapabilities } from '../utils/capabilities';
 
 type Tab = 'overview' | 'diagram' | 'sql' | 'branches';
 
-import { getEngineCapabilities } from '../utils/capabilities';
-
-interface Opened {
-  key: string;
-  filter?: Filter;
-}
+const EMPTY_CONNS: DbConnection[] = [];
 
 export function DatabasesPage() {
   const connectionsQ = useDbConnections();
-  const connections = connectionsQ.data ?? [];
+  const connections = connectionsQ.data ?? EMPTY_CONNS;
   const { data: groups = [] } = useDbGroups();
   const { data: discovered = [] } = useDiscoveredDatabases();
   const addConn = useAddDbConnection();
   const removeConn = useRemoveDbConnection();
   const moveConn = useMoveDbConnection();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [mapOpen, setMapOpen] = useState(false);
+  const [navState, dispatchNav] = useReducer(navigationReducer, initialNavigationState);
   const [tab, setTab] = useState<Tab>('overview');
-  // Following links pushes onto a trail, so Back retraces them.
-  const [trail, setTrail] = useState<Opened[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addGroupTargetId, setAddGroupTargetId] = useState<string | null>(null);
   const [editingConn, setEditingConn] = useState<DbConnection | null>(null);
@@ -65,38 +64,90 @@ export function DatabasesPage() {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [guesses, setGuesses] = useState(true);
 
+  const validConnIds = useMemo(() => new Set(connections.map((c) => c.id)), [connections]);
+
+  useEffect(() => {
+    if (
+      validConnIds.size > 0 &&
+      navState.connectionId &&
+      !validConnIds.has(navState.connectionId)
+    ) {
+      const reconciled = reconcileNavigation(navState, validConnIds);
+      if (reconciled.connectionId !== navState.connectionId) {
+        if (reconciled.connectionId) {
+          dispatchNav({ type: 'SELECT_CONNECTION', connectionId: reconciled.connectionId });
+        }
+      }
+    }
+  }, [validConnIds, navState]);
+
+  const selectedId = navState.connectionId ?? connections[0]?.id ?? null;
+  const selectedGroupId = navState.groupId;
+  const mapOpen = navState.viewMode === 'map';
   const active = connections.find((c) => c.id === selectedId) ?? connections[0];
   const caps = getEngineCapabilities(active?.driver ?? '');
   const schemaQ = useDbSchema(active?.id ?? null);
   const schema = schemaQ.data;
-  const links = schema ? (guesses ? linksOf(schema) : declaredLinks(schema)) : [];
-  const opened = trail.at(-1) ?? null;
-  const openTable = opened && schema?.tables.find((t) => keyOf(t) === opened.key);
+
+  const activeGroupId = active?.groupId ?? selectedGroupId ?? null;
+  const { linksForTable } = useGroupRelations(activeGroupId, connections);
+
+  const opened = navState.trail.at(-1) ?? null;
+  const openTable = opened && schema?.tables.find((t) => keyOf(t) === opened.tableKey);
+
+  const localLinks = schema ? (guesses ? linksOf(schema) : declaredLinks(schema)) : [];
+  const tableCrossLinks = opened && active ? linksForTable(active.id, opened.tableKey) : [];
+  const links = [...localLinks, ...tableCrossLinks];
+
   const nameOf = (key: string) =>
     schema && schema.schemas.length > 1 ? key : key.slice(key.indexOf('.') + 1);
 
   const select = (id: string) => {
-    setMapOpen(false);
-    setSelectedGroupId(null);
-    if (id !== active?.id) {
-      setSelectedId(id);
-      setTrail([]);
-      setTab('overview');
-      setDetail(null);
-    } else {
-      setTrail([]);
-    }
+    const conn = connections.find((c) => c.id === id);
+    dispatchNav({
+      type: 'SELECT_CONNECTION',
+      connectionId: id,
+      groupId: conn?.groupId ?? null,
+    });
+    setTab('overview');
+    setDetail(null);
   };
 
   const openMap = (groupId?: string | null) => {
-    setSelectedGroupId(groupId ?? null);
-    setMapOpen(true);
+    dispatchNav({ type: 'OPEN_MAP', groupId: groupId ?? null });
   };
 
-  const openTableInConn = (key: string, filter?: Filter) => {
-    setMapOpen(false);
-    setSelectedGroupId(null);
-    setTrail((t) => [...t, { key, filter }]);
+  const handleOpenTable = (
+    connectionIdOrKey: string,
+    keyOrFilter?: string | Filter,
+    filter?: Filter,
+  ) => {
+    let targetConnId: string = active?.id ?? '';
+    let targetKey: string = connectionIdOrKey;
+    let targetFilter: Filter | undefined = undefined;
+
+    if (typeof keyOrFilter === 'string') {
+      targetConnId = connectionIdOrKey;
+      targetKey = keyOrFilter;
+      targetFilter = filter;
+    } else if (keyOrFilter && typeof keyOrFilter === 'object') {
+      targetKey = connectionIdOrKey;
+      targetFilter = keyOrFilter;
+    } else {
+      targetKey = connectionIdOrKey;
+    }
+
+    const targetConn = connections.find((c) => c.id === targetConnId);
+    const name = nameOf(targetKey);
+
+    dispatchNav({
+      type: 'OPEN_TABLE',
+      connectionId: targetConnId,
+      tableKey: targetKey,
+      filter: targetFilter,
+      tableName: name,
+      connectionName: targetConn?.name ?? targetConnId,
+    });
   };
 
   const quickAdd = (d: DiscoveredDb) =>
@@ -137,14 +188,10 @@ export function DatabasesPage() {
           error: schemaQ.error,
           refetch: () => void schemaQ.refetch(),
         }}
-        activeTable={opened?.key ?? null}
+        activeTable={opened?.tableKey ?? null}
         mapOpen={mapOpen}
         onSelect={select}
-        onOpenTable={(key) => {
-          setMapOpen(false);
-          setSelectedGroupId(null);
-          setTrail([{ key }]);
-        }}
+        onOpenTable={(key) => handleOpenTable(active.id, key)}
         onOpenMap={openMap}
         onAddConnection={(groupId) => {
           setAddGroupTargetId(groupId ?? null);
@@ -195,12 +242,7 @@ export function DatabasesPage() {
             <MapView
               connections={mapConnections}
               groupId={selectedGroupId}
-              onOpenTable={(connectionId, key) => {
-                setMapOpen(false);
-                setSelectedGroupId(null);
-                setSelectedId(connectionId);
-                setTrail([{ key }]);
-              }}
+              onOpenTable={(connectionId, key) => handleOpenTable(connectionId, key)}
             />
           </>
         ) : !active ? (
@@ -231,39 +273,87 @@ export function DatabasesPage() {
         ) : (
           <>
             <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-hairline px-4">
-              <div className="flex min-w-0 items-center gap-2">
-                {trail.length > 0 && (
+              <div className="flex min-w-0 items-center gap-1.5 text-xs">
+                {navState.trail.length > 0 && (
                   <Button
                     variant="ghost"
                     size="iconSm"
                     aria-label="Back"
                     title={
-                      trail.length > 1
-                        ? `Back to ${nameOf(trail[trail.length - 2].key)}`
+                      navState.trail.length > 1
+                        ? `Back to ${navState.trail[navState.trail.length - 2].tableName ?? 'previous table'}`
                         : 'Back to overview'
                     }
-                    onClick={() => setTrail((t) => t.slice(0, -1))}
+                    onClick={() => dispatchNav({ type: 'BACK' })}
                   >
                     <ArrowLeft />
                   </Button>
                 )}
+
+                {selectedGroup ? (
+                  <button
+                    type="button"
+                    onClick={() => openMap(selectedGroup.id)}
+                    className="cursor-pointer font-medium text-muted-foreground hover:text-fg hover:underline"
+                    title="View Group Architecture Map"
+                  >
+                    {selectedGroup.name}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openMap(null)}
+                    className="cursor-pointer font-medium text-muted-foreground hover:text-fg hover:underline"
+                    title="View All Databases Map"
+                  >
+                    Databases
+                  </button>
+                )}
+
+                <ChevronRight className="size-3 text-muted-foreground/60" aria-hidden />
+
                 <button
                   type="button"
-                  onClick={() => setTrail([])}
-                  className="min-w-0 cursor-pointer truncate text-sm font-semibold text-fg hover:underline"
+                  onClick={() => dispatchNav({ type: 'CLEAR_TRAIL' })}
+                  className={cn(
+                    'cursor-pointer truncate font-semibold hover:underline',
+                    navState.trail.length === 0
+                      ? 'text-sm text-fg'
+                      : 'text-muted-foreground hover:text-fg',
+                  )}
+                  title="Connection Overview"
                 >
                   {active.name}
                 </button>
-                <span className="hidden shrink-0 truncate font-mono text-xs text-muted-foreground md:inline">
+
+                {opened && (
+                  <>
+                    <ChevronRight className="size-3 text-muted-foreground/60" aria-hidden />
+                    <span className="truncate text-sm font-semibold text-fg">
+                      {nameOf(opened.tableKey)}
+                    </span>
+                    {opened.filter && (
+                      <span
+                        className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+                        title={`Filtered by ${opened.filter.column} ${opened.filter.op} ${opened.filter.value}`}
+                      >
+                        {opened.filter.column} = {opened.filter.value}
+                      </span>
+                    )}
+                  </>
+                )}
+
+                <span className="ml-2 hidden shrink-0 truncate font-mono text-xs text-muted-foreground lg:inline">
                   {caps.displayName} · {active.host}
                   {active.database ? ` / ${active.database}` : ''}
                 </span>
+
                 {active.env === 'prod' || !active.allowWrites ? (
-                  <span className="shrink-0 rounded bg-success-soft px-1.5 text-[11px] font-medium text-success">
+                  <span className="ml-1 shrink-0 rounded bg-success-soft px-1.5 text-[11px] font-medium text-success">
                     read-only
                   </span>
                 ) : (
-                  <span className="shrink-0 rounded bg-warning-soft px-1.5 text-[11px] font-medium text-warning">
+                  <span className="ml-1 shrink-0 rounded bg-warning-soft px-1.5 text-[11px] font-medium text-warning">
                     writes allowed in SQL
                   </span>
                 )}
@@ -298,15 +388,16 @@ export function DatabasesPage() {
               </div>
             ) : openTable && schema ? (
               <TableView
-                key={`${active.id}:${trail.length}:${opened!.key}`}
+                key={`${active.id}:${navState.trail.length}:${opened!.tableKey}`}
                 connectionId={active.id}
                 connectionName={active.name}
                 schema={schema}
                 table={openTable}
                 links={links}
                 nameOf={nameOf}
-                onOpenTable={openTableInConn}
+                onOpenTable={handleOpenTable}
                 initialFilter={opened!.filter}
+                connections={connections}
               />
             ) : tab === 'sql' ? (
               <div className="min-h-0 flex-1 overflow-hidden p-4">
@@ -335,7 +426,7 @@ export function DatabasesPage() {
                 diagram={buildDiagram(schema.tables, links, fullDetail)}
                 detail={fullDetail}
                 onDetail={setDetail}
-                onOpenTable={(key) => setTrail([{ key }])}
+                onOpenTable={(key) => handleOpenTable(active.id, key)}
                 exportName={fileStem(active.name, 'diagram')}
                 exportTitle={`${active.name} · ${schema.database}`}
                 mermaid={() => toMermaid(schema.tables, links)}
@@ -360,7 +451,7 @@ export function DatabasesPage() {
               <DatabaseOverview
                 schema={schema}
                 links={links}
-                onOpenTable={(key) => setTrail([{ key }])}
+                onOpenTable={(key) => handleOpenTable(active.id, key)}
               />
             )}
           </>

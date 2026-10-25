@@ -14,7 +14,13 @@ import {
   type ValueKind,
 } from '@/features/databases/utils/values';
 
-export type OpenTable = (key: string, filter?: Filter) => void;
+import type { DbConnection } from '@/features/databases/api/databases.schema';
+
+export type OpenTable = (
+  target: string,
+  filterOrTableKey?: Filter | string,
+  maybeFilter?: Filter,
+) => void;
 
 export const KIND_CLS: Record<ValueKind, string> = {
   string: 'text-chart-3',
@@ -54,8 +60,17 @@ interface FieldProps {
   name: string;
   value: unknown;
   depth: number;
-  /** Where this field points, when it's a foreign key. */
-  link?: { label: string; open: () => void; guessed: boolean };
+  /** Where this field points, when it's a foreign key or cross-database link. */
+  link?: {
+    label: string;
+    open: () => void;
+    guessed?: boolean;
+    provenance?: 'declared' | 'inferred' | 'configured';
+    status?: string;
+    compatibility?: 'compatible' | 'incompatible' | 'unknown';
+    compatibilityReason?: string;
+    disabledReason?: string;
+  };
 }
 
 const Field = ({ name, value, depth, link }: FieldProps) => {
@@ -99,16 +114,30 @@ const Field = ({ name, value, depth, link }: FieldProps) => {
           {link && value != null && (
             <button
               type="button"
-              onClick={link.open}
+              disabled={Boolean(link.disabledReason)}
+              onClick={link.disabledReason ? undefined : link.open}
               title={
-                link.guessed
-                  ? 'Guessed from the column name — no foreign key declares it'
-                  : 'Open the row this points to'
+                link.disabledReason ??
+                (link.provenance === 'configured'
+                  ? `Application relationship to ${link.label}`
+                  : link.guessed
+                    ? 'Guessed from column name — not an enforced foreign key'
+                    : 'Open the row this points to')
               }
-              className="ml-2 inline-flex cursor-pointer items-center gap-1 rounded px-1 font-sans text-xs text-info hover:bg-info-soft"
+              className={cn(
+                'ml-2 inline-flex items-center gap-1 rounded px-1 font-sans text-xs',
+                link.disabledReason
+                  ? 'cursor-not-allowed text-muted-foreground opacity-50'
+                  : 'cursor-pointer text-info hover:bg-info-soft',
+              )}
             >
               <ArrowRight className="size-3" aria-hidden />
               {link.label}
+              {link.provenance === 'configured' && (
+                <span className="bg-teal-soft text-teal rounded px-1 text-[10px] font-medium">
+                  app
+                </span>
+              )}
               {link.guessed && <span className="text-muted-foreground">?</span>}
             </button>
           )}
@@ -134,6 +163,8 @@ interface Props {
   nameOf: (tableKey: string) => string;
   onOpenTable: OpenTable;
   className?: string;
+  connectionId?: string;
+  connections?: DbConnection[];
 }
 
 /** One row as a document: every field, typed and coloured, nested values
@@ -146,6 +177,8 @@ export const DocumentCard = ({
   nameOf,
   onOpenTable,
   className,
+  connectionId,
+  connections,
 }: Props) => {
   const keys = [
     ...order.filter((k) => k in row),
@@ -176,6 +209,25 @@ export const DocumentCard = ({
         {keys.map((k) => {
           const l = outgoing.get(k);
           const idx = l ? l.fromColumns.indexOf(k) : -1;
+          const isExternal = Boolean(l?.toDb && connectionId && l.toDb !== connectionId);
+          const targetConn = isExternal ? connections?.find((c) => c.id === l!.toDb) : null;
+          const label = isExternal
+            ? `[${targetConn?.name ?? 'External'}] ${nameOf(l!.to)}`
+            : l
+              ? nameOf(l.to)
+              : '';
+
+          let disabledReason: string | undefined = undefined;
+          if (l) {
+            if (l.status === 'stale') {
+              disabledReason = 'Target connection or table could not be resolved in active schema';
+            } else if (l.status === 'ambiguous') {
+              disabledReason = 'Ambiguous reference: multiple candidate tables exist';
+            } else if (l.compatibility === 'incompatible') {
+              disabledReason = `Incompatible data types: ${l.compatibilityReason ?? 'Type mismatch'}`;
+            }
+          }
+
           return (
             <Field
               key={k}
@@ -185,10 +237,15 @@ export const DocumentCard = ({
               link={
                 l
                   ? {
-                      label: nameOf(l.to),
+                      label,
                       guessed: l.inferred,
+                      provenance: l.provenance,
+                      status: l.status,
+                      compatibility: l.compatibility,
+                      compatibilityReason: l.compatibilityReason,
+                      disabledReason,
                       open: () =>
-                        onOpenTable(l.to, {
+                        onOpenTable(l.toDb ?? connectionId ?? '', l.to, {
                           column: l.toColumns[idx] ?? l.toColumns[0],
                           op: 'eq',
                           value: filterText(row[k]),
@@ -206,29 +263,42 @@ export const DocumentCard = ({
             <CornerDownRight className="size-3" aria-hidden />
             Referenced by
           </span>
-          {backlinks.map((l) => (
-            <button
-              key={l.id}
-              type="button"
-              onClick={() =>
-                onOpenTable(l.from, {
-                  column: l.fromColumns[0],
-                  op: 'eq',
-                  value: filterText(row[l.toColumns[0]]),
-                })
-              }
-              title={
-                l.inferred
-                  ? 'Guessed from the column name'
-                  : `Rows in ${nameOf(l.from)} whose ${l.fromColumns[0]} is this row`
-              }
-              className="cursor-pointer rounded-full border border-hairline px-2 py-0.5 text-info hover:bg-info-soft"
-            >
-              {nameOf(l.from)}
-              <span className="text-muted-foreground">.{l.fromColumns[0]}</span>
-              {l.inferred && <span className="text-muted-foreground">?</span>}
-            </button>
-          ))}
+          {backlinks.map((l) => {
+            const isExternal = Boolean(l.fromDb && connectionId && l.fromDb !== connectionId);
+            const sourceConn = isExternal ? connections?.find((c) => c.id === l.fromDb) : null;
+            const label = isExternal
+              ? `[${sourceConn?.name ?? 'External'}] ${nameOf(l.from)}`
+              : nameOf(l.from);
+
+            return (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() =>
+                  onOpenTable(l.fromDb ?? connectionId ?? '', l.from, {
+                    column: l.fromColumns[0],
+                    op: 'eq',
+                    value: filterText(row[l.toColumns[0]]),
+                  })
+                }
+                title={
+                  l.inferred
+                    ? `Guessed from the column name in ${label}`
+                    : `Rows in ${label} whose ${l.fromColumns[0]} is this row`
+                }
+                className="cursor-pointer rounded-full border border-hairline px-2 py-0.5 text-info hover:bg-info-soft"
+              >
+                {label}
+                <span className="text-muted-foreground">.{l.fromColumns[0]}</span>
+                {l.provenance === 'configured' && (
+                  <span className="bg-teal-soft text-teal ml-1 rounded px-1 text-[10px] font-medium">
+                    app
+                  </span>
+                )}
+                {l.inferred && <span className="text-muted-foreground">?</span>}
+              </button>
+            );
+          })}
         </div>
       )}
     </article>

@@ -10,4 +10,5 @@ export const dbKeys = {
     [...dbKeys.all, 'customMappings', groupId ?? 'all'] as const,
   rejectedCandidates: (groupId?: string | null) =>
     [...dbKeys.all, 'rejectedCandidates', groupId ?? 'all'] as const,
+  ping: (id: string) => [...dbKeys.all, 'ping', id] as const,
 };

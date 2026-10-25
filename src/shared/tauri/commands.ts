@@ -141,6 +141,7 @@ export const CMD = {
   DB_LIST_REJECTED_CANDIDATES: 'db_list_rejected_candidates',
   DB_REJECT_CANDIDATE: 'db_reject_candidate',
   DB_UNREJECT_CANDIDATE: 'db_unreject_candidate',
+  DB_PING: 'db_ping',
   DB_SCHEMA: 'db_schema',
   DB_BROWSE: 'db_browse',
   DB_SAVE_EXPORT: 'db_save_export',

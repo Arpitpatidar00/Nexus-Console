@@ -9,7 +9,9 @@ use crate::error::{AppError, AppResult};
 use crate::services::databases::apfs::{self, DbSnapshot};
 use crate::services::databases::classifier;
 use crate::services::databases::discovery::{self, DiscoveredDb};
-use crate::services::databases::explorer::{self, BrowsePage, BrowseRequest, DbSchema, Endpoint};
+use crate::services::databases::explorer::{
+    self, BrowsePage, BrowseRequest, DbPingResult, DbSchema, Endpoint,
+};
 use crate::services::databases::store::{
     new_connection_id, new_group_id, DbConnection, DbCustomMapping, DbGroup, DbRejectedCandidate,
     QueryResult,
@@ -787,9 +789,44 @@ fn endpoint_of(app: &AppHandle, id: &str) -> AppResult<Endpoint> {
 
 /// Everything about a database in one read: tables, columns, keys, indexes
 /// and foreign keys. Read-only on every engine.
+/// Bounded to max 3 concurrent introspections via schema_semaphore.
 #[tauri::command]
 pub async fn db_schema(app: AppHandle, id: String) -> AppResult<DbSchema> {
-    blocking(move || explorer::schema(&endpoint_of(&app, &id)?)).await
+    let state = app.state::<DatabaseState>();
+    let permit = state
+        .schema_semaphore
+        .clone()
+        .acquire_owned()
+        .await
+        .map_err(|e| AppError::Io(format!("schema semaphore closed: {e}")))?;
+
+    blocking(move || {
+        let _permit = permit;
+        explorer::schema(&endpoint_of(&app, &id)?)
+    })
+    .await
+}
+
+/// Lightweight connection health check (SELECT 1 / PING / ping command).
+#[tauri::command]
+pub async fn db_ping(app: AppHandle, id: String) -> AppResult<DbPingResult> {
+    blocking(move || {
+        let ep = endpoint_of(&app, &id)?;
+        let start = std::time::Instant::now();
+        match explorer::ping(&ep) {
+            Ok(_) => Ok(DbPingResult {
+                ok: true,
+                latency_ms: start.elapsed().as_millis() as u64,
+                error: None,
+            }),
+            Err(e) => Ok(DbPingResult {
+                ok: false,
+                latency_ms: start.elapsed().as_millis() as u64,
+                error: Some(e.to_string()),
+            }),
+        }
+    })
+    .await
 }
 
 /// One page of rows, filtered and sorted, plus how many match.

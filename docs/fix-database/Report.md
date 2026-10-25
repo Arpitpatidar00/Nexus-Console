@@ -278,17 +278,15 @@ pub struct DbStore {
 - Added commands `db_list_groups`, `db_create_group`, `db_update_group`, `db_delete_group`, and `db_move_connection`.
 - Added Group accordion, group-scoped map views, and ungrouped bucket handling in `ExplorerSidebar.tsx` and `DatabasesPage.tsx`.
 
-### ISS-04: Unbounded Parallel Process Execution during Schema Introspection
+### ISS-04 [Closed in Phase 5]: Unbounded Parallel Process Execution during Schema Introspection
 
 - **Severity**: **Medium**
-- **Location**: [useExplorer.ts:27-38](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/api/useExplorer.ts#L27-L38), [MapView.tsx:23](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/components/MapView/MapView.tsx#L23)
-- **Reproduction Scenario**:
-  Open MapView when 10+ databases are connected.
-- **Actual Impact**:
-  `useDbSchemas` executes `useQueries` with all IDs at once, launching 10+ concurrent child processes via Tauri `blocking`. On systems with limited threads or slow remote connections, this causes UI lag, CLI process contention, and potential timeouts.
-- **Recommended Correction**:
-  **[Corrected]** Bound it in **Rust**, not with `p-limit`: `commands::blocking` is `tauri::async_runtime::spawn_blocking` (a large pool), and a JS-side limiter would not bound other callers (sidebar `useDbSchema`, refresh). Use one counting semaphore around `explorer::schema` inside `db_schema` (max 3). No new dependency is needed.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 5)
+- Added `pub schema_semaphore: Arc<Semaphore>` (capacity 3) to `DatabaseState` in `src-tauri/src/services/databases/mod.rs`.
+- Wrapped `explorer::schema` in `db_schema` with `state.schema_semaphore.clone().acquire_owned().await`, strictly bounding concurrent introspections across all callers to 3 simultaneous processes.
+- Added unit test `test_schema_semaphore_capacity` in `services::databases`.
+- Implemented lightweight `db_ping` across PostgreSQL (`SELECT 1`), MySQL (`SELECT 1`), Redis (`PING`), and MongoDB (`db.runCommand({ ping: 1 })`) with bounded timeouts (3s to 5s) returning `{ ok, latencyMs, error }`.
+- Added frontend schema and hooks `dbPingResultSchema`, `useDbPing`, and `useDbPingMutation`.
 
 ### ISS-05 [Closed in Phase 1]: Missing Connection Edit Operation
 

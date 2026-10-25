@@ -64,6 +64,10 @@ fn mysql(ep: &Endpoint, script: String) -> AppResult<exec::ExecOutput> {
     cli_output("mysql", exec::run("mysql", &argv, opts))
 }
 
+pub fn ping(ep: &Endpoint) -> AppResult<()> {
+    mysql(ep, "SELECT 1;".to_string()).map(|_| ())
+}
+
 pub fn schema(ep: &Endpoint) -> AppResult<DbSchema> {
     if ep.database.is_none() {
         return Err(AppError::InvalidName(

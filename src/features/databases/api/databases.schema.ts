@@ -131,3 +131,10 @@ export const dbRejectedCandidateSchema = z.object({
   createdAt: z.number(),
 });
 export type DbRejectedCandidate = z.infer<typeof dbRejectedCandidateSchema>;
+
+export const dbPingResultSchema = z.object({
+  ok: z.boolean(),
+  latencyMs: z.number(),
+  error: z.string().nullable().optional(),
+});
+export type DbPingResult = z.infer<typeof dbPingResultSchema>;

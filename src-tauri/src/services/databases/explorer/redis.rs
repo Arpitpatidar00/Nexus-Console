@@ -94,6 +94,31 @@ fn eval(ep: &Endpoint, script: &str, args: &[String]) -> AppResult<exec::ExecOut
     Ok(out)
 }
 
+pub fn ping(ep: &Endpoint) -> AppResult<()> {
+    let port = ep.port.to_string();
+    let mut argv: Vec<&str> = vec!["-h", &ep.host, "-p", &port, "--no-auth-warning", "--raw"];
+    if let Some(n) = ep.database.as_deref().filter(|d| d.parse::<u32>().is_ok()) {
+        argv.extend(["-n", n]);
+    }
+    if let Some(u) = ep
+        .user
+        .as_deref()
+        .filter(|u| !u.is_empty() && *u != "default")
+    {
+        argv.extend(["--user", u]);
+    }
+    argv.push("PING");
+    let mut opts = read_opts(3);
+    if let Some(p) = &ep.password {
+        opts = opts.with_env("REDISCLI_AUTH", p.as_str());
+    }
+    let out = cli_output("redis-cli", exec::run("redis-cli", &argv, opts))?;
+    if out.stdout_str.trim_start().starts_with("ERR") || out.stdout_str.contains("(error)") {
+        return Err(AppError::Shell(format!("redis: {}", out.stdout_str.trim())));
+    }
+    Ok(())
+}
+
 pub fn schema(ep: &Endpoint) -> AppResult<DbSchema> {
     let out = eval(ep, SCHEMA_LUA, &[MAX_SCAN.to_string(), NO_PREFIX.into()])?;
     parse_schema(&out.stdout_str, ep.database.as_deref().unwrap_or("0"))

@@ -132,6 +132,10 @@ fn last_json_line(stdout: &str) -> Option<&str> {
         .find(|l| l.starts_with('{'))
 }
 
+pub fn ping(ep: &Endpoint) -> AppResult<()> {
+    mongosh(ep, "db.runCommand({ ping: 1 });".to_string()).map(|_| ())
+}
+
 pub fn schema(ep: &Endpoint) -> AppResult<DbSchema> {
     let out = mongosh(ep, with_params(SCHEMA_JS, &json!({ "sample": SAMPLE })))?;
     parse_schema(&out.stdout_str)

@@ -309,6 +309,7 @@ pub fn run() {
             commands::databases::db_list_rejected_candidates,
             commands::databases::db_reject_candidate,
             commands::databases::db_unreject_candidate,
+            commands::databases::db_ping,
             commands::databases::db_schema,
             commands::databases::db_browse,
             commands::databases::db_save_export,

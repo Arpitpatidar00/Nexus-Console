@@ -168,6 +168,26 @@ pub struct BrowsePage {
     pub duration_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DbPingResult {
+    pub ok: bool,
+    pub latency_ms: u64,
+    pub error: Option<String>,
+}
+
+pub fn ping(ep: &Endpoint) -> AppResult<()> {
+    match ep.driver.as_str() {
+        "postgres" => postgres::ping(ep),
+        "mysql" => mysql::ping(ep),
+        "mongo" | "mongodb" => mongo::ping(ep),
+        "redis" => redis::ping(ep),
+        other => Err(AppError::InvalidName(format!(
+            "unsupported database: {other}"
+        ))),
+    }
+}
+
 pub fn schema(ep: &Endpoint) -> AppResult<DbSchema> {
     match ep.driver.as_str() {
         "postgres" => postgres::schema(ep),

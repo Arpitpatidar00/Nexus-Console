@@ -97,6 +97,11 @@ fn psql(ep: &Endpoint, vars: &[(String, String)], script: String) -> AppResult<e
     cli_output("psql", exec::run("psql", &argv, opts))
 }
 
+pub fn ping(ep: &Endpoint) -> AppResult<()> {
+    let vars = [("ON_ERROR_STOP".to_string(), "1".to_string())];
+    psql(ep, &vars, "SELECT 1;".to_string()).map(|_| ())
+}
+
 pub fn schema(ep: &Endpoint) -> AppResult<DbSchema> {
     let vars = [("ON_ERROR_STOP".to_string(), "1".to_string())];
     let out = psql(ep, &vars, SCHEMA_SQL.to_string())?;

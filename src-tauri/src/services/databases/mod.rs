@@ -5,11 +5,13 @@ pub mod explorer;
 pub mod store;
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use tokio::sync::Semaphore;
 
 pub struct DatabaseState {
     pub path: PathBuf,
     pub store: Mutex<store::DbStore>,
+    pub schema_semaphore: Arc<Semaphore>,
 }
 
 impl DatabaseState {
@@ -18,6 +20,7 @@ impl DatabaseState {
         Self {
             store: Mutex::new(store::DbStore::load(parent)),
             path,
+            schema_semaphore: Arc::new(Semaphore::new(3)),
         }
     }
 }
@@ -91,4 +94,30 @@ pub fn parse_mysql_tsv(stdout: &str) -> (Vec<String>, Vec<Vec<serde_json::Value>
     }
 
     (columns, rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schema_semaphore_capacity() {
+        let state = DatabaseState::load(PathBuf::from("/tmp/test-stackroost-db-store.json"));
+        assert_eq!(state.schema_semaphore.available_permits(), 3);
+
+        // Can acquire up to 3 permits
+        let p1 = state.schema_semaphore.try_acquire().expect("permit 1");
+        let p2 = state.schema_semaphore.try_acquire().expect("permit 2");
+        let p3 = state.schema_semaphore.try_acquire().expect("permit 3");
+        assert_eq!(state.schema_semaphore.available_permits(), 0);
+
+        // 4th acquisition fails immediately without blocking
+        assert!(state.schema_semaphore.try_acquire().is_err());
+
+        // Dropping permits restores capacity
+        drop(p1);
+        drop(p2);
+        drop(p3);
+        assert_eq!(state.schema_semaphore.available_permits(), 3);
+    }
 }

@@ -10,6 +10,7 @@ import {
   dbSnapshotSchema,
   dbCustomMappingSchema,
   dbRejectedCandidateSchema,
+  dbPingResultSchema,
   type DiscoveredDb,
   type DbConnection,
   type DbGroup,
@@ -21,6 +22,7 @@ import {
   type DbCustomMapping,
   type DbRejectedCandidate,
   type SaveCustomMappingInput,
+  type DbPingResult,
 } from './databases.schema';
 
 export function useDiscoveredDatabases() {
@@ -244,5 +246,21 @@ export function useUnrejectDbCandidate() {
       queryClient.invalidateQueries({ queryKey: dbKeys.rejectedCandidates(vars.groupId) });
       queryClient.invalidateQueries({ queryKey: dbKeys.rejectedCandidates() });
     },
+  });
+}
+
+export function useDbPing(id: string | null) {
+  return useQuery<DbPingResult>({
+    queryKey: dbKeys.ping(id ?? ''),
+    queryFn: () => ipc(CMD.DB_PING, { id: id! }, dbPingResultSchema),
+    enabled: Boolean(id),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useDbPingMutation() {
+  return useMutation({
+    mutationFn: (id: string) => ipc(CMD.DB_PING, { id }, dbPingResultSchema),
   });
 }

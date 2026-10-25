@@ -64,13 +64,33 @@ export const MapView = ({ connections, groupId, onOpenTable }: Props) => {
 
   const connectionNames = Object.fromEntries(connections.map((c) => [c.id, c.name]));
 
+  if (connections.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
+        <p className="font-medium text-fg">No connections in this group</p>
+        <p className="text-xs">
+          Add a database connection or move existing connections into this group to visualize
+          architecture and cross-database relationships.
+        </p>
+      </div>
+    );
+  }
+
   if (ready.length === 0) {
     return (
-      <p className="flex flex-1 items-center justify-center px-6 text-sm text-muted-foreground">
-        {loading > 0
-          ? `Reading ${loading} database${loading === 1 ? '' : 's'}…`
-          : 'None of your databases could be read.'}
-      </p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
+        <p className="font-medium text-fg">
+          {loading > 0
+            ? `Reading ${loading} database${loading === 1 ? '' : 's'}…`
+            : 'None of your databases could be read.'}
+        </p>
+        {failed.length > 0 && (
+          <p className="text-xs text-warning">
+            Failed to connect to: {failed.map((c) => c.name).join(', ')}. Check connection
+            credentials and server status.
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -127,22 +147,54 @@ export const MapView = ({ connections, groupId, onOpenTable }: Props) => {
           </div>
         }
         footnote={
-          <span className="flex flex-wrap items-center gap-x-3">
-            <span>
-              {ready.length} database{ready.length === 1 ? '' : 's'} · {between.length}{' '}
-              cross-database link{between.length === 1 ? '' : 's'} (
-              {configuredCount > 0 && `${configuredCount} configured, `}
-              {inferredCount} inferred
-              {ambiguousLinks.length > 0 && `, ${ambiguousLinks.length} ambiguous`})
-            </span>
-            {loading > 0 && <span>Reading {loading} more…</span>}
-            {failed.length > 0 && (
-              <span className="flex items-center gap-1 text-warning">
-                <AlertTriangle className="size-3.5" aria-hidden />
-                Couldn't read {failed.map((c) => c.name).join(', ')}
+          <div className="flex flex-wrap items-center justify-between gap-y-1.5">
+            <span className="flex flex-wrap items-center gap-x-3">
+              <span>
+                {ready.length} database{ready.length === 1 ? '' : 's'} · {between.length}{' '}
+                cross-database link{between.length === 1 ? '' : 's'} (
+                {configuredCount > 0 && `${configuredCount} configured, `}
+                {inferredCount} inferred
+                {ambiguousLinks.length > 0 && `, ${ambiguousLinks.length} ambiguous`})
               </span>
-            )}
-          </span>
+              {loading > 0 && <span>Reading {loading} more…</span>}
+              {failed.length > 0 && (
+                <span className="flex items-center gap-1 text-warning">
+                  <AlertTriangle className="size-3.5" aria-hidden />
+                  Couldn't read {failed.map((c) => c.name).join(', ')}
+                </span>
+              )}
+            </span>
+            <div
+              className="flex items-center gap-3 text-[11px] text-muted-foreground"
+              role="region"
+              aria-label="Relationship legend"
+            >
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-0.5 w-3 bg-muted-foreground" aria-hidden />
+                <span>Declared FK</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span
+                  className="inline-block h-0.5 w-3 border-b-2 border-dashed border-info"
+                  aria-hidden
+                />
+                <span>Inferred</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-0.5 w-3 bg-chart-5" aria-hidden />
+                <span>Configured</span>
+              </span>
+              {ambiguousLinks.length > 0 && (
+                <span className="flex items-center gap-1 text-warning">
+                  <span
+                    className="inline-block h-0.5 w-3 border-b-2 border-dotted border-warning"
+                    aria-hidden
+                  />
+                  <span>Ambiguous</span>
+                </span>
+              )}
+            </div>
+          </div>
         }
       />
 

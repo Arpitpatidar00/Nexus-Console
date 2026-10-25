@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
+  Activity,
   ChevronRight,
   FolderInput,
   FolderPlus,
@@ -14,6 +15,7 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/Button';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
@@ -24,6 +26,7 @@ import type {
   DiscoveredDb,
 } from '@/features/databases/api/databases.schema';
 import type { DbSchema } from '@/features/databases/api/explorer.schema';
+import { useDbPingMutation } from '@/features/databases/api/useDatabases';
 import { keyOf } from '@/features/databases/utils/relations';
 import { getEngineCapabilities } from '@/features/databases/utils/capabilities';
 
@@ -89,6 +92,7 @@ export const ExplorerSidebar = ({
 }: Props) => {
   const [filter, setFilter] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const pingMut = useDbPingMutation();
 
   const toggleGroup = (id: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -122,6 +126,8 @@ export const ExplorerSidebar = ({
           <button
             type="button"
             onClick={() => onSelect(c.id)}
+            aria-label={`Open connection ${c.name} (${c.driver})`}
+            aria-expanded={open}
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
           >
             <ChevronRight
@@ -167,6 +173,27 @@ export const ExplorerSidebar = ({
                 <DropdownMenu.Item className={itemCls} onSelect={() => onEditConnection(c)}>
                   <Pencil className="size-3.5 text-muted-foreground" />
                   Edit Connection
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className={itemCls}
+                  disabled={pingMut.isPending}
+                  onSelect={() => {
+                    pingMut.mutate(c.id, {
+                      onSuccess: (res) => {
+                        if (res.ok) {
+                          toast.success(`${c.name} is reachable (${res.latencyMs}ms)`);
+                        } else {
+                          toast.error(`${c.name} unreachable: ${res.error ?? 'Connection failed'}`);
+                        }
+                      },
+                      onError: (e) => {
+                        toast.error(`${c.name} test failed: ${e.message}`);
+                      },
+                    });
+                  }}
+                >
+                  <Activity className="size-3.5 text-muted-foreground" />
+                  Test Connection
                 </DropdownMenu.Item>
 
                 {groups.length > 0 && (

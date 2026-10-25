@@ -431,3 +431,7 @@ export const mockFameoGroupSchemas = [
   { id: 'conn_mysql_ecom', label: 'E-commerce Service', schema: mockMysqlEcomSchema },
   { id: 'conn_redis_cache', label: 'Cache Service', schema: mockRedisCacheSchema },
 ];
+
+export const mockSchemas: Record<string, DbSchema> = Object.fromEntries(
+  mockFameoGroupSchemas.map((m) => [m.id, m.schema]),
+);

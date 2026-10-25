@@ -2,7 +2,18 @@ use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DbGroup {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DbConnection {
     pub id: String,
@@ -16,6 +27,8 @@ pub struct DbConnection {
     pub allow_writes: bool,
     pub env: String,
     pub data_dir: Option<String>,
+    #[serde(default)]
+    pub group_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,7 +43,18 @@ pub struct QueryResult {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DbStore {
+    #[serde(default)]
+    pub groups: Vec<DbGroup>,
     pub connections: Vec<DbConnection>,
+}
+
+fn random_u32() -> u32 {
+    let mut buf = [0u8; 4];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        use std::io::Read;
+        let _ = f.read_exact(&mut buf);
+    }
+    u32::from_ne_bytes(buf)
 }
 
 pub fn new_connection_id() -> String {
@@ -38,7 +62,17 @@ pub fn new_connection_id() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    format!("db_{t}")
+    let rand = random_u32();
+    format!("db_{t}_{rand:04x}")
+}
+
+pub fn new_group_id() -> String {
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let rand = random_u32();
+    format!("grp_{t}_{rand:04x}")
 }
 
 impl DbStore {
@@ -55,6 +89,15 @@ impl DbStore {
         self.connections.push(conn);
     }
 
+    pub fn update_connection(&mut self, conn: DbConnection) -> Option<DbConnection> {
+        if let Some(c) = self.connections.iter_mut().find(|c| c.id == conn.id) {
+            *c = conn.clone();
+            Some(conn)
+        } else {
+            None
+        }
+    }
+
     pub fn remove(&mut self, id: &str) -> Option<DbConnection> {
         if let Some(pos) = self.connections.iter().position(|c| c.id == id) {
             Some(self.connections.remove(pos))
@@ -65,6 +108,83 @@ impl DbStore {
 
     pub fn get(&self, id: &str) -> Option<&DbConnection> {
         self.connections.iter().find(|c| c.id == id)
+    }
+
+    pub fn add_group(&mut self, group: DbGroup) {
+        self.groups.retain(|g| g.id != group.id);
+        self.groups.push(group);
+    }
+
+    pub fn get_group(&self, id: &str) -> Option<&DbGroup> {
+        self.groups.iter().find(|g| g.id == id)
+    }
+
+    pub fn update_group(
+        &mut self,
+        id: &str,
+        name: String,
+        description: Option<String>,
+        color: Option<String>,
+    ) -> Option<DbGroup> {
+        if let Some(g) = self.groups.iter_mut().find(|g| g.id == id) {
+            g.name = name;
+            g.description = description;
+            g.color = color;
+            g.updated_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            Some(g.clone())
+        } else {
+            None
+        }
+    }
+
+    /// Removes a group. If `delete_connections` is false, member connections
+    /// are kept and moved to `groupId = None` (Ungrouped). If true, member
+    /// connections are removed and their IDs are returned so their Keychain
+    /// entries can be deleted.
+    pub fn remove_group(
+        &mut self,
+        id: &str,
+        delete_connections: bool,
+    ) -> (Option<DbGroup>, Vec<String>) {
+        let removed_group = if let Some(pos) = self.groups.iter().position(|g| g.id == id) {
+            Some(self.groups.remove(pos))
+        } else {
+            None
+        };
+
+        let mut affected_conn_ids = Vec::new();
+        if delete_connections {
+            let mut retained = Vec::new();
+            for c in self.connections.drain(..) {
+                if c.group_id.as_deref() == Some(id) {
+                    affected_conn_ids.push(c.id);
+                } else {
+                    retained.push(c);
+                }
+            }
+            self.connections = retained;
+        } else {
+            for c in &mut self.connections {
+                if c.group_id.as_deref() == Some(id) {
+                    c.group_id = None;
+                    affected_conn_ids.push(c.id.clone());
+                }
+            }
+        }
+
+        (removed_group, affected_conn_ids)
+    }
+
+    pub fn move_connection(&mut self, id: &str, group_id: Option<String>) -> Option<DbConnection> {
+        if let Some(c) = self.connections.iter_mut().find(|c| c.id == id) {
+            c.group_id = group_id;
+            Some(c.clone())
+        } else {
+            None
+        }
     }
 }
 
@@ -85,6 +205,7 @@ mod tests {
             allow_writes: false,
             env: "dev".to_string(),
             data_dir: None,
+            group_id: None,
         }
     }
 
@@ -151,11 +272,85 @@ mod tests {
         assert_eq!(store.connections.len(), 1);
         assert_eq!(store.connections[0].id, "db_legacy");
         assert!(store.connections[0].allow_writes);
+        assert_eq!(store.connections[0].group_id, None);
+        assert!(store.groups.is_empty());
     }
 
     #[test]
-    fn new_connection_id_starts_with_prefix() {
-        let id1 = new_connection_id();
-        assert!(id1.starts_with("db_"));
+    fn new_connection_id_and_group_id_collision_resistance() {
+        let mut conn_ids = std::collections::HashSet::new();
+        let mut grp_ids = std::collections::HashSet::new();
+        for _ in 0..100 {
+            let cid = new_connection_id();
+            let gid = new_group_id();
+            assert!(cid.starts_with("db_"));
+            assert!(gid.starts_with("grp_"));
+            assert!(conn_ids.insert(cid), "duplicate connection id generated");
+            assert!(grp_ids.insert(gid), "duplicate group id generated");
+        }
+    }
+
+    #[test]
+    fn group_crud_and_connection_move() {
+        let mut store = DbStore::default();
+        let grp = DbGroup {
+            id: "grp_1".to_string(),
+            name: "Fameo Workspace".to_string(),
+            description: Some("Production cluster".to_string()),
+            color: Some("#6366f1".to_string()),
+            created_at: 1000,
+            updated_at: 1000,
+        };
+        store.add_group(grp);
+        assert_eq!(store.groups.len(), 1);
+        assert_eq!(store.get_group("grp_1").unwrap().name, "Fameo Workspace");
+
+        // Update group
+        let updated = store
+            .update_group("grp_1", "Fameo Prods".to_string(), None, None)
+            .unwrap();
+        assert_eq!(updated.name, "Fameo Prods");
+        assert_eq!(updated.description, None);
+
+        // Add connections (one with group_id, one without)
+        let mut c1 = sample_conn("db_1", "Main DB", "postgres");
+        c1.group_id = Some("grp_1".to_string());
+        store.add(c1);
+
+        let c2 = sample_conn("db_2", "Redis Cache", "redis");
+        store.add(c2);
+
+        // Move c2 to grp_1
+        let moved = store.move_connection("db_2", Some("grp_1".to_string()));
+        assert_eq!(moved.unwrap().group_id, Some("grp_1".to_string()));
+        assert_eq!(
+            store.get("db_2").unwrap().group_id,
+            Some("grp_1".to_string())
+        );
+
+        // Remove group with delete_connections = false
+        let (removed_grp, affected) = store.remove_group("grp_1", false);
+        assert!(removed_grp.is_some());
+        assert_eq!(affected.len(), 2);
+        assert_eq!(store.get("db_1").unwrap().group_id, None);
+        assert_eq!(store.get("db_2").unwrap().group_id, None);
+        assert_eq!(store.connections.len(), 2);
+
+        // Put c1 in new group, then remove group with delete_connections = true
+        store.add_group(DbGroup {
+            id: "grp_2".to_string(),
+            name: "Temp Group".to_string(),
+            description: None,
+            color: None,
+            created_at: 2000,
+            updated_at: 2000,
+        });
+        store.move_connection("db_1", Some("grp_2".to_string()));
+        let (removed_grp2, affected2) = store.remove_group("grp_2", true);
+        assert!(removed_grp2.is_some());
+        assert_eq!(affected2, vec!["db_1".to_string()]);
+        assert!(store.get("db_1").is_none());
+        assert!(store.get("db_2").is_some());
+        assert_eq!(store.connections.len(), 1);
     }
 }

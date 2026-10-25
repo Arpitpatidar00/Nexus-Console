@@ -8,11 +8,13 @@ import { Switch } from '@/shared/ui/Switch';
 import {
   useAddDbConnection,
   useDbConnections,
+  useDbGroups,
   useDiscoveredDatabases,
+  useMoveDbConnection,
   useRemoveDbConnection,
 } from '../api/useDatabases';
 import { useDbSchema } from '../api/useExplorer';
-import type { DiscoveredDb } from '../api/databases.schema';
+import type { DbConnection, DbGroup, DiscoveredDb } from '../api/databases.schema';
 import type { Filter } from '../api/explorer.schema';
 import { buildDiagram, type Detail } from '../utils/diagram';
 import { fileStem, toMermaid } from '../utils/mermaid';
@@ -20,7 +22,9 @@ import { declaredLinks, keyOf, linksOf } from '../utils/relations';
 import { AddConnectionDialog } from '../components/AddConnectionDialog';
 import { DatabaseOverview } from '../components/DatabaseOverview';
 import { DiagramCanvas } from '../components/DiagramCanvas';
+import { EditConnectionDialog } from '../components/EditConnectionDialog';
 import { ExplorerSidebar } from '../components/ExplorerSidebar';
+import { DeleteGroupDialog, GroupDialog } from '../components/GroupDialog';
 import { MapView } from '../components/MapView';
 import { QueryEditor } from '../components/QueryEditor/QueryEditor';
 import { SnapshotsPanel } from '../components/SnapshotsPanel/SnapshotsPanel';
@@ -44,16 +48,26 @@ const ENGINE_LABEL: Record<string, string> = {
 export function DatabasesPage() {
   const connectionsQ = useDbConnections();
   const connections = connectionsQ.data ?? [];
+  const { data: groups = [] } = useDbGroups();
   const { data: discovered = [] } = useDiscoveredDatabases();
   const addConn = useAddDbConnection();
   const removeConn = useRemoveDbConnection();
+  const moveConn = useMoveDbConnection();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
   // Following links pushes onto a trail, so Back retraces them.
   const [trail, setTrail] = useState<Opened[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addGroupTargetId, setAddGroupTargetId] = useState<string | null>(null);
+  const [editingConn, setEditingConn] = useState<DbConnection | null>(null);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<DbGroup | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<{ group: DbGroup; count: number } | null>(
+    null,
+  );
   const [detail, setDetail] = useState<Detail | null>(null);
   const [guesses, setGuesses] = useState(true);
 
@@ -68,6 +82,7 @@ export function DatabasesPage() {
 
   const select = (id: string) => {
     setMapOpen(false);
+    setSelectedGroupId(null);
     if (id !== active?.id) {
       setSelectedId(id);
       setTrail([]);
@@ -77,8 +92,15 @@ export function DatabasesPage() {
       setTrail([]);
     }
   };
-  const open = (key: string, filter?: Filter) => {
+
+  const openMap = (groupId?: string | null) => {
+    setSelectedGroupId(groupId ?? null);
+    setMapOpen(true);
+  };
+
+  const openTableInConn = (key: string, filter?: Filter) => {
     setMapOpen(false);
+    setSelectedGroupId(null);
     setTrail((t) => [...t, { key, filter }]);
   };
 
@@ -93,16 +115,26 @@ export function DatabasesPage() {
       allowWrites: false,
       env: 'dev',
       dataDir: d.dataDir,
+      groupId: null,
     });
 
   const fullDetail: Detail = detail ?? ((schema?.tables.length ?? 0) > 25 ? 'keys' : 'all');
 
+  // Map view connections scoped by selected group or all
+  const mapConnections = selectedGroupId
+    ? connections.filter((c) => c.groupId === selectedGroupId)
+    : connections;
+
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId);
+
   return (
     <div className="flex h-full overflow-hidden bg-canvas text-fg">
       <ExplorerSidebar
+        groups={groups}
         connections={connections}
         discovered={discovered}
         selectedId={active?.id ?? null}
+        selectedGroupId={selectedGroupId}
         schema={{
           data: schema,
           isLoading: schemaQ.isLoading,
@@ -115,12 +147,27 @@ export function DatabasesPage() {
         onSelect={select}
         onOpenTable={(key) => {
           setMapOpen(false);
+          setSelectedGroupId(null);
           setTrail([{ key }]);
         }}
-        onOpenMap={() => setMapOpen(true)}
-        onAdd={() => setIsAddOpen(true)}
+        onOpenMap={openMap}
+        onAddConnection={(groupId) => {
+          setAddGroupTargetId(groupId ?? null);
+          setIsAddOpen(true);
+        }}
+        onEditConnection={(conn) => setEditingConn(conn)}
+        onMoveConnection={(id, targetGroupId) => moveConn.mutate({ id, groupId: targetGroupId })}
         onQuickAdd={quickAdd}
         onRemove={(id) => removeConn.mutate(id)}
+        onCreateGroup={() => {
+          setEditingGroup(null);
+          setIsGroupModalOpen(true);
+        }}
+        onEditGroup={(g) => {
+          setEditingGroup(g);
+          setIsGroupModalOpen(true);
+        }}
+        onDeleteGroup={(g, count) => setDeletingGroup({ group: g, count })}
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
@@ -134,13 +181,27 @@ export function DatabasesPage() {
           </div>
         ) : mapOpen ? (
           <>
-            <header className="flex h-12 shrink-0 items-center border-b border-hairline px-4">
-              <h1 className="text-sm font-semibold text-fg">All databases</h1>
+            <header className="flex h-12 shrink-0 items-center justify-between border-b border-hairline px-4">
+              <div className="flex items-center gap-2">
+                {selectedGroup && (
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: selectedGroup.color ?? '#6366f1' }}
+                  />
+                )}
+                <h1 className="text-sm font-semibold text-fg">
+                  {selectedGroup ? `${selectedGroup.name} Architecture` : 'All Databases'}
+                </h1>
+                <span className="text-xs text-muted-foreground">
+                  ({mapConnections.length} database{mapConnections.length === 1 ? '' : 's'})
+                </span>
+              </div>
             </header>
             <MapView
-              connections={connections}
+              connections={mapConnections}
               onOpenTable={(connectionId, key) => {
                 setMapOpen(false);
+                setSelectedGroupId(null);
                 setSelectedId(connectionId);
                 setTrail([{ key }]);
               }}
@@ -152,7 +213,14 @@ export function DatabasesPage() {
             title="Explore a database"
             description="Add a connection — or paste a DATABASE_URL — to browse rows like documents, see how tables connect, and export the diagram."
             action={
-              <Button variant="ember" size="sm" onClick={() => setIsAddOpen(true)}>
+              <Button
+                variant="ember"
+                size="sm"
+                onClick={() => {
+                  setAddGroupTargetId(null);
+                  setIsAddOpen(true);
+                }}
+              >
                 Add a connection
               </Button>
             }
@@ -238,7 +306,7 @@ export function DatabasesPage() {
                 table={openTable}
                 links={links}
                 nameOf={nameOf}
-                onOpenTable={open}
+                onOpenTable={openTableInConn}
                 initialFilter={opened!.filter}
               />
             ) : tab === 'sql' ? (
@@ -306,7 +374,30 @@ export function DatabasesPage() {
         )}
       </main>
 
-      <AddConnectionDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
+      <AddConnectionDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        defaultGroupId={addGroupTargetId}
+      />
+
+      <EditConnectionDialog
+        open={Boolean(editingConn)}
+        onOpenChange={(open) => !open && setEditingConn(null)}
+        connection={editingConn}
+      />
+
+      <GroupDialog
+        open={isGroupModalOpen}
+        onOpenChange={setIsGroupModalOpen}
+        group={editingGroup}
+      />
+
+      <DeleteGroupDialog
+        open={Boolean(deletingGroup)}
+        onOpenChange={(open) => !open && setDeletingGroup(null)}
+        group={deletingGroup?.group ?? null}
+        connectionCount={deletingGroup?.count ?? 0}
+      />
     </div>
   );
 }

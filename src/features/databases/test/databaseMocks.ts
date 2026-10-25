@@ -1,5 +1,16 @@
-import type { DbConnection } from '../api/databases.schema';
+import type { DbConnection, DbGroup } from '../api/databases.schema';
 import type { DbSchema } from '../api/explorer.schema';
+
+export const mockGroups: DbGroup[] = [
+  {
+    id: 'grp_fameo',
+    name: 'Fameo Cluster',
+    description: 'Production microservice cluster with 5 databases',
+    color: '#6366f1',
+    createdAt: 1729472000,
+    updatedAt: 1729472000,
+  },
+];
 
 export const mockConnections: DbConnection[] = [
   {
@@ -14,6 +25,7 @@ export const mockConnections: DbConnection[] = [
     allowWrites: true,
     env: 'dev',
     dataDir: null,
+    groupId: 'grp_fameo',
   },
   {
     id: 'conn_pg_auth',
@@ -27,6 +39,7 @@ export const mockConnections: DbConnection[] = [
     allowWrites: true,
     env: 'dev',
     dataDir: null,
+    groupId: 'grp_fameo',
   },
   {
     id: 'conn_mongo_chat',
@@ -40,6 +53,7 @@ export const mockConnections: DbConnection[] = [
     allowWrites: true,
     env: 'dev',
     dataDir: null,
+    groupId: 'grp_fameo',
   },
   {
     id: 'conn_mysql_ecom',
@@ -53,6 +67,7 @@ export const mockConnections: DbConnection[] = [
     allowWrites: false,
     env: 'staging',
     dataDir: null,
+    groupId: 'grp_fameo',
   },
   {
     id: 'conn_redis_cache',
@@ -66,6 +81,7 @@ export const mockConnections: DbConnection[] = [
     allowWrites: false,
     env: 'dev',
     dataDir: null,
+    groupId: 'grp_fameo',
   },
 ];
 

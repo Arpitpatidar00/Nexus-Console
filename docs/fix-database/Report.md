@@ -276,17 +276,13 @@ pub struct DbStore {
   Lift cross-database relationship resolution to a shared hook/context (`useGroupRelations(groupId)`). Pass group-level cross-links into `TableView`. Extend `onOpenTable` to accept `(connectionId: string, tableKey: string, filter?: Filter)`.
 - **Dependencies**: ISS-03 (Group context).
 
-### ISS-03: Lack of Group/Workspace Scoping in Connection Management
+### ISS-03 [Closed in Phase 1]: Lack of Group/Workspace Scoping in Connection Management
 
 - **Severity**: **Medium**
-- **Location**: [store.rs:7-19](file:///Users/devarpit/Desktop/Stackroost/src-tauri/src/services/databases/store.rs#L7-L19), [ExplorerSidebar.tsx:127-140](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/components/ExplorerSidebar/ExplorerSidebar.tsx#L127-L140)
-- **Reproduction Scenario**:
-  A user has 15 databases across 3 independent projects ("Fameo", "EduSphere", "Personal").
-- **Actual Impact**:
-  All 15 databases are listed in a single flat list. Opening the "All databases" map loads all 15 schemas and attempts to cross-link table names between unrelated projects (e.g., linking EduSphere's `user_id` to Fameo's `users` table).
-- **Recommended Correction**:
-  Implement the proposed `DbGroup` model. Filter the map and cross-database inference strictly by the currently active Group.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 1)
+- Implemented `DbGroup` data structure and persistence in `store.rs`.
+- Added commands `db_list_groups`, `db_create_group`, `db_update_group`, `db_delete_group`, and `db_move_connection`.
+- Added Group accordion, group-scoped map views, and ungrouped bucket handling in `ExplorerSidebar.tsx` and `DatabasesPage.tsx`.
 
 ### ISS-04: Unbounded Parallel Process Execution during Schema Introspection
 
@@ -300,17 +296,12 @@ pub struct DbStore {
   **[Corrected]** Bound it in **Rust**, not with `p-limit`: `commands::blocking` is `tauri::async_runtime::spawn_blocking` (a large pool), and a JS-side limiter would not bound other callers (sidebar `useDbSchema`, refresh). Use one counting semaphore around `explorer::schema` inside `db_schema` (max 3). No new dependency is needed.
 - **Dependencies**: None.
 
-### ISS-05: Missing Connection Edit Operation
+### ISS-05 [Closed in Phase 1]: Missing Connection Edit Operation
 
 - **Severity**: **Medium**
-- **Location**: [commands/databases.rs](file:///Users/devarpit/Desktop/Stackroost/src-tauri/src/commands/databases.rs)
-- **Reproduction Scenario**:
-  Database host changes from `127.0.0.1` to `db.local` or port changes from `5432` to `5433`.
-- **Actual Impact**:
-  User cannot edit the connection. They must delete it (which triggers a destructive confirmation dialog and wipes the Keychain password) and recreate it from scratch.
-- **Recommended Correction**:
-  Add `#[tauri::command] pub async fn db_update_connection(app: AppHandle, input: UpdateConnectionInput)` to update configuration without destroying the Keychain entry if password is unchanged.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 1)
+- Added `db_update_connection` backend command with mutation gating, re-applying production read-only enforcement, updating configuration while safely preserving or updating Keychain passwords.
+- Added `EditConnectionDialog` component allowing full editing of connection configuration without destroying the Keychain secret.
 
 ### ISS-06: Quadratic In-Render Calculation of `crossDbLinks`
 
@@ -337,50 +328,37 @@ pub struct DbStore {
   Include data type compatibility checks in `relations.ts`. When types are fundamentally incompatible (e.g., Integer vs ObjectId), mark the relationship as `incompatibleType: true` and warn the user.
 - **Dependencies**: None.
 
-### ISS-08: Stale React Query Schema Cache on Connection Removal
+### ISS-08 [Closed in Phase 1]: Stale React Query Schema Cache on Connection Removal
 
 - **Severity**: **Low**
-- **Location**: [useDatabases.ts:58-61](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/api/useDatabases.ts#L58-L61)
-- **Reproduction Scenario**:
-  Remove connection `db_123`.
-- **Actual Impact**:
-  `queryClient.invalidateQueries({ queryKey: dbKeys.connections() })` runs, but `dbKeys.schema('db_123')` and every `dbKeys.browse('db_123', …)` page remain cached until GC. **[Corrected]** ID reuse is practically impossible with millisecond IDs, so the real impact is retained memory and possible stale entries if IDs ever become reusable — still worth fixing, Low severity.
-- **Recommended Correction**:
-  In `useRemoveDbConnection.onSuccess(_, id)`, call `removeQueries` for `dbKeys.schema(id)` and `[...dbKeys.all, 'browse', id]`.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 1)
+- `useRemoveDbConnection` and `useUpdateDbConnection` now actively evict `['databases', 'schema', id]` and `['databases', 'browse', id]` cache entries from React Query upon connection deletion or update.
 
-### ISS-09: Timestamp-Based Connection ID Collision Risk
+### ISS-09 [Closed in Phase 1]: Timestamp-Based Connection ID Collision Risk
 
 - **Severity**: **Low**
-- **Location**: [store.rs:36-42](file:///Users/devarpit/Desktop/Stackroost/src-tauri/src/services/databases/store.rs#L36-L42)
-- **Reproduction Scenario**:
-  Adding multiple connections in quick programmatic succession (e.g., automated restore or rapid quick-add).
-- **Actual Impact**:
-  `new_connection_id()` uses `SystemTime::now().as_millis()`. Two connections created within the same millisecond receive identical IDs, causing `store.add()` to overwrite the first.
-- **Recommended Correction**:
-  Generate the ID while holding the store lock and bump/redraw until `store.get(id)` is `None`, or reuse the repo's `/dev/urandom` hex ID pattern (`remote_store::new_host_id`). Do not add a `uuid` dependency just for this.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 1)
+- Replaced timestamp-only ID generator with collision-resistant `new_connection_id()` and `new_group_id()` using `/dev/urandom` entropy buffer.
+- Verified with unit tests producing 100 consecutive collision-free IDs for both connections and groups.
 
-### ISS-10 [New]: `db_set_password` is an ungated, unvalidated, unused command
+### ISS-10 [Closed in Phase 1]: `db_set_password` is an ungated, unvalidated, unused command
 
 - **Severity**: **Medium (security)**
-- **Location**: `src-tauri/src/commands/databases.rs` (`db_set_password`), registered in `src-tauri/src/lib.rs` `generate_handler!`; **absent** from `src/shared/tauri/commands.ts` `CMD`.
-- **Evidence**: No `mutation(...)`/`mutation_unattended(...)` call, no ID validation. It escapes `guard_mutations_gated` (`src-tauri/tests/guards.rs`) because `set` is not in that guard's keyword list.
-- **Impact**: Any frontend code can overwrite the Keychain secret of any `db_conn_*` entry (or create arbitrary ones) without a journal entry.
-- **Recommended Correction**: Remove it (nothing calls it). Password changes belong inside the gated `db_update_connection` from Phase 1. Optionally add `set`/`update` to the guard's keyword list.
+- **Status**: **CLOSED** (Phase 1)
+- Removed `db_set_password` completely from `commands/databases.rs` and `src-tauri/src/lib.rs`.
+- Keychain updates now strictly reside within the gated and validated `db_update_connection` command.
 
-### ISS-11 [New]: Keychain write failure on add is silently ignored
+### ISS-11 [Closed in Phase 1]: Keychain write failure on add is silently ignored
 
 - **Severity**: **Medium**
-- **Location**: `db_add_connection` — `let _ = crate::core::keychain::set_password(...)`.
-- **Impact**: If the Keychain write fails, the connection is saved without its password and later fails with a misleading auth error. Contradicts the "no ignored command outputs" rule in CLAUDE.md.
-- **Recommended Correction**: Propagate the error (and record `guard.failure`) before saving the connection.
+- **Status**: **CLOSED** (Phase 1)
+- In `db_add_connection`, `keychain::set_password` failures are now propagated immediately via `AppError::Io`, aborting connection creation and leaving the store consistent.
 
-### ISS-12 [New]: `driver` and `env` are not validated on the Rust boundary
+### ISS-12 [Closed in Phase 1]: `driver` and `env` are not validated on the Rust boundary
 
 - **Severity**: **Low**
-- **Location**: `db_add_connection` validates host/port/user/database only.
-- **Impact**: An unsupported `driver` is persisted and only fails at `explorer::schema` time ("unsupported database"). Phase 2 of the prompt asks for a controlled unsupported-engine error — validate at add/update time too.
+- **Status**: **CLOSED** (Phase 1)
+- Added `validate_driver` and `validate_env` helpers in `commands/databases.rs`, enforcing driver support (`postgres`, `mysql`, `mongo`, `mongodb`, `redis`) and known environments on all add/update boundaries.
 
 ### ISS-13 [New]: DB connections never call `check_outbound_allowed`
 

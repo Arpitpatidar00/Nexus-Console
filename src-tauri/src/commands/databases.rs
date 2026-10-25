@@ -10,11 +10,35 @@ use crate::services::databases::apfs::{self, DbSnapshot};
 use crate::services::databases::classifier;
 use crate::services::databases::discovery::{self, DiscoveredDb};
 use crate::services::databases::explorer::{self, BrowsePage, BrowseRequest, DbSchema, Endpoint};
-use crate::services::databases::store::{new_connection_id, DbConnection, QueryResult};
+use crate::services::databases::store::{
+    new_connection_id, new_group_id, DbConnection, DbGroup, QueryResult,
+};
 use crate::services::databases::DatabaseState;
 use std::path::Path;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
+
+fn validate_driver(driver: &str) -> AppResult<()> {
+    match driver.to_ascii_lowercase().as_str() {
+        "postgres" | "mysql" | "mongo" | "mongodb" | "redis" => Ok(()),
+        other => Err(AppError::InvalidName(format!(
+            "unsupported database driver: {other}"
+        ))),
+    }
+}
+
+fn validate_env(env: &str) -> AppResult<()> {
+    let trimmed = env.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::InvalidName("environment cannot be empty".into()));
+    }
+    match trimmed.to_ascii_lowercase().as_str() {
+        "dev" | "development" | "staging" | "prod" | "production" | "local" | "test" => Ok(()),
+        other => Err(AppError::InvalidName(format!(
+            "unrecognized environment: {other}"
+        ))),
+    }
+}
 
 #[tauri::command]
 pub async fn db_discover_connections(_app: AppHandle) -> AppResult<Vec<DiscoveredDb>> {
@@ -48,11 +72,345 @@ pub struct AddConnectionInput {
     pub allow_writes: bool,
     pub env: String,
     pub data_dir: Option<String>,
+    pub group_id: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateConnectionInput {
+    pub id: String,
+    pub name: String,
+    pub driver: String,
+    pub host: String,
+    pub port: u16,
+    pub user: Option<String>,
+    pub password: Option<String>,
+    pub database: Option<String>,
+    pub tunnel_id: Option<String>,
+    pub allow_writes: bool,
+    pub env: String,
+    pub data_dir: Option<String>,
+    pub group_id: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateGroupInput {
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateGroupInput {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
 }
 
 #[tauri::command]
-pub async fn db_set_password(id: String, password: String) -> AppResult<()> {
-    crate::core::keychain::set_password(&format!("db_conn_{id}"), &password)
+pub async fn db_list_groups(app: AppHandle) -> AppResult<Vec<DbGroup>> {
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        Ok(store.groups.clone())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_create_group(app: AppHandle, input: CreateGroupInput) -> AppResult<DbGroup> {
+    let name = input.name.trim().to_string();
+    if name.is_empty() {
+        return Err(AppError::InvalidName("Group name cannot be empty".into()));
+    }
+    if name.len() > 100 {
+        return Err(AppError::InvalidName("Group name too long".into()));
+    }
+
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Create DB Group",
+            format!("Create database group {name}"),
+            "create_group",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&name),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let group = DbGroup {
+            id: new_group_id(),
+            name,
+            description: input
+                .description
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+            color: input
+                .color
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        store.add_group(group.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(group)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_update_group(app: AppHandle, input: UpdateGroupInput) -> AppResult<DbGroup> {
+    let name = input.name.trim().to_string();
+    if name.is_empty() {
+        return Err(AppError::InvalidName("Group name cannot be empty".into()));
+    }
+    if name.len() > 100 {
+        return Err(AppError::InvalidName("Group name too long".into()));
+    }
+
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Update DB Group",
+            format!("Update database group {name}"),
+            "update_group",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&name),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        let updated = store
+            .update_group(
+                &input.id,
+                name,
+                input
+                    .description
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty()),
+                input
+                    .color
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty()),
+            )
+            .ok_or_else(|| AppError::NotFound(format!("group {}", input.id)))?;
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(updated)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_delete_group(
+    app: AppHandle,
+    id: String,
+    delete_connections: bool,
+) -> AppResult<()> {
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let group_name = {
+            let store = state
+                .store
+                .lock()
+                .map_err(|_| AppError::Io("db store poisoned".into()))?;
+            store
+                .get_group(&id)
+                .map(|g| g.name.clone())
+                .ok_or_else(|| AppError::NotFound(format!("group {id}")))?
+        };
+
+        let guard = if delete_connections {
+            mutation(
+                &app,
+                MutationSpec::new(
+                    format!("Delete “{group_name}” and connections?"),
+                    "Stackroost removes this group and all its member database connections and deletes their saved Keychain passwords.",
+                    "Delete Group and Connections",
+                )
+                .blast_radius(BlastRadius::LocalIsolated)
+                .target(&group_name)
+                .destructive(true),
+            )?
+        } else {
+            mutation_unattended(
+                MutationSpec::new(
+                    "Delete DB Group",
+                    format!("Delete group {group_name} (moving connections to Ungrouped)"),
+                    "delete_group",
+                )
+                .blast_radius(BlastRadius::LocalIsolated)
+                .target(&group_name),
+            )
+        };
+
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        let (removed_group, affected_ids) = store.remove_group(&id, delete_connections);
+        if removed_group.is_none() {
+            return Err(AppError::NotFound(format!("group {id}")));
+        }
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        drop(store);
+
+        if delete_connections {
+            for conn_id in affected_ids {
+                if let Err(e) =
+                    crate::core::keychain::delete_password(&format!("db_conn_{conn_id}"))
+                {
+                    guard.failure(format!("Keychain entry not deleted for {conn_id}: {e}"));
+                }
+            }
+        }
+
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_move_connection(
+    app: AppHandle,
+    id: String,
+    group_id: Option<String>,
+) -> AppResult<DbConnection> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Move DB Connection",
+            format!("Move connection {id} to group {group_id:?}"),
+            "move_connection",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        if let Some(ref gid) = group_id {
+            if store.get_group(gid).is_none() {
+                return Err(AppError::NotFound(format!("group {gid}")));
+            }
+        }
+        let moved = store
+            .move_connection(&id, group_id)
+            .ok_or_else(|| AppError::NotFound(format!("connection {id}")))?;
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(moved)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_update_connection(
+    app: AppHandle,
+    input: UpdateConnectionInput,
+) -> AppResult<DbConnection> {
+    validate_driver(&input.driver)?;
+    validate_env(&input.env)?;
+    let _ = HostName::try_from(input.host.as_str())?;
+    let _ = Port::try_from(input.port)?;
+    if let Some(ref u) = input.user {
+        let _ = DbUser::try_from(u.as_str())?;
+    }
+    if let Some(ref d) = input.database {
+        let _ = DbName::try_from(d.as_str())?;
+    }
+
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Update DB Connection",
+            format!(
+                "Update connection {} ({}:{})",
+                input.name, input.host, input.port
+            ),
+            "update_connection",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&input.name),
+    );
+
+    let is_prod = input.env == "prod" || input.env == "production";
+    let allow_writes = input.allow_writes && !is_prod;
+    let password_opt = input.password.clone();
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+
+        // Verify connection exists
+        let _ = store
+            .get(&input.id)
+            .ok_or_else(|| AppError::NotFound(format!("connection {}", input.id)))?;
+
+        // If target group is specified, verify it exists
+        if let Some(ref gid) = input.group_id {
+            if store.get_group(gid).is_none() {
+                return Err(AppError::NotFound(format!("group {gid}")));
+            }
+        }
+
+        // If password is provided, update Keychain first
+        if let Some(ref pass) = password_opt {
+            crate::core::keychain::set_password(&format!("db_conn_{}", input.id), pass)
+                .map_err(|e| AppError::Io(format!("Failed to update Keychain password: {e}")))?;
+        }
+
+        let conn = DbConnection {
+            id: input.id,
+            name: input.name,
+            driver: input.driver,
+            host: input.host,
+            port: input.port,
+            user: input.user,
+            database: input.database,
+            tunnel_id: input.tunnel_id,
+            allow_writes,
+            env: input.env,
+            data_dir: input.data_dir,
+            group_id: input.group_id,
+        };
+
+        store
+            .update_connection(conn.clone())
+            .ok_or_else(|| AppError::NotFound(format!("connection {}", conn.id)))?;
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(conn)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -61,6 +419,8 @@ pub async fn db_add_connection(
     input: AddConnectionInput,
 ) -> AppResult<DbConnection> {
     // Validate inputs
+    validate_driver(&input.driver)?;
+    validate_env(&input.env)?;
     let _ = HostName::try_from(input.host.as_str())?;
     let _ = Port::try_from(input.port)?;
     if let Some(ref u) = input.user {
@@ -92,7 +452,19 @@ pub async fn db_add_connection(
         let conn_id = new_connection_id();
 
         if let Some(ref pass) = password_opt {
-            let _ = crate::core::keychain::set_password(&format!("db_conn_{conn_id}"), pass);
+            crate::core::keychain::set_password(&format!("db_conn_{conn_id}"), pass)
+                .map_err(|e| AppError::Io(format!("Failed to save Keychain password: {e}")))?;
+        }
+
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+
+        if let Some(ref gid) = input.group_id {
+            if store.get_group(gid).is_none() {
+                return Err(AppError::NotFound(format!("group {gid}")));
+            }
         }
 
         let conn = DbConnection {
@@ -107,11 +479,8 @@ pub async fn db_add_connection(
             allow_writes,
             env: input.env,
             data_dir: input.data_dir,
+            group_id: input.group_id,
         };
-        let mut store = state
-            .store
-            .lock()
-            .map_err(|_| AppError::Io("db store poisoned".into()))?;
         store.add(conn.clone());
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;

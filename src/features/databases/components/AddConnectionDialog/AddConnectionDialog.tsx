@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui/Button';
 import { Field, Input } from '@/shared/ui/Field';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Switch } from '@/shared/ui/Switch';
-import { useAddDbConnection } from '@/features/databases/api/useDatabases';
+import { useAddDbConnection, useDbGroups } from '@/features/databases/api/useDatabases';
 import { parseConnectionUrl } from '@/features/databases/utils/connectionUrl';
 import { ENGINES, type Engine } from './AddConnectionDialog.config';
 
@@ -13,10 +13,16 @@ type Env = 'dev' | 'staging' | 'prod';
 interface AddConnectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultGroupId?: string | null;
 }
 
-export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogProps) => {
+export const AddConnectionDialog = ({
+  open,
+  onOpenChange,
+  defaultGroupId,
+}: AddConnectionDialogProps) => {
   const addConn = useAddDbConnection();
+  const { data: groups = [] } = useDbGroups();
   const [engine, setEngine] = useState<Engine>('postgres');
   const [name, setName] = useState('');
   const [host, setHost] = useState('127.0.0.1');
@@ -27,6 +33,7 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
   const [dataDir, setDataDir] = useState('');
   const [env, setEnv] = useState<Env>('dev');
   const [allowWrites, setAllowWrites] = useState(false);
+  const [groupId, setGroupId] = useState<string | null>(defaultGroupId ?? null);
   const [url, setUrl] = useState('');
   const [urlNote, setUrlNote] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -75,6 +82,7 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
     setPassword('');
     setEnv('dev');
     setAllowWrites(false);
+    setGroupId(defaultGroupId ?? null);
   };
 
   const submit = (e: React.FormEvent) => {
@@ -91,6 +99,7 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
         allowWrites: allowWrites && env !== 'prod',
         env,
         dataDir: cfg.dataDir ? dataDir.trim() || null : null,
+        groupId: groupId || null,
       },
       {
         onSuccess: () => {
@@ -217,6 +226,26 @@ export const AddConnectionDialog = ({ open, onOpenChange }: AddConnectionDialogP
             />
           </Field>
         )}
+
+        <Field
+          label="Workspace Group"
+          hint="Optional — organizes connections into a shared microservice cluster."
+          htmlFor="conn-group"
+        >
+          <select
+            id="conn-group"
+            value={groupId ?? ''}
+            onChange={(e) => setGroupId(e.target.value || null)}
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-fg focus:ring-1 focus:ring-ring focus:outline-none"
+          >
+            <option value="">Ungrouped</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
         <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
           <div className="flex items-center justify-between gap-3">

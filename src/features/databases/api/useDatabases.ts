@@ -5,10 +5,15 @@ import { dbKeys } from './keys';
 import {
   discoveredDbSchema,
   dbConnectionSchema,
+  dbGroupSchema,
   queryResultSchema,
   dbSnapshotSchema,
   type DiscoveredDb,
   type DbConnection,
+  type DbGroup,
+  type CreateGroupInput,
+  type UpdateGroupInput,
+  type UpdateConnectionInput,
   type QueryResult,
   type DbSnapshot,
 } from './databases.schema';
@@ -18,6 +23,46 @@ export function useDiscoveredDatabases() {
     queryKey: dbKeys.discovered(),
     queryFn: () => ipc(CMD.DB_DISCOVER_CONNECTIONS, undefined, z.array(discoveredDbSchema)),
     staleTime: 10_000,
+  });
+}
+
+export function useDbGroups() {
+  return useQuery<DbGroup[]>({
+    queryKey: dbKeys.groups(),
+    queryFn: () => ipc(CMD.DB_LIST_GROUPS, undefined, z.array(dbGroupSchema)),
+    staleTime: Infinity,
+  });
+}
+
+export function useCreateDbGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateGroupInput) => ipc(CMD.DB_CREATE_GROUP, { input }, dbGroupSchema),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.groups() });
+    },
+  });
+}
+
+export function useUpdateDbGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateGroupInput) => ipc(CMD.DB_UPDATE_GROUP, { input }, dbGroupSchema),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.groups() });
+    },
+  });
+}
+
+export function useDeleteDbGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, deleteConnections }: { id: string; deleteConnections: boolean }) =>
+      ipcVoid(CMD.DB_DELETE_GROUP, { id, deleteConnections }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.groups() });
+      queryClient.invalidateQueries({ queryKey: dbKeys.connections() });
+    },
   });
 }
 
@@ -44,7 +89,32 @@ export function useAddDbConnection() {
       allowWrites: boolean;
       env: string;
       dataDir?: string | null;
+      groupId?: string | null;
     }) => ipc(CMD.DB_ADD_CONNECTION, { input }, dbConnectionSchema),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.connections() });
+    },
+  });
+}
+
+export function useUpdateDbConnection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateConnectionInput) =>
+      ipc(CMD.DB_UPDATE_CONNECTION, { input }, dbConnectionSchema),
+    onSuccess: (_, input) => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.connections() });
+      queryClient.removeQueries({ queryKey: [...dbKeys.all, 'schema', input.id] });
+      queryClient.removeQueries({ queryKey: [...dbKeys.all, 'browse', input.id] });
+    },
+  });
+}
+
+export function useMoveDbConnection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, groupId }: { id: string; groupId: string | null }) =>
+      ipc(CMD.DB_MOVE_CONNECTION, { id, groupId }, dbConnectionSchema),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dbKeys.connections() });
     },
@@ -55,8 +125,10 @@ export function useRemoveDbConnection() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => ipcVoid(CMD.DB_REMOVE_CONNECTION, { id }),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: dbKeys.connections() });
+      queryClient.removeQueries({ queryKey: [...dbKeys.all, 'schema', id] });
+      queryClient.removeQueries({ queryKey: [...dbKeys.all, 'browse', id] });
     },
   });
 }

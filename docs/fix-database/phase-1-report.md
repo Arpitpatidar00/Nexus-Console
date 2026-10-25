@@ -1,0 +1,77 @@
+# Phase 1 — Group-Based Workspace and Connection Management Report
+
+## Phase 1 — Result
+
+- **Verdict:** PASS
+- **Implemented:**
+  - **Data Model:**
+    - Added `DbGroup` struct (`id`, `name`, `description`, `color`, `created_at`, `updated_at`) with camelCase JSON serialization.
+    - Added `group_id: Option<String>` with `#[serde(default)]` to `DbConnection`, ensuring full backward compatibility with legacy stores.
+    - Added `groups: Vec<DbGroup>` with `#[serde(default)]` to `DbStore`.
+    - Added collision-resistant IDs (`new_connection_id()` and `new_group_id()`) using `/dev/urandom` entropy buffer.
+    - Implemented store methods: `add_group`, `get_group`, `update_group`, `remove_group`, `move_connection`, `update_connection`.
+  - **Backend Commands (`src-tauri/src/commands/databases.rs`):**
+    - Removed ungated and unused `db_set_password` command (ISS-10).
+    - Added input validation: `validate_driver` (`postgres | mysql | mongo | mongodb | redis`) and `validate_env` (ISS-12).
+    - Propagated Keychain write errors on connection add and update via `AppError::Io`, aborting changes before store mutation (ISS-11).
+    - Enforced production read-only guard: `allow_writes` forced to `false` in backend whenever `env == "prod" || env == "production"`.
+    - Added `db_list_groups` command.
+    - Added `db_create_group` command (gated with `mutation_unattended`).
+    - Added `db_update_group` command (gated with `mutation_unattended`).
+    - Added `db_delete_group` command supporting two policies:
+      - `delete_connections: false` (safe, keeps connections and resets `group_id = None`).
+      - `delete_connections: true` (destructive, gated with `mutation(...)` modal confirmation and cleans up Keychain entries).
+    - Added `db_update_connection` command (preserves connection ID, updates config, updates Keychain password if provided, evicts schema and browse query caches).
+    - Added `db_move_connection` command (gated with `mutation_unattended`).
+  - **Frontend State, API, and UI:**
+    - Exported `dbGroupSchema`, `createGroupInputSchema`, `updateGroupInputSchema`, `updateConnectionInputSchema` from `databases.schema.ts`.
+    - Added `dbKeys.groups()` in `keys.ts`.
+    - Added `useDbGroups`, `useCreateDbGroup`, `useUpdateDbGroup`, `useDeleteDbGroup`, `useUpdateDbConnection`, `useMoveDbConnection` in `useDatabases.ts`.
+    - Implemented React Query cache eviction for removed and updated connections (ISS-08).
+    - Created `EditConnectionDialog` component for editing connections without deleting and recreating (ISS-05).
+    - Created `GroupDialog` and `DeleteGroupDialog` components for creating/editing groups and choosing safe vs destructive group deletion policies.
+    - Rewrote `ExplorerSidebar` with collapsible group accordions, color accents, connection counts, scoped group map buttons, context menus, and ungrouped bucket (ISS-03, ISS-09).
+    - Updated `DatabasesPage` to support group-scoped `MapView` rendering, group management, and connection editing.
+- **Files changed:**
+  - `src-tauri/src/services/databases/store.rs`
+  - `src-tauri/src/commands/databases.rs`
+  - `src-tauri/src/lib.rs`
+  - `src/shared/tauri/commands.ts`
+  - `src/features/databases/api/databases.schema.ts`
+  - `src/features/databases/api/databases.schema.test.ts`
+  - `src/features/databases/api/keys.ts`
+  - `src/features/databases/api/useDatabases.ts`
+  - `src/features/databases/components/AddConnectionDialog/AddConnectionDialog.tsx`
+  - `src/features/databases/components/EditConnectionDialog/EditConnectionDialog.tsx`
+  - `src/features/databases/components/EditConnectionDialog/index.ts`
+  - `src/features/databases/components/GroupDialog/GroupDialog.tsx`
+  - `src/features/databases/components/GroupDialog/DeleteGroupDialog.tsx`
+  - `src/features/databases/components/GroupDialog/index.ts`
+  - `src/features/databases/components/ExplorerSidebar/ExplorerSidebar.tsx`
+  - `src/features/databases/pages/DatabasesPage.tsx`
+  - `src/features/databases/test/databaseMocks.ts`
+  - `src/features/databases/test/groups.test.ts`
+  - `docs/fix-database/Report.md`
+- **Tests added/updated:**
+  - `store::tests::new_connection_id_and_group_id_collision_resistance` (Rust unit test)
+  - `store::tests::group_crud_and_connection_move` (Rust unit test)
+  - `databases.schema.test.ts`: Added tests for `dbGroupSchema`, `createGroupInputSchema`, `updateGroupInputSchema`, `updateConnectionInputSchema`, and legacy `groupId: null` validation.
+  - `groups.test.ts`: Added 7 unit tests covering multi-service group fixture, segregation of grouped and ungrouped connections, move-between-groups, safe group deletion policy, cascade deletion policy, connection edit with prod read-only rule, and legacy store migration.
+- **Verification commands:**
+  - `cargo test --manifest-path src-tauri/Cargo.toml` (Outcome: 422 passed, 0 failed, 4 guards passed, 82 parsers passed, 18 payloads passed)
+  - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` (Outcome: clean, 0 warnings)
+  - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` (Outcome: clean, 0 diffs)
+  - `npm test` (Outcome: 69 test files passed, 292 passed, 0 failed)
+  - `npm run typecheck` (Outcome: 0 errors)
+  - `npm run lint` (Outcome: 0 errors, 0 warnings)
+  - `npm run format:check` (Outcome: clean)
+- **Closed Issues:**
+  - ISS-03 (Group / workspace concept for multi-database architectures)
+  - ISS-05 (Connection edit flow preserving Keychain credentials)
+  - ISS-08 (Query cache eviction on connection removal and update)
+  - ISS-09 (Connection list state separated from map-view group scope)
+  - ISS-10 (`db_set_password` ungated command removed)
+  - ISS-11 (Keychain write failure on add/update propagated cleanly)
+  - ISS-12 (Backend validation of driver and env on add/update)
+- **Next Phase:**
+  - Phase 2 (Engine Capability Contract and Mixed-Engine Correctness).

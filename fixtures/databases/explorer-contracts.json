@@ -16,6 +16,80 @@
     "total": 1,
     "totalCapped": false
   },
+  "mongo": {
+    "database": "fameo_chat",
+    "engine": "mongodb",
+    "relations": [],
+    "schemas": [
+      "fameo_chat"
+    ],
+    "serverVersion": "7.0.5",
+    "sizeBytes": 245760,
+    "tables": [
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "objectId",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "_id",
+            "nullable": false,
+            "presence": 1.0
+          },
+          {
+            "comment": null,
+            "dataType": "objectId",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "conversation_id",
+            "nullable": false,
+            "presence": 1.0
+          },
+          {
+            "comment": null,
+            "dataType": "string",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "user_id",
+            "nullable": false,
+            "presence": 1.0
+          },
+          {
+            "comment": null,
+            "dataType": "string",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "body",
+            "nullable": false,
+            "presence": 1.0
+          }
+        ],
+        "comment": null,
+        "indexes": [
+          {
+            "columns": [
+              "_id"
+            ],
+            "definition": "{\"_id\":1}",
+            "method": "btree",
+            "name": "_id_",
+            "primary": true,
+            "unique": true
+          }
+        ],
+        "kind": "collection",
+        "name": "messages",
+        "rowEstimate": 1500,
+        "schema": "fameo_chat",
+        "sizeBytes": 122880
+      }
+    ]
+  },
   "mysql": {
     "database": "shop",
     "engine": "mysql",
@@ -957,6 +1031,120 @@
         "rowEstimate": 3,
         "schema": "public",
         "sizeBytes": 49152
+      }
+    ]
+  },
+  "redis": {
+    "database": "db0",
+    "engine": "redis",
+    "relations": [],
+    "schemas": [
+      "db0"
+    ],
+    "serverVersion": null,
+    "sizeBytes": null,
+    "tables": [
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "string",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "key",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "string",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "type",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "seconds (-1 = never expires)",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "ttl",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "first 100 items / 4 KB",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "value",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": "1 string",
+        "indexes": [],
+        "kind": "keyspace",
+        "name": "(no prefix)",
+        "rowEstimate": 1,
+        "schema": "db0",
+        "sizeBytes": null
+      },
+      {
+        "columns": [
+          {
+            "comment": null,
+            "dataType": "string",
+            "default": null,
+            "isPrimary": true,
+            "isUnique": true,
+            "name": "key",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "string",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "type",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "seconds (-1 = never expires)",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "ttl",
+            "nullable": false,
+            "presence": null
+          },
+          {
+            "comment": null,
+            "dataType": "first 100 items / 4 KB",
+            "default": null,
+            "isPrimary": false,
+            "isUnique": false,
+            "name": "value",
+            "nullable": false,
+            "presence": null
+          }
+        ],
+        "comment": "118 hash, 2 string",
+        "indexes": [],
+        "kind": "keyspace",
+        "name": "session",
+        "rowEstimate": 120,
+        "schema": "db0",
+        "sizeBytes": null
       }
     ]
   }

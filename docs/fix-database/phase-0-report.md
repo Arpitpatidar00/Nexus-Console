@@ -1,0 +1,48 @@
+# Phase 0 — Baseline, Contracts, Fixtures, and Regression Safety Report
+
+## Phase 0 — Result
+
+- **Verdict:** PASS
+- **Implemented:**
+  - Full working tree baseline verification across Frontend and Rust suites.
+  - Added unit test suite for `DbStore` in `src-tauri/src/services/databases/store.rs` (load, save, add, remove, legacy JSON parsing, ID format).
+  - Added MongoDB schema fixture in `fixtures/databases/mongo-schema.json`.
+  - Added MongoDB and Redis contract golden tests in `src-tauri/src/services/databases/explorer/mod.rs` (`explorer_contracts_golden`) and regenerated `fixtures/databases/explorer-contracts.json`.
+  - Added contract tests in `src/features/databases/api/contracts.test.ts` for all 4 engines (PostgreSQL, MySQL, MongoDB, Redis) and `browsePage`.
+  - Added multi-service group mocks in `src/features/databases/test/databaseMocks.ts` representing mixed engines (PostgreSQL, MySQL, MongoDB, Redis) with repeated table names and varied primary key structures.
+- **Files changed:**
+  - `fixtures/databases/mongo-schema.json`
+  - `fixtures/databases/explorer-contracts.json`
+  - `src-tauri/src/services/databases/explorer/mod.rs`
+  - `src-tauri/src/services/databases/store.rs`
+  - `src/features/databases/api/contracts.test.ts`
+  - `src/features/databases/test/databaseMocks.ts`
+- **Tests added/updated:**
+  - `store::tests::empty_store_loads_default_and_saves` (Rust unit test)
+  - `store::tests::store_add_updates_existing_and_remove` (Rust unit test)
+  - `store::tests::store_deserializes_legacy_json_without_optional_fields` (Rust unit test)
+  - `store::tests::new_connection_id_starts_with_prefix` (Rust unit test)
+  - `explorer::tests::explorer_contracts_golden` updated with Mongo and Redis
+  - `contracts.test.ts`: Added Mongo schema and Redis schema validation against Zod schemas
+- **Verification commands:**
+  - `cargo test --manifest-path src-tauri/Cargo.toml` (Outcome: 421 passed, 0 failed, 4 guards passed)
+  - `npm test` (Outcome: 68 test files passed, 283 passed)
+  - `npm run typecheck` (Outcome: 0 errors)
+  - `npm run lint` (Outcome: 0 errors, 0 warnings)
+  - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` (Outcome: 0 warnings)
+  - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` (Outcome: 0 diffs)
+  - `npm run format:check` (Outcome: clean)
+- **Edge cases verified:**
+  - Loading non-existent or empty store directory gracefully returns default empty store.
+  - Legacy JSON without optional fields parses cleanly without panicking.
+  - Duplicate connection ID addition overwrites previous connection rather than duplicating it.
+  - Multi-engine schemas parse correctly into Zod representations.
+- **Security/data migration review:**
+  - No credentials stored in fixtures or code.
+  - Tests use temporary directories in `std::env::temp_dir()`, avoiding any access to user's real `local-databases.json`.
+- **Diff review:**
+  - Only test fixtures, store unit tests, and contract assertions were added. No production logic was mutated.
+- **Remaining limitations:**
+  - None for Phase 0.
+- **Next phase:**
+  - Phase 1 (Group-Based Workspace and Connection Management). Safe to continue because baseline harness, contract tests, and store unit tests are green.

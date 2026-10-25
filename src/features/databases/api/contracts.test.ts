@@ -7,6 +7,8 @@ import { browsePageSchema, dbSchemaSchema } from './explorer.schema';
 test.each([
   ['postgres schema', dbSchemaSchema, contracts.postgres],
   ['mysql schema', dbSchemaSchema, contracts.mysql],
+  ['mongo schema', dbSchemaSchema, (contracts as Record<string, unknown>).mongo],
+  ['redis schema', dbSchemaSchema, (contracts as Record<string, unknown>).redis],
   ['browse page', browsePageSchema, contracts.browsePage],
 ] as const)('%s matches the Rust DTO exactly', (_name, schema, payload) => {
   expect(schema.parse(payload)).toEqual(payload);

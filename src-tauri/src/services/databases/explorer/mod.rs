@@ -403,10 +403,21 @@ mod tests {
             "../../../../../fixtures/databases/mysql-schema.jsonl"
         ))
         .unwrap();
+        let mg = mongo::parse_schema(include_str!(
+            "../../../../../fixtures/databases/mongo-schema.json"
+        ))
+        .unwrap();
+        let rd = redis::parse_schema(
+            r#"{"groups":{"session":{"count":120,"types":{"hash":118,"string":2}},"(no prefix)":{"count":1,"types":{"string":1}}},"complete":true,"dbsize":121}"#,
+            "0",
+        )
+        .unwrap();
         let page = postgres::parse_browse("[{\"id\": 1, \"tags\": [\"a\"], \"profile\": {\"theme\": \"dark\"}, \"body\": null}]\n1\n").unwrap();
         let json = serde_json::to_string_pretty(&serde_json::json!({
             "postgres": pg,
             "mysql": my,
+            "mongo": mg,
+            "redis": rd,
             "browsePage": page,
         }))
         .unwrap()

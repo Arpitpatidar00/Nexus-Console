@@ -40,12 +40,51 @@ pub struct QueryResult {
     pub duration_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DbCustomMapping {
+    pub id: String,
+    pub group_id: String,
+    pub source_connection_id: String,
+    pub source_schema: String,
+    pub source_table: String,
+    pub source_column: String,
+    pub target_connection_id: String,
+    pub target_schema: String,
+    pub target_table: String,
+    pub target_column: String,
+    #[serde(default)]
+    pub notes: Option<String>,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DbRejectedCandidate {
+    pub id: String,
+    pub group_id: String,
+    pub source_connection_id: String,
+    pub source_schema: String,
+    pub source_table: String,
+    pub source_column: String,
+    pub target_connection_id: String,
+    pub target_schema: String,
+    pub target_table: String,
+    pub target_column: String,
+    pub created_at: u64,
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DbStore {
     #[serde(default)]
     pub groups: Vec<DbGroup>,
     pub connections: Vec<DbConnection>,
+    #[serde(default)]
+    pub custom_mappings: Vec<DbCustomMapping>,
+    #[serde(default)]
+    pub rejected_candidates: Vec<DbRejectedCandidate>,
 }
 
 fn random_u32() -> u32 {
@@ -75,6 +114,15 @@ pub fn new_group_id() -> String {
     format!("grp_{t}_{rand:04x}")
 }
 
+pub fn new_mapping_id() -> String {
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let rand = random_u32();
+    format!("map_{t}_{rand:04x}")
+}
+
 impl DbStore {
     pub fn load(dir: &Path) -> DbStore {
         crate::core::store::load_store(dir.join("local-databases.json"))
@@ -99,11 +147,18 @@ impl DbStore {
     }
 
     pub fn remove(&mut self, id: &str) -> Option<DbConnection> {
-        if let Some(pos) = self.connections.iter().position(|c| c.id == id) {
+        let removed = if let Some(pos) = self.connections.iter().position(|c| c.id == id) {
             Some(self.connections.remove(pos))
         } else {
             None
+        };
+        if removed.is_some() {
+            self.custom_mappings
+                .retain(|m| m.source_connection_id != id && m.target_connection_id != id);
+            self.rejected_candidates
+                .retain(|r| r.source_connection_id != id && r.target_connection_id != id);
         }
+        removed
     }
 
     pub fn get(&self, id: &str) -> Option<&DbConnection> {
@@ -175,15 +230,76 @@ impl DbStore {
             }
         }
 
+        if removed_group.is_some() {
+            self.custom_mappings.retain(|m| m.group_id != id);
+            self.rejected_candidates.retain(|r| r.group_id != id);
+        }
+
         (removed_group, affected_conn_ids)
     }
 
     pub fn move_connection(&mut self, id: &str, group_id: Option<String>) -> Option<DbConnection> {
         if let Some(c) = self.connections.iter_mut().find(|c| c.id == id) {
-            c.group_id = group_id;
+            let old_group = c.group_id.clone();
+            c.group_id = group_id.clone();
+            if old_group != group_id {
+                // Remove custom mappings linked to other connections in the old group to prevent cross-group leakage
+                self.custom_mappings
+                    .retain(|m| m.source_connection_id != id && m.target_connection_id != id);
+            }
             Some(c.clone())
         } else {
             None
+        }
+    }
+
+    pub fn add_custom_mapping(&mut self, mapping: DbCustomMapping) {
+        self.custom_mappings.retain(|m| m.id != mapping.id);
+        self.custom_mappings.push(mapping);
+    }
+
+    pub fn remove_custom_mapping(&mut self, id: &str) -> Option<DbCustomMapping> {
+        if let Some(pos) = self.custom_mappings.iter().position(|m| m.id == id) {
+            Some(self.custom_mappings.remove(pos))
+        } else {
+            None
+        }
+    }
+
+    pub fn list_custom_mappings(&self, group_id: Option<&str>) -> Vec<DbCustomMapping> {
+        if let Some(gid) = group_id {
+            self.custom_mappings
+                .iter()
+                .filter(|m| m.group_id == gid)
+                .cloned()
+                .collect()
+        } else {
+            self.custom_mappings.clone()
+        }
+    }
+
+    pub fn add_rejected_candidate(&mut self, rejected: DbRejectedCandidate) {
+        self.rejected_candidates.retain(|r| r.id != rejected.id);
+        self.rejected_candidates.push(rejected);
+    }
+
+    pub fn remove_rejected_candidate(&mut self, id: &str) -> Option<DbRejectedCandidate> {
+        if let Some(pos) = self.rejected_candidates.iter().position(|r| r.id == id) {
+            Some(self.rejected_candidates.remove(pos))
+        } else {
+            None
+        }
+    }
+
+    pub fn list_rejected_candidates(&self, group_id: Option<&str>) -> Vec<DbRejectedCandidate> {
+        if let Some(gid) = group_id {
+            self.rejected_candidates
+                .iter()
+                .filter(|r| r.group_id == gid)
+                .cloned()
+                .collect()
+        } else {
+            self.rejected_candidates.clone()
         }
     }
 }
@@ -352,5 +468,63 @@ mod tests {
         assert!(store.get("db_1").is_none());
         assert!(store.get("db_2").is_some());
         assert_eq!(store.connections.len(), 1);
+    }
+
+    #[test]
+    fn custom_mappings_and_rejections_lifecycle_and_reconciliation() {
+        let mut store = DbStore::default();
+        let map = DbCustomMapping {
+            id: "map_1".to_string(),
+            group_id: "grp_1".to_string(),
+            source_connection_id: "db_auth".to_string(),
+            source_schema: "public".to_string(),
+            source_table: "users".to_string(),
+            source_column: "id".to_string(),
+            target_connection_id: "db_billing".to_string(),
+            target_schema: "public".to_string(),
+            target_table: "invoices".to_string(),
+            target_column: "customer_id".to_string(),
+            notes: Some("App logical reference".to_string()),
+            created_at: 100,
+            updated_at: 100,
+        };
+        store.add_custom_mapping(map.clone());
+        assert_eq!(store.list_custom_mappings(Some("grp_1")).len(), 1);
+        assert_eq!(store.list_custom_mappings(Some("grp_other")).len(), 0);
+
+        let rej = DbRejectedCandidate {
+            id: "rej_1".to_string(),
+            group_id: "grp_1".to_string(),
+            source_connection_id: "db_auth".to_string(),
+            source_schema: "public".to_string(),
+            source_table: "users".to_string(),
+            source_column: "id".to_string(),
+            target_connection_id: "db_legacy".to_string(),
+            target_schema: "public".to_string(),
+            target_table: "audit_logs".to_string(),
+            target_column: "actor_id".to_string(),
+            created_at: 100,
+        };
+        store.add_rejected_candidate(rej);
+        assert_eq!(store.list_rejected_candidates(Some("grp_1")).len(), 1);
+
+        // Connection removal cleans up mappings and rejections
+        let mut c_auth = sample_conn("db_auth", "Auth DB", "postgres");
+        c_auth.group_id = Some("grp_1".to_string());
+        store.add(c_auth);
+        let mut c_bill = sample_conn("db_billing", "Billing DB", "postgres");
+        c_bill.group_id = Some("grp_1".to_string());
+        store.add(c_bill);
+
+        store.remove("db_auth");
+        assert_eq!(store.list_custom_mappings(Some("grp_1")).len(), 0);
+        assert_eq!(store.list_rejected_candidates(Some("grp_1")).len(), 0);
+
+        // Test cross-group leakage prevention on move
+        store.add_custom_mapping(map);
+        assert_eq!(store.list_custom_mappings(Some("grp_1")).len(), 1);
+        store.move_connection("db_billing", Some("grp_2".to_string()));
+        // Moving db_billing to grp_2 removes cross-group mappings connected to it
+        assert_eq!(store.list_custom_mappings(None).len(), 0);
     }
 }

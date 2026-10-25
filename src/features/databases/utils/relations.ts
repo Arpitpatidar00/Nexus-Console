@@ -1,7 +1,27 @@
 import type { DbSchema, TableInfo } from '@/features/databases/api/explorer.schema';
+import type {
+  DbCustomMapping,
+  DbRejectedCandidate,
+} from '@/features/databases/api/databases.schema';
 
 export const tableKey = (schema: string, name: string) => `${schema}.${name}`;
 export const keyOf = (t: Pick<TableInfo, 'schema' | 'name'>) => tableKey(t.schema, t.name);
+
+export type RelationProvenance = 'declared' | 'inferred' | 'configured';
+
+export type RelationStatus = 'active' | 'ambiguous' | 'incompatible' | 'rejected' | 'stale';
+
+export type TypeCompatibility = 'compatible' | 'incompatible' | 'unknown';
+
+export interface RelationCandidate {
+  targetDb: string;
+  targetDbLabel: string;
+  targetTable: string;
+  targetColumn: string;
+  targetDataType?: string;
+  compatibility: TypeCompatibility;
+  reason: string;
+}
 
 /** A reference from one table's columns to another's. `db` ids are set for
  * links that cross databases (the all-databases map). */
@@ -17,6 +37,115 @@ export interface Link {
   onDelete: string | null;
   fromDb?: string;
   toDb?: string;
+  provenance: RelationProvenance;
+  status: RelationStatus;
+  compatibility?: TypeCompatibility;
+  compatibilityReason?: string;
+  candidates?: RelationCandidate[];
+  mappingId?: string;
+  notes?: string;
+}
+
+export function classifyTypeCompatibility(
+  sourceType?: string | null,
+  targetType?: string | null,
+): { compatibility: TypeCompatibility; reason: string } {
+  if (!sourceType || !targetType) {
+    return {
+      compatibility: 'unknown',
+      reason: 'Type information is missing or sampled',
+    };
+  }
+
+  const s = sourceType
+    .toLowerCase()
+    .replace(/\(.*\)/, '')
+    .trim();
+  const t = targetType
+    .toLowerCase()
+    .replace(/\(.*\)/, '')
+    .trim();
+
+  if (s === t) {
+    return { compatibility: 'compatible', reason: `Exact type match: ${s}` };
+  }
+
+  const isInt = (type: string) =>
+    [
+      'int',
+      'integer',
+      'int2',
+      'int4',
+      'int8',
+      'bigint',
+      'smallint',
+      'tinyint',
+      'serial',
+      'bigserial',
+      'number',
+    ].includes(type);
+  const isText = (type: string) =>
+    ['varchar', 'char', 'character varying', 'text', 'string', 'clob'].includes(type);
+  const isUuid = (type: string) => type === 'uuid';
+  const isOid = (type: string) => ['objectid', 'object_id', 'oid'].includes(type);
+  const isDate = (type: string) =>
+    ['timestamp', 'timestamptz', 'date', 'datetime', 'time'].includes(type);
+  const isBool = (type: string) => ['bool', 'boolean'].includes(type);
+
+  if (isInt(s) && isInt(t)) {
+    return { compatibility: 'compatible', reason: 'Both fields are numeric integers' };
+  }
+  if (isText(s) && isText(t)) {
+    return { compatibility: 'compatible', reason: 'Both fields are string / text types' };
+  }
+  if (isUuid(s) && isUuid(t)) {
+    return { compatibility: 'compatible', reason: 'Both fields are UUIDs' };
+  }
+  if (isOid(s) && isOid(t)) {
+    return { compatibility: 'compatible', reason: 'Both fields are BSON ObjectIds' };
+  }
+
+  // Cross-category compatibility:
+  if ((isUuid(s) && isText(t)) || (isText(s) && isUuid(t))) {
+    return { compatibility: 'compatible', reason: 'UUID and string identifiers can map safely' };
+  }
+  if ((isText(s) && isOid(t)) || (isOid(s) && isText(t))) {
+    return {
+      compatibility: 'compatible',
+      reason: 'Hexadecimal string can map to BSON ObjectId when formatted as 24-char hex',
+    };
+  }
+
+  // Definite incompatibilities:
+  if ((isInt(s) && isOid(t)) || (isOid(s) && isInt(t))) {
+    return {
+      compatibility: 'incompatible',
+      reason: 'Numeric integer cannot map to 24-character BSON ObjectId',
+    };
+  }
+  if ((isInt(s) && isUuid(t)) || (isUuid(s) && isInt(t))) {
+    return {
+      compatibility: 'incompatible',
+      reason: 'Numeric integer cannot map to 128-bit UUID format',
+    };
+  }
+  if (isBool(s) !== isBool(t) && (isBool(s) || isBool(t))) {
+    return {
+      compatibility: 'incompatible',
+      reason: 'Boolean flag is incompatible with non-boolean target',
+    };
+  }
+  if (isDate(s) !== isDate(t) && (isDate(s) || isDate(t))) {
+    return {
+      compatibility: 'incompatible',
+      reason: 'Date/time timestamp is incompatible with non-temporal target',
+    };
+  }
+
+  return {
+    compatibility: 'unknown',
+    reason: `Compatibility between ${sourceType} and ${targetType} cannot be automatically confirmed`,
+  };
 }
 
 export function declaredLinks(s: DbSchema): Link[] {
@@ -29,6 +158,10 @@ export function declaredLinks(s: DbSchema): Link[] {
     toColumns: r.toColumns,
     inferred: r.inferred,
     onDelete: r.onDelete,
+    provenance: 'declared',
+    status: 'active',
+    compatibility: 'compatible',
+    compatibilityReason: 'Database-enforced foreign key constraint',
   }));
 }
 
@@ -42,7 +175,7 @@ export function referencedName(column: string): string | null {
 }
 
 /** Table names a reference base could mean: singular, plural, -ies. */
-function nameMatches(base: string, table: string): boolean {
+export function nameMatches(base: string, table: string): boolean {
   const b = norm(base);
   const t = norm(table);
   return (
@@ -50,7 +183,7 @@ function nameMatches(base: string, table: string): boolean {
   );
 }
 
-const primaryColumn = (t: TableInfo) =>
+export const primaryColumn = (t: TableInfo) =>
   t.columns.find((c) => c.isPrimary)?.name ??
   t.columns.find((c) => c.name === 'id' || c.name === '_id')?.name;
 
@@ -71,15 +204,23 @@ export function inferredLinks(s: DbSchema): Link[] {
       const targets = s.tables.filter((x) => nameMatches(base, x.name) && primaryColumn(x));
       if (targets.length !== 1) continue;
       const target = targets[0];
+      const targetPk = primaryColumn(target)!;
+      const targetCol = target.columns.find((col) => col.name === targetPk);
+      const { compatibility, reason } = classifyTypeCompatibility(c.dataType, targetCol?.dataType);
+
       out.push({
         id: `guess:${keyOf(t)}.${c.name}`,
         name: `${c.name} → ${target.name}`,
         from: keyOf(t),
         fromColumns: [c.name],
         to: keyOf(target),
-        toColumns: [primaryColumn(target)!],
+        toColumns: [targetPk],
         inferred: true,
         onDelete: null,
+        provenance: 'inferred',
+        status: compatibility === 'incompatible' ? 'incompatible' : 'active',
+        compatibility,
+        compatibilityReason: reason,
       });
     }
   }
@@ -104,18 +245,100 @@ export interface NamedSchema {
   schema: DbSchema;
 }
 
-/** References between databases, as microservices keep them: `chat.messages.
- * user_id` with no `users` table of its own, while another database has one.
- * Always guesses — no database can declare a key into another. */
-export function crossDbLinks(dbs: NamedSchema[]): Link[] {
+export interface CrossDbOptions {
+  customMappings?: DbCustomMapping[];
+  rejectedCandidates?: DbRejectedCandidate[];
+}
+
+/**
+ * References between databases in a microservices workspace.
+ * Resolves declared, configured, and inferred links.
+ * Detects ambiguity when multiple viable candidate targets exist instead of silently discarding.
+ */
+export function crossDbLinks(dbs: NamedSchema[], options?: CrossDbOptions): Link[] {
   const out: Link[] = [];
+  const rejectedSet = new Set<string>();
+
+  for (const r of options?.rejectedCandidates ?? []) {
+    rejectedSet.add(
+      `${r.sourceConnectionId}:${r.sourceTable}:${r.sourceColumn}::${r.targetConnectionId}:${r.targetTable}:${r.targetColumn}`,
+    );
+  }
+
+  // 1. Process persisted user-configured mappings
+  const configuredSources = new Set<string>();
+  for (const m of options?.customMappings ?? []) {
+    const srcDb = dbs.find((d) => d.id === m.sourceConnectionId);
+    const tgtDb = dbs.find((d) => d.id === m.targetConnectionId);
+    const srcTable = srcDb?.schema.tables.find(
+      (t) => t.schema === m.sourceSchema && t.name === m.sourceTable,
+    );
+    const tgtTable = tgtDb?.schema.tables.find(
+      (t) => t.schema === m.targetSchema && t.name === m.targetTable,
+    );
+    const srcCol = srcTable?.columns.find((c) => c.name === m.sourceColumn);
+    const tgtCol = tgtTable?.columns.find((c) => c.name === m.targetColumn);
+
+    configuredSources.add(
+      `${m.sourceConnectionId}:${m.sourceSchema}.${m.sourceTable}:${m.sourceColumn}`,
+    );
+
+    if (!srcDb || !tgtDb || !srcTable || !tgtTable || !srcCol || !tgtCol) {
+      // Stale or unresolved mapping
+      out.push({
+        id: `custom:${m.id}`,
+        name: `${m.sourceColumn} → ${m.targetTable}.${m.targetColumn} (unresolved)`,
+        from: `${m.sourceSchema}.${m.sourceTable}`,
+        fromColumns: [m.sourceColumn],
+        to: `${m.targetSchema}.${m.targetTable}`,
+        toColumns: [m.targetColumn],
+        inferred: false,
+        provenance: 'configured',
+        status: 'stale',
+        onDelete: null,
+        fromDb: m.sourceConnectionId,
+        toDb: m.targetConnectionId,
+        mappingId: m.id,
+        notes: m.notes ?? undefined,
+        compatibility: 'unknown',
+        compatibilityReason:
+          'Saved mapping target connection, table, or column could not be resolved in the active schema',
+      });
+    } else {
+      const { compatibility, reason } = classifyTypeCompatibility(srcCol.dataType, tgtCol.dataType);
+      out.push({
+        id: `custom:${m.id}`,
+        name: `${m.sourceColumn} → ${tgtDb.label}.${tgtTable.name}`,
+        from: keyOf(srcTable),
+        fromColumns: [m.sourceColumn],
+        to: keyOf(tgtTable),
+        toColumns: [m.targetColumn],
+        inferred: false,
+        provenance: 'configured',
+        status: 'active',
+        onDelete: null,
+        fromDb: m.sourceConnectionId,
+        toDb: m.targetConnectionId,
+        mappingId: m.id,
+        notes: m.notes ?? undefined,
+        compatibility,
+        compatibilityReason: reason,
+      });
+    }
+  }
+
+  // 2. Discover heuristic candidates across connections
   for (const a of dbs) {
     for (const t of a.schema.tables) {
       for (const c of t.columns) {
         if (c.isPrimary) continue;
+        const sourceKey = `${a.id}:${keyOf(t)}:${c.name}`;
+        if (configuredSources.has(sourceKey)) continue;
+
         const base = referencedName(c.name);
         if (!base) continue;
-        if (a.schema.tables.some((x) => nameMatches(base, x.name))) continue;
+
+        // Search viable targets in other databases in the workspace
         const hits = dbs
           .filter((b) => b.id !== a.id)
           .flatMap((b) =>
@@ -123,20 +346,80 @@ export function crossDbLinks(dbs: NamedSchema[]): Link[] {
               .filter((x) => nameMatches(base, x.name) && primaryColumn(x))
               .map((x) => ({ b, x })),
           );
-        if (hits.length !== 1) continue;
-        const { b, x } = hits[0];
-        out.push({
-          id: `cross:${a.id}:${keyOf(t)}.${c.name}`,
-          name: `${c.name} → ${b.label}.${x.name}`,
-          from: keyOf(t),
-          fromColumns: [c.name],
-          to: keyOf(x),
-          toColumns: [primaryColumn(x)!],
-          inferred: true,
-          onDelete: null,
-          fromDb: a.id,
-          toDb: b.id,
+
+        // Filter out candidates previously rejected by the user
+        const validHits = hits.filter(({ b, x }) => {
+          const pk = primaryColumn(x)!;
+          return !rejectedSet.has(`${a.id}:${t.name}:${c.name}::${b.id}:${x.name}:${pk}`);
         });
+
+        if (validHits.length === 0) continue;
+
+        if (validHits.length === 1) {
+          const { b, x } = validHits[0];
+          const pk = primaryColumn(x)!;
+          const targetCol = x.columns.find((col) => col.name === pk);
+          const { compatibility, reason } = classifyTypeCompatibility(
+            c.dataType,
+            targetCol?.dataType,
+          );
+
+          out.push({
+            id: `cross:${a.id}:${keyOf(t)}.${c.name}`,
+            name: `${c.name} → ${b.label}.${x.name}`,
+            from: keyOf(t),
+            fromColumns: [c.name],
+            to: keyOf(x),
+            toColumns: [pk],
+            inferred: true,
+            provenance: 'inferred',
+            status: compatibility === 'incompatible' ? 'incompatible' : 'active',
+            onDelete: null,
+            fromDb: a.id,
+            toDb: b.id,
+            compatibility,
+            compatibilityReason: reason,
+          });
+        } else {
+          // Ambiguous: multiple targets found. DO NOT silently discard! (ISS-01 fix)
+          const candidates: RelationCandidate[] = validHits.map(({ b, x }) => {
+            const pk = primaryColumn(x)!;
+            const targetCol = x.columns.find((col) => col.name === pk);
+            const { compatibility, reason } = classifyTypeCompatibility(
+              c.dataType,
+              targetCol?.dataType,
+            );
+            return {
+              targetDb: b.id,
+              targetDbLabel: b.label,
+              targetTable: keyOf(x),
+              targetColumn: pk,
+              targetDataType: targetCol?.dataType,
+              compatibility,
+              reason,
+            };
+          });
+
+          out.push({
+            id: `cross:ambig:${a.id}:${keyOf(t)}.${c.name}`,
+            name: `${c.name} → [${validHits.length} candidates]`,
+            from: keyOf(t),
+            fromColumns: [c.name],
+            to: keyOf(validHits[0].x),
+            toColumns: [primaryColumn(validHits[0].x)!],
+            inferred: true,
+            provenance: 'inferred',
+            status: 'ambiguous',
+            onDelete: null,
+            fromDb: a.id,
+            toDb: validHits[0].b.id,
+            candidates,
+            compatibility: candidates.some((cand) => cand.compatibility === 'compatible')
+              ? 'compatible'
+              : 'unknown',
+            compatibilityReason: `Ambiguous candidate set: ${validHits.length} matching targets found`,
+          });
+        }
       }
     }
   }

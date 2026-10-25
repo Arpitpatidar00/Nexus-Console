@@ -6,4 +6,8 @@ export const dbKeys = {
   schema: (id: string) => [...dbKeys.all, 'schema', id] as const,
   browse: (id: string, request: unknown) => [...dbKeys.all, 'browse', id, request] as const,
   snapshots: (dataDir: string) => [...dbKeys.all, 'snapshots', dataDir] as const,
+  customMappings: (groupId?: string | null) =>
+    [...dbKeys.all, 'customMappings', groupId ?? 'all'] as const,
+  rejectedCandidates: (groupId?: string | null) =>
+    [...dbKeys.all, 'rejectedCandidates', groupId ?? 'all'] as const,
 };

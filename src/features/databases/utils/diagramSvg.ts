@@ -131,11 +131,33 @@ export function renderSvg(d: Diagram, p: Palette, opts: RenderOptions = {}): str
       `M ${x + dir * 11} ${y} L ${x} ${y - 5} M ${x + dir * 11} ${y} L ${x} ${y} M ${x + dir * 11} ${y} L ${x} ${y + 5}`;
     const bar = (x: number, y: number, dir: number) =>
       `M ${x + dir * 7} ${y - 5} L ${x + dir * 7} ${y + 5}`;
+
+    let dash = '';
+    let strokeColor = p.edge;
+    let desc = e.inferred ? ' (inferred)' : ' (declared)';
+
+    if (e.status === 'ambiguous') {
+      dash = ' stroke-dasharray="2 3"';
+      strokeColor = p.accent;
+      desc = ' (ambiguous candidate set)';
+    } else if (e.status === 'incompatible') {
+      dash = ' stroke-dasharray="6 2 2 2"';
+      strokeColor = '#f59e0b';
+      desc = ' (type mismatch warning)';
+    } else if (e.provenance === 'configured') {
+      dash = '';
+      strokeColor = p.accent;
+      desc = ' (user-configured mapping)';
+    } else if (e.inferred) {
+      dash = ' stroke-dasharray="5 4"';
+      desc = ' (guessed from names)';
+    }
+
     out.push(
       `<g class="sr-edge" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}">`,
-      `<title>${escapeXml(e.label)}${e.inferred ? ' (guessed from names)' : ''}</title>`,
-      `<path d="${e.path}" fill="none" stroke-width="1.4"${e.inferred ? ' stroke-dasharray="5 4"' : ''} style="stroke:${p.edge}"/>`,
-      `<path d="${crow(e.start.x, e.start.y, e.start.dir)} ${bar(e.end.x, e.end.y, e.end.dir)}" fill="none" stroke-width="1.4" style="stroke:${p.edge}"/>`,
+      `<title>${escapeXml(e.label)}${desc}</title>`,
+      `<path d="${e.path}" fill="none" stroke-width="1.4"${dash} style="stroke:${strokeColor}"/>`,
+      `<path d="${crow(e.start.x, e.start.y, e.start.dir)} ${bar(e.end.x, e.end.y, e.end.dir)}" fill="none" stroke-width="1.4" style="stroke:${strokeColor}"/>`,
       `</g>`,
     );
   }

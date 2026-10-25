@@ -1,5 +1,5 @@
 import type { TableInfo } from '@/features/databases/api/explorer.schema';
-import { keyOf, type Link } from './relations';
+import { keyOf, type Link, type RelationProvenance, type RelationStatus } from './relations';
 
 /** How much of each table a diagram shows. */
 export type Detail = 'all' | 'keys' | 'names';
@@ -44,6 +44,9 @@ export interface DiagramEdge {
   to: string;
   label: string;
   inferred: boolean;
+  provenance?: RelationProvenance;
+  status?: RelationStatus;
+  compatibilityReason?: string;
   path: string;
   /** Where the line meets each table: for markers. */
   start: { x: number; y: number; dir: 1 | -1 };
@@ -322,6 +325,9 @@ function edgesOf(
       to: b.id,
       label: `${l.fromColumns.join(', ')} → ${l.toColumns.join(', ')}`,
       inferred: l.inferred,
+      provenance: l.provenance,
+      status: l.status,
+      compatibilityReason: l.compatibilityReason,
       ...route(a, b, l.fromColumns[0], l.toColumns[0]),
     });
   }

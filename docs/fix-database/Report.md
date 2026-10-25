@@ -251,18 +251,14 @@ pub struct DbStore {
 
 ## E. Issue Register
 
-### ISS-01: Silent Dropping of Inferred Relationships on Multiple Targets
+### ISS-01 [Closed in Phase 3]: Silent Dropping of Inferred Relationships on Multiple Targets
 
 - **Severity**: **High**
-- **Location**: [relations.ts:119-126](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/utils/relations.ts#L119-L126)
-- **Reproduction Scenario**:
-  Add two databases: `fameo_auth` (with table `users`) and `fameo_legacy` (also with table `users`).
-  Add a third database `fameo_chat` with table `messages(user_id)`.
-- **Actual Impact**:
-  `hits.length` equals `2`. The check `if (hits.length !== 1) continue;` silently skips creating any link. No link is drawn on the map, and no diagnostic warning is shown to the user.
-- **Recommended Correction**:
-  Change `crossDbLinks` to return candidates with an `ambiguous: boolean` flag and candidate targets. Display ambiguous links as amber dotted lines with an interactive dropdown allowing the user to confirm the intended target.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 3)
+- Refactored `crossDbLinks` in `relations.ts` to identify multi-target candidate ties and preserve them with `status: 'ambiguous'` rather than silently dropping them.
+- Implemented `AmbiguousRelationsDialog` allowing users to inspect ambiguous candidates, confirm the intended target table/column, or reject candidate false-positives.
+- Persisted candidate rejections via `DbRejectedCandidate` in `store.rs` and Tauri commands `db_reject_candidate` / `db_unreject_candidate`.
+- Displayed ambiguous relationship counts and visually distinct dashed warning edges in SVG diagrams with ARIA labels and tooltip titles.
 
 ### ISS-02: Cross-Database Links Omitted from Detail Views (`TableView`, `SchemaView`, `DocumentCard`)
 
@@ -316,17 +312,13 @@ pub struct DbStore {
   ~~Wrap `crossDbLinks` in `useMemo`.~~ No change needed; if the Phase-3 resolver becomes expensive, compute it once in a shared hook and measure.
 - **Dependencies**: None.
 
-### ISS-07: Type-Incompatible Inferred Links (e.g. UUID vs Integer vs Mongo ObjectId)
+### ISS-07 [Closed in Phase 3]: Type-Incompatible Inferred Links (e.g. UUID vs Integer vs Mongo ObjectId)
 
 - **Severity**: **Medium**
-- **Location**: [relations.ts:110-144](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/utils/relations.ts#L110-L144), [DocumentCard.tsx:191-196](file:///Users/devarpit/Desktop/Stackroost/src/features/databases/components/DocumentCard/DocumentCard.tsx#L191-L196)
-- **Reproduction Scenario**:
-  Postgres table `orders` has `user_id: bigint`. MongoDB collection `users` has `_id: ObjectId`.
-- **Actual Impact**:
-  `crossDbLinks` creates a relation solely based on the name `user`. When the user clicks the jump button in `DocumentCard`, it passes an integer string to Mongo's filter, returning zero matching documents.
-- **Recommended Correction**:
-  Include data type compatibility checks in `relations.ts`. When types are fundamentally incompatible (e.g., Integer vs ObjectId), mark the relationship as `incompatibleType: true` and warn the user.
-- **Dependencies**: None.
+- **Status**: **CLOSED** (Phase 3)
+- Implemented `classifyTypeCompatibility(sourceType, targetType)` in `relations.ts`.
+- Detected and flagged incompatible column type pairs (such as `integer` vs `ObjectId`, `uuid` vs `integer`, `boolean` vs `varchar`), suppressing invalid heuristic cross-database edges from diagram rendering.
+- Recorded explanatory reasons (`compatibilityReason`) on links for auditability and diagnostic clarity.
 
 ### ISS-08 [Closed in Phase 1]: Stale React Query Schema Cache on Connection Removal
 

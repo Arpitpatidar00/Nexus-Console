@@ -84,3 +84,50 @@ export const dbSnapshotSchema = z.object({
   sizeBytes: z.number(),
 });
 export type DbSnapshot = z.infer<typeof dbSnapshotSchema>;
+
+export const dbCustomMappingSchema = z.object({
+  id: z.string(),
+  groupId: z.string(),
+  sourceConnectionId: z.string(),
+  sourceSchema: z.string(),
+  sourceTable: z.string(),
+  sourceColumn: z.string(),
+  targetConnectionId: z.string(),
+  targetSchema: z.string(),
+  targetTable: z.string(),
+  targetColumn: z.string(),
+  notes: z.string().nullable().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+export type DbCustomMapping = z.infer<typeof dbCustomMappingSchema>;
+
+export const saveCustomMappingInputSchema = z.object({
+  id: z.string().optional(),
+  groupId: z.string(),
+  sourceConnectionId: z.string(),
+  sourceSchema: z.string(),
+  sourceTable: z.string(),
+  sourceColumn: z.string(),
+  targetConnectionId: z.string(),
+  targetSchema: z.string(),
+  targetTable: z.string(),
+  targetColumn: z.string(),
+  notes: z.string().nullable().optional(),
+});
+export type SaveCustomMappingInput = z.infer<typeof saveCustomMappingInputSchema>;
+
+export const dbRejectedCandidateSchema = z.object({
+  id: z.string(),
+  groupId: z.string(),
+  sourceConnectionId: z.string(),
+  sourceSchema: z.string(),
+  sourceTable: z.string(),
+  sourceColumn: z.string(),
+  targetConnectionId: z.string(),
+  targetSchema: z.string(),
+  targetTable: z.string(),
+  targetColumn: z.string(),
+  createdAt: z.number(),
+});
+export type DbRejectedCandidate = z.infer<typeof dbRejectedCandidateSchema>;

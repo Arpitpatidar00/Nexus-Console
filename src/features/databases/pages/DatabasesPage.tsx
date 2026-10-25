@@ -194,6 +194,7 @@ export function DatabasesPage() {
             </header>
             <MapView
               connections={mapConnections}
+              groupId={selectedGroupId}
               onOpenTable={(connectionId, key) => {
                 setMapOpen(false);
                 setSelectedGroupId(null);

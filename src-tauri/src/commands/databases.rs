@@ -11,7 +11,8 @@ use crate::services::databases::classifier;
 use crate::services::databases::discovery::{self, DiscoveredDb};
 use crate::services::databases::explorer::{self, BrowsePage, BrowseRequest, DbSchema, Endpoint};
 use crate::services::databases::store::{
-    new_connection_id, new_group_id, DbConnection, DbGroup, QueryResult,
+    new_connection_id, new_group_id, DbConnection, DbCustomMapping, DbGroup, DbRejectedCandidate,
+    QueryResult,
 };
 use crate::services::databases::DatabaseState;
 use std::path::Path;
@@ -326,6 +327,206 @@ pub async fn db_move_connection(
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
         Ok(moved)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_list_custom_mappings(
+    app: AppHandle,
+    group_id: Option<String>,
+) -> AppResult<Vec<DbCustomMapping>> {
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        Ok(store.list_custom_mappings(group_id.as_deref()))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_save_custom_mapping(
+    app: AppHandle,
+    mut mapping: DbCustomMapping,
+) -> AppResult<DbCustomMapping> {
+    let desc = format!(
+        "Save mapping: {}.{} -> {}.{}",
+        mapping.source_table, mapping.source_column, mapping.target_table, mapping.target_column
+    );
+    let _guard = mutation_unattended(
+        MutationSpec::new("Save DB Custom Mapping", desc, "save_custom_mapping")
+            .blast_radius(BlastRadius::LocalIsolated)
+            .target(&mapping.source_table),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+
+        let src_conn = store.get(&mapping.source_connection_id).ok_or_else(|| {
+            AppError::NotFound(format!(
+                "source connection {}",
+                mapping.source_connection_id
+            ))
+        })?;
+        let tgt_conn = store.get(&mapping.target_connection_id).ok_or_else(|| {
+            AppError::NotFound(format!(
+                "target connection {}",
+                mapping.target_connection_id
+            ))
+        })?;
+
+        if src_conn.group_id.as_deref() != Some(&mapping.group_id)
+            || tgt_conn.group_id.as_deref() != Some(&mapping.group_id)
+        {
+            return Err(AppError::InvalidName(
+                "Source and target connections must belong to the mapping group".into(),
+            ));
+        }
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if mapping.id.trim().is_empty() {
+            mapping.id = crate::services::databases::store::new_mapping_id();
+            mapping.created_at = now;
+        }
+        mapping.updated_at = now;
+
+        store.add_custom_mapping(mapping.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(mapping)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_delete_custom_mapping(app: AppHandle, id: String) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Delete DB Custom Mapping",
+            format!("Delete mapping {id}"),
+            "delete_custom_mapping",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        if store.remove_custom_mapping(&id).is_none() {
+            return Err(AppError::NotFound(format!("mapping {id}")));
+        }
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_list_rejected_candidates(
+    app: AppHandle,
+    group_id: Option<String>,
+) -> AppResult<Vec<DbRejectedCandidate>> {
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        Ok(store.list_rejected_candidates(group_id.as_deref()))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_reject_candidate(
+    app: AppHandle,
+    mut rejected: DbRejectedCandidate,
+) -> AppResult<DbRejectedCandidate> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Reject Candidate Relation",
+            format!(
+                "Reject candidate {} -> {}",
+                rejected.source_table, rejected.target_table
+            ),
+            "reject_candidate",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&rejected.source_table),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+
+        if rejected.id.trim().is_empty() {
+            rejected.id = format!(
+                "rej_{}_{}_{}_{}_{}_{}",
+                rejected.source_connection_id,
+                rejected.source_table,
+                rejected.source_column,
+                rejected.target_connection_id,
+                rejected.target_table,
+                rejected.target_column
+            );
+        }
+        if rejected.created_at == 0 {
+            rejected.created_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+        }
+
+        store.add_rejected_candidate(rejected.clone());
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(rejected)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn db_unreject_candidate(app: AppHandle, id: String) -> AppResult<()> {
+    let _guard = mutation_unattended(
+        MutationSpec::new(
+            "Unreject Candidate Relation",
+            format!("Unreject candidate {id}"),
+            "unreject_candidate",
+        )
+        .blast_radius(BlastRadius::LocalIsolated)
+        .target(&id),
+    );
+
+    blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let mut store = state
+            .store
+            .lock()
+            .map_err(|_| AppError::Io("db store poisoned".into()))?;
+        if store.remove_rejected_candidate(&id).is_none() {
+            return Err(AppError::NotFound(format!("rejected candidate {id}")));
+        }
+        let dir = state.path.parent().unwrap_or(&state.path);
+        store.save(dir)?;
+        Ok(())
     })
     .await
 }

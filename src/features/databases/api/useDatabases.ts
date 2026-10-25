@@ -8,6 +8,8 @@ import {
   dbGroupSchema,
   queryResultSchema,
   dbSnapshotSchema,
+  dbCustomMappingSchema,
+  dbRejectedCandidateSchema,
   type DiscoveredDb,
   type DbConnection,
   type DbGroup,
@@ -16,6 +18,9 @@ import {
   type UpdateConnectionInput,
   type QueryResult,
   type DbSnapshot,
+  type DbCustomMapping,
+  type DbRejectedCandidate,
+  type SaveCustomMappingInput,
 } from './databases.schema';
 
 export function useDiscoveredDatabases() {
@@ -166,6 +171,78 @@ export function useRestoreDbSnapshot() {
       ipcVoid(CMD.DB_RESTORE_SNAPSHOT, params),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: dbKeys.snapshots(vars.dataDir) });
+    },
+  });
+}
+
+export function useDbCustomMappings(groupId?: string | null) {
+  return useQuery<DbCustomMapping[]>({
+    queryKey: dbKeys.customMappings(groupId),
+    queryFn: () =>
+      ipc(
+        CMD.DB_LIST_CUSTOM_MAPPINGS,
+        { groupId: groupId ?? null },
+        z.array(dbCustomMappingSchema),
+      ),
+  });
+}
+
+export function useSaveDbCustomMapping() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (mapping: SaveCustomMappingInput) =>
+      ipc(CMD.DB_SAVE_CUSTOM_MAPPING, { mapping }, dbCustomMappingSchema),
+    onSuccess: (saved) => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.customMappings(saved.groupId) });
+      queryClient.invalidateQueries({ queryKey: dbKeys.customMappings() });
+    },
+  });
+}
+
+export function useDeleteDbCustomMapping() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; groupId?: string | null }) =>
+      ipcVoid(CMD.DB_DELETE_CUSTOM_MAPPING, { id: vars.id }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.customMappings(vars.groupId) });
+      queryClient.invalidateQueries({ queryKey: dbKeys.customMappings() });
+    },
+  });
+}
+
+export function useDbRejectedCandidates(groupId?: string | null) {
+  return useQuery<DbRejectedCandidate[]>({
+    queryKey: dbKeys.rejectedCandidates(groupId),
+    queryFn: () =>
+      ipc(
+        CMD.DB_LIST_REJECTED_CANDIDATES,
+        { groupId: groupId ?? null },
+        z.array(dbRejectedCandidateSchema),
+      ),
+  });
+}
+
+export function useRejectDbCandidate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rejected: Omit<DbRejectedCandidate, 'createdAt'> & { createdAt?: number }) =>
+      ipc(CMD.DB_REJECT_CANDIDATE, { rejected }, dbRejectedCandidateSchema),
+    onSuccess: (rej) => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.rejectedCandidates(rej.groupId) });
+      queryClient.invalidateQueries({ queryKey: dbKeys.rejectedCandidates() });
+    },
+  });
+}
+
+export function useUnrejectDbCandidate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; groupId?: string | null }) =>
+      ipcVoid(CMD.DB_UNREJECT_CANDIDATE, { id: vars.id }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: dbKeys.rejectedCandidates(vars.groupId) });
+      queryClient.invalidateQueries({ queryKey: dbKeys.rejectedCandidates() });
     },
   });
 }

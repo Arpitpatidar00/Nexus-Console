@@ -80,6 +80,8 @@ test('the map boxes each database and links across them', () => {
         onDelete: null,
         fromDb: 'my',
         toDb: 'pg',
+        provenance: 'inferred',
+        status: 'active',
       },
     ],
     'names',

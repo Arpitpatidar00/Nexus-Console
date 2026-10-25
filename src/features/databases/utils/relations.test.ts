@@ -129,3 +129,148 @@ test('foreign keys without a supporting index', async () => {
   ]);
   expect(tablesWithoutPrimaryKey(pg)).toEqual([]);
 });
+
+test('classifyTypeCompatibility detects compatible and incompatible types', async () => {
+  const { classifyTypeCompatibility } = await import('./relations');
+
+  expect(classifyTypeCompatibility('uuid', 'uuid').compatibility).toBe('compatible');
+  expect(classifyTypeCompatibility('bigint', 'integer').compatibility).toBe('compatible');
+  expect(classifyTypeCompatibility('varchar(255)', 'text').compatibility).toBe('compatible');
+  expect(classifyTypeCompatibility('string', 'objectId').compatibility).toBe('compatible');
+
+  // Incompatible types (ISS-07)
+  const intVsOid = classifyTypeCompatibility('bigint', 'objectId');
+  expect(intVsOid.compatibility).toBe('incompatible');
+  expect(intVsOid.reason).toContain('Numeric integer cannot map');
+
+  const boolVsDate = classifyTypeCompatibility('boolean', 'timestamp');
+  expect(boolVsDate.compatibility).toBe('incompatible');
+
+  // Unknown/missing
+  expect(classifyTypeCompatibility(null, 'uuid').compatibility).toBe('unknown');
+});
+
+test('crossDbLinks detects multiple matching targets as ambiguous rather than silently dropping them', () => {
+  const chat = db('chat_service', [table('public', 'messages', ['user_id'])]);
+  const auth = db('auth_service', [table('public', 'users', [])]);
+  const billing = db('billing_service', [table('public', 'users', [])]);
+
+  const links = crossDbLinks([
+    { id: 'chat', label: 'Chat', schema: chat },
+    { id: 'auth', label: 'Auth', schema: auth },
+    { id: 'billing', label: 'Billing', schema: billing },
+  ]);
+
+  // ISS-01 fix: must NOT drop the relation! Must report ambiguous candidate set.
+  expect(links).toHaveLength(1);
+  const link = links[0];
+  expect(link.status).toBe('ambiguous');
+  expect(link.provenance).toBe('inferred');
+  expect(link.candidates).toHaveLength(2);
+  expect(link.candidates?.map((c) => c.targetDb).sort()).toEqual(['auth', 'billing']);
+});
+
+test('crossDbLinks respects rejected candidates', () => {
+  const chat = db('chat_service', [table('public', 'messages', ['user_id'])]);
+  const auth = db('auth_service', [table('public', 'users', [])]);
+  const billing = db('billing_service', [table('public', 'users', [])]);
+
+  // User rejected candidate to billing_service
+  const links = crossDbLinks(
+    [
+      { id: 'chat', label: 'Chat', schema: chat },
+      { id: 'auth', label: 'Auth', schema: auth },
+      { id: 'billing', label: 'Billing', schema: billing },
+    ],
+    {
+      rejectedCandidates: [
+        {
+          id: 'rej_1',
+          groupId: 'grp_1',
+          sourceConnectionId: 'chat',
+          sourceSchema: 'public',
+          sourceTable: 'messages',
+          sourceColumn: 'user_id',
+          targetConnectionId: 'billing',
+          targetSchema: 'public',
+          targetTable: 'users',
+          targetColumn: 'id',
+          createdAt: 100,
+        },
+      ],
+    },
+  );
+
+  // Now only auth_service remains as candidate; resolves unambiguously
+  expect(links).toHaveLength(1);
+  expect(links[0].status).toBe('active');
+  expect(links[0].toDb).toBe('auth');
+});
+
+test('crossDbLinks resolves custom mappings and flags stale ones', () => {
+  const chat = db('chat_service', [table('public', 'messages', ['user_id'])]);
+  const auth = db('auth_service', [table('public', 'users', [])]);
+
+  // 1. Valid custom mapping
+  const activeLinks = crossDbLinks(
+    [
+      { id: 'chat', label: 'Chat', schema: chat },
+      { id: 'auth', label: 'Auth', schema: auth },
+    ],
+    {
+      customMappings: [
+        {
+          id: 'custom_1',
+          groupId: 'grp_1',
+          sourceConnectionId: 'chat',
+          sourceSchema: 'public',
+          sourceTable: 'messages',
+          sourceColumn: 'user_id',
+          targetConnectionId: 'auth',
+          targetSchema: 'public',
+          targetTable: 'users',
+          targetColumn: 'id',
+          notes: 'Configured link',
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    },
+  );
+
+  expect(activeLinks).toHaveLength(1);
+  expect(activeLinks[0].provenance).toBe('configured');
+  expect(activeLinks[0].status).toBe('active');
+  expect(activeLinks[0].notes).toBe('Configured link');
+
+  // 2. Stale custom mapping (target table deleted)
+  const staleLinks = crossDbLinks(
+    [
+      { id: 'chat', label: 'Chat', schema: chat },
+      { id: 'auth', label: 'Auth', schema: db('auth_service', []) }, // no tables
+    ],
+    {
+      customMappings: [
+        {
+          id: 'custom_1',
+          groupId: 'grp_1',
+          sourceConnectionId: 'chat',
+          sourceSchema: 'public',
+          sourceTable: 'messages',
+          sourceColumn: 'user_id',
+          targetConnectionId: 'auth',
+          targetSchema: 'public',
+          targetTable: 'users',
+          targetColumn: 'id',
+          notes: 'Configured link',
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    },
+  );
+
+  expect(staleLinks).toHaveLength(1);
+  expect(staleLinks[0].status).toBe('stale');
+  expect(staleLinks[0].compatibilityReason).toContain('could not be resolved');
+});

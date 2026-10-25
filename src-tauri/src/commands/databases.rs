@@ -777,6 +777,7 @@ fn endpoint_of(app: &AppHandle, id: &str) -> AppResult<Endpoint> {
     if let Some(d) = conn.database.as_deref() {
         DbName::try_from(d)?;
     }
+    crate::core::net::check_outbound_allowed(&host)?;
     Ok(Endpoint {
         password: get_conn_password(&conn.id),
         driver: conn.driver,
@@ -910,6 +911,7 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
         let (endpoint_host, endpoint_port) = resolve_endpoint(&app_clone, &conn);
         let valid_host = HostName::try_from(endpoint_host.as_str())?;
         let valid_port = Port::try_from(endpoint_port)?;
+        crate::core::net::check_outbound_allowed(valid_host.as_str())?;
         let pass = get_conn_password(&conn.id);
 
         let is_prod = conn.env == "prod" || conn.env == "production";
@@ -961,7 +963,8 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
 
                 if !out.status.success() {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(AppError::Shell(format!("database query error: {stderr}")));
+                    let safe_err = crate::services::secrets::redact_secrets_in_text(&stderr);
+                    return Err(AppError::Shell(format!("database query error: {safe_err}")));
                 }
 
                 let text = String::from_utf8_lossy(&out.stdout);
@@ -1006,7 +1009,8 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
 
                 if !out.status.success() {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(AppError::Shell(format!("database query error: {stderr}")));
+                    let safe_err = crate::services::secrets::redact_secrets_in_text(&stderr);
+                    return Err(AppError::Shell(format!("database query error: {safe_err}")));
                 }
 
                 let text = String::from_utf8_lossy(&out.stdout);
@@ -1032,14 +1036,13 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
                 let text = String::from_utf8_lossy(&out.stdout);
                 if !out.status.success() || text.starts_with("(error)") {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(AppError::Shell(format!(
-                        "redis: {}",
-                        if stderr.trim().is_empty() {
-                            text.trim()
-                        } else {
-                            stderr.trim()
-                        }
-                    )));
+                    let raw_msg = if stderr.trim().is_empty() {
+                        text.trim()
+                    } else {
+                        stderr.trim()
+                    };
+                    let safe_err = crate::services::secrets::redact_secrets_in_text(raw_msg);
+                    return Err(AppError::Shell(format!("redis: {safe_err}")));
                 }
                 let columns = vec!["#".into(), "Value".into()];
                 let rows = text
@@ -1100,7 +1103,8 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
 
                 if !out.status.success() {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(AppError::Shell(format!("mongodb error: {stderr}")));
+                    let safe_err = crate::services::secrets::redact_secrets_in_text(&stderr);
+                    return Err(AppError::Shell(format!("mongodb error: {safe_err}")));
                 }
 
                 let columns = vec!["Result".into()];

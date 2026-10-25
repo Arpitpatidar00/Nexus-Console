@@ -348,11 +348,14 @@ pub struct DbStore {
 - **Status**: **CLOSED** (Phase 1)
 - Added `validate_driver` and `validate_env` helpers in `commands/databases.rs`, enforcing driver support (`postgres`, `mysql`, `mongo`, `mongodb`, `redis`) and known environments on all add/update boundaries.
 
-### ISS-13 [New]: DB connections never call `check_outbound_allowed`
+### ISS-13 [Closed in Phase 6]: DB connections never call `check_outbound_allowed`
 
 - **Severity**: **Low (policy consistency)**
-- **Location**: `core/net.rs` declares a `db_hosts` destination, but `db_schema`, `db_browse` and `db_run_query` never call `check_outbound_allowed` (cloud, updater, domains and AI do).
-- **Impact**: Turning off the declared destination wouldn't stop DB traffic. Any new `db_ping`/health check (Phase 4/5) must call the check, and the existing commands should too.
+- **Status**: **CLOSED** (Phase 6)
+- Enforced `crate::core::net::check_outbound_allowed(&host)?` inside `endpoint_of` in `commands/databases.rs` (covering `db_schema`, `db_browse`, and `db_ping`).
+- Enforced `crate::core::net::check_outbound_allowed(valid_host.as_str())?` inside `db_run_query`.
+- Extended loopback detection in `src-tauri/src/core/net.rs` to support IPv6 loopback (`::1`, `[::1]:`).
+- Applied automated secret redaction (`redact_secrets_in_text`) across all database CLI errors and query errors.
 
 ### ISS-14 [Closed in Phase 0]: Missing test coverage at the data boundary
 

@@ -167,6 +167,8 @@ pub fn is_destination_allowed(target: &str) -> bool {
         || lower == "127.0.0.1"
         || lower.starts_with("127.0.0.1:")
         || lower.starts_with("localhost:")
+        || lower == "::1"
+        || lower.starts_with("[::1]")
 }
 
 /// Enforce that target is on the network allow-list before making an outbound call.
@@ -200,6 +202,7 @@ mod tests {
         assert!(is_destination_allowed("ce.us-east-1.amazonaws.com"));
         assert!(is_destination_allowed("127.0.0.1:11434"));
         assert!(is_destination_allowed("localhost:8080"));
+        assert!(is_destination_allowed("::1"));
 
         // Unauthorized destinations rejected
         assert!(!is_destination_allowed("evil-telemetry.com"));

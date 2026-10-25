@@ -277,10 +277,9 @@ pub fn cli_output(tool: &str, out: AppResult<ExecOutput>) -> AppResult<ExecOutpu
         ))
     })?;
     if !o.status.success() {
-        return Err(AppError::Shell(format!(
-            "{tool}: {}",
-            tidy(tool, &first_error(&o))
-        )));
+        let raw_err = tidy(tool, &first_error(&o));
+        let safe_err = crate::services::secrets::redact_secrets_in_text(&raw_err);
+        return Err(AppError::Shell(format!("{tool}: {safe_err}")));
     }
     if o.stdout_truncated {
         return Err(AppError::Shell(format!(
@@ -460,5 +459,34 @@ mod tests {
     fn like_patterns_escape_wildcards() {
         assert_eq!(like_escape("50%_off\\x"), "50\\%\\_off\\\\x");
         assert_eq!(like_escape("plain"), "plain");
+    }
+
+    #[test]
+    fn cli_output_redacts_credentials_in_errors() {
+        use std::os::unix::process::ExitStatusExt;
+        use std::process::ExitStatus;
+
+        let status = ExitStatus::from_raw(256);
+        let exec_out = ExecOutput {
+            status,
+            stdout: Vec::new(),
+            stderr: b"psql: error: failed with key AKIA1234567890ABCDEF".to_vec(),
+            stdout_str: String::new(),
+            stderr_str: "psql: error: failed with key AKIA1234567890ABCDEF".into(),
+            elapsed: std::time::Duration::from_millis(5),
+            stdout_truncated: false,
+            stderr_truncated: false,
+        };
+
+        let err = cli_output("psql", Ok(exec_out)).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            !msg.contains("AKIA1234567890ABCDEF"),
+            "Must not disclose secret key"
+        );
+        assert!(
+            msg.contains("AKIA****CDEF"),
+            "Must contain masked secret key"
+        );
     }
 }

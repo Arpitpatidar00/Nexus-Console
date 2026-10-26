@@ -29,52 +29,64 @@ export const ServersSettingsCard = () => {
     <section className="rounded-xl p-6 text-card-foreground shadow-edge glass">
       <h2 className="font-display text-base font-semibold text-fg">Servers</h2>
       <div className="mt-2 divide-y divide-hairline">
-        <div className="flex items-center justify-between gap-4 py-3.5">
-          <div>
+        <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 pr-2">
             <p className="text-sm font-medium text-fg">Refresh</p>
             <p className="text-xs text-muted-foreground">
               How often the open server is re-checked while the window is focused.
             </p>
           </div>
-          <SegmentedControl
-            ariaLabel="Server refresh interval"
-            value={String(pollMs)}
-            options={REMOTE_POLL_OPTIONS}
-            onChange={(v) => dispatch(setRemotePollInterval(Number(v)))}
-          />
+          <div className="flex shrink-0 items-center justify-start sm:justify-end">
+            <SegmentedControl
+              ariaLabel="Server refresh interval"
+              value={String(pollMs)}
+              options={REMOTE_POLL_OPTIONS}
+              onChange={(v) => dispatch(setRemotePollInterval(Number(v)))}
+              equalWidth
+              className="w-full sm:w-[320px]"
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-4 py-3.5">
-          <div>
+        <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 pr-2">
             <p className="text-sm font-medium text-fg">Prod dead-man's switch</p>
             <p className="text-xs text-muted-foreground">
               Auto-disconnect idle prod control masters when locked, asleep, or idle. Never kills
               busy commands.
             </p>
           </div>
-          <SegmentedControl
-            ariaLabel="Prod dead-man's switch idle timeout"
-            value={String(deadmanMins)}
-            options={DEADMAN_OPTIONS}
-            onChange={(v) => dispatch(setRemoteDeadmanMinutes(Number(v)))}
-          />
+          <div className="flex shrink-0 items-center justify-start sm:justify-end">
+            <SegmentedControl
+              ariaLabel="Prod dead-man's switch idle timeout"
+              value={String(deadmanMins)}
+              options={DEADMAN_OPTIONS}
+              onChange={(v) => dispatch(setRemoteDeadmanMinutes(Number(v)))}
+              equalWidth
+              className="w-full sm:w-[320px]"
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-4 py-3.5">
-          <div>
+        <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 pr-2">
             <p className="text-sm font-medium text-fg">Check in the background</p>
             <p className="text-xs text-muted-foreground">
               While Stackroost is in the menu bar, re-check servers that are already connected and
               notify only about new critical issues. Never connects on its own.
             </p>
           </div>
-          <SegmentedControl
-            ariaLabel="Background check interval"
-            value={String(bgMins)}
-            options={REMOTE_BACKGROUND_OPTIONS}
-            onChange={(v) => dispatch(setRemoteBackgroundMinutes(Number(v)))}
-          />
+          <div className="flex shrink-0 items-center justify-start sm:justify-end">
+            <SegmentedControl
+              ariaLabel="Background check interval"
+              value={String(bgMins)}
+              options={REMOTE_BACKGROUND_OPTIONS}
+              onChange={(v) => dispatch(setRemoteBackgroundMinutes(Number(v)))}
+              equalWidth
+              className="w-full sm:w-[320px]"
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-4 py-3.5">
-          <div>
+        <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 pr-2">
             <p className="text-sm font-medium text-fg">SSH config access</p>
             <p className="text-xs text-muted-foreground">
               {granted
@@ -83,14 +95,16 @@ export const ServersSettingsCard = () => {
             </p>
           </div>
           {granted && (
-            <Button
-              variant="dangerOutline"
-              size="sm"
-              disabled={consent.isPending}
-              onClick={() => consent.mutate(false)}
-            >
-              Revoke
-            </Button>
+            <div className="flex shrink-0 items-center justify-start sm:justify-end">
+              <Button
+                variant="dangerOutline"
+                size="sm"
+                disabled={consent.isPending}
+                onClick={() => consent.mutate(false)}
+              >
+                Revoke
+              </Button>
+            </div>
           )}
         </div>
       </div>

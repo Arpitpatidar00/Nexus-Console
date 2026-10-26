@@ -8,4 +8,6 @@ export interface SegmentedControlProps<T extends string> {
   options: SegmentOption<T>[];
   onChange: (value: T) => void;
   ariaLabel?: string;
+  className?: string;
+  equalWidth?: boolean;
 }

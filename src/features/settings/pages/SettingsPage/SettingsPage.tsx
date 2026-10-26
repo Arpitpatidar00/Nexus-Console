@@ -53,47 +53,55 @@ export const SettingsPage = () => {
         {/* Appearance configuration */}
         <Panel title="Appearance" subtitle="Visual presentation and defaults">
           <div className="divide-y divide-hairline">
-            <div className="flex items-center justify-between gap-4 py-3.5">
-              <div>
+            <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1 pr-2">
                 <p className="text-sm font-medium text-fg">Theme</p>
                 <p className="text-xs text-muted-foreground">
                   Match system, or force Frost/Smoked.
                 </p>
               </div>
-              <SegmentedControl
-                ariaLabel="Theme"
-                value={theme}
-                options={THEME_OPTIONS}
-                onChange={(v) => dispatch(setTheme(v))}
-              />
+              <div className="flex shrink-0 items-center justify-start sm:justify-end">
+                <SegmentedControl
+                  ariaLabel="Theme"
+                  value={theme}
+                  options={THEME_OPTIONS}
+                  onChange={(v) => dispatch(setTheme(v))}
+                  equalWidth
+                  className="w-full sm:w-[280px]"
+                />
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-4 py-3.5">
-              <div>
+            <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1 pr-2">
                 <p className="text-sm font-medium text-fg">Default layout</p>
                 <p className="text-xs text-muted-foreground">
                   How services are shown on the Services tab.
                 </p>
               </div>
-              <SegmentedControl
-                ariaLabel="Default layout"
-                value={layout}
-                options={LAYOUT_OPTIONS}
-                onChange={(v) => dispatch(setLayout(v))}
-              />
+              <div className="flex shrink-0 items-center justify-start sm:justify-end">
+                <SegmentedControl
+                  ariaLabel="Default layout"
+                  value={layout}
+                  options={LAYOUT_OPTIONS}
+                  onChange={(v) => dispatch(setLayout(v))}
+                  equalWidth
+                  className="w-full sm:w-[280px]"
+                />
+              </div>
             </div>
           </div>
         </Panel>
 
         {/* Shortcuts Panel */}
         <Panel title="Shortcuts" subtitle="System-wide hotkeys">
-          <div className="flex items-center justify-between gap-4 py-3.5">
-            <div>
+          <div className="flex flex-col justify-between gap-4 py-3.5 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1 pr-2">
               <p className="text-sm font-medium text-fg">Global toggle hotkey</p>
               <p className="text-xs text-muted-foreground">
                 Show and focus Stackroost from anywhere; press again to hide.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center justify-start gap-2 sm:justify-end">
               <span className="rounded bg-muted px-2.5 py-1 font-mono text-xs text-fg">
                 {globalHotkey ? '⌃⌥Space — shows or hides Stackroost' : 'Off · ⌃⌥Space'}
               </span>

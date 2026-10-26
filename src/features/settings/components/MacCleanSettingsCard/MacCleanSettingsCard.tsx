@@ -11,8 +11,8 @@ import type { CleanRules } from '@/features/maclean/api/maclean.schema';
 
 // One row shape for every setting: copy grows and wraps, the control keeps its
 // size and right edge — the old mix let segmented controls squeeze the text.
-const rowCls = 'flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3.5';
-const copyCls = 'min-w-0 flex-1 basis-64';
+const rowCls = 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3.5';
+const copyCls = 'min-w-0 flex-1 pr-2';
 
 const list = (s: string) =>
   s
@@ -44,7 +44,7 @@ const Form = ({ rules }: { rules: CleanRules }) => {
   const day = (k: keyof typeof days, label: string) => (
     <label key={k} className={rowCls}>
       <span className={`${copyCls} text-sm text-fg`}>{label}</span>
-      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+      <span className="flex shrink-0 items-center justify-start gap-2 text-xs text-muted-foreground sm:justify-end">
         <Input
           size="sm"
           mono
@@ -131,12 +131,16 @@ const Automation = () => {
             minutes.
           </p>
         </div>
-        <SegmentedControl
-          ariaLabel="Scheduled cleanup"
-          value={String(days)}
-          options={AUTO_OPTIONS}
-          onChange={(v) => dispatch(setMacleanAutoCleanDays(Number(v)))}
-        />
+        <div className="flex shrink-0 items-center justify-start sm:justify-end">
+          <SegmentedControl
+            ariaLabel="Scheduled cleanup"
+            value={String(days)}
+            options={AUTO_OPTIONS}
+            onChange={(v) => dispatch(setMacleanAutoCleanDays(Number(v)))}
+            equalWidth
+            className="w-full sm:w-[320px]"
+          />
+        </div>
       </div>
       <div className={rowCls}>
         <div className={copyCls}>
@@ -145,12 +149,16 @@ const Automation = () => {
             One notification when free space drops below this, not one every few minutes.
           </p>
         </div>
-        <SegmentedControl
-          ariaLabel="Low-disk warning"
-          value={String(gb)}
-          options={LOW_DISK_OPTIONS}
-          onChange={(v) => dispatch(setMacleanLowDiskGb(Number(v)))}
-        />
+        <div className="flex shrink-0 items-center justify-start sm:justify-end">
+          <SegmentedControl
+            ariaLabel="Low-disk warning"
+            value={String(gb)}
+            options={LOW_DISK_OPTIONS}
+            onChange={(v) => dispatch(setMacleanLowDiskGb(Number(v)))}
+            equalWidth
+            className="w-full sm:w-[320px]"
+          />
+        </div>
       </div>
     </div>
   );

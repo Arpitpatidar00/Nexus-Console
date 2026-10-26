@@ -39,8 +39,11 @@ export const PrivacyCard = () => {
           <p className="sr-caption mb-1">Local data access</p>
           <div className="divide-y divide-hairline">
             {consents.data?.map((c) => (
-              <div key={c.source} className="flex items-center justify-between gap-4 py-3">
-                <div>
+              <div
+                key={c.source}
+                className="flex flex-col justify-between gap-4 py-3 sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0 flex-1 pr-2">
                   <p className="text-sm font-medium text-fg">{c.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {c.granted
@@ -48,12 +51,14 @@ export const PrivacyCard = () => {
                       : 'Not allowed — nothing is read'}
                   </p>
                 </div>
-                <Switch
-                  ariaLabel={`Allow ${c.name}`}
-                  checked={c.granted}
-                  disabled={setConsent.isPending}
-                  onChange={(granted) => setConsent.mutate({ source: c.source, granted })}
-                />
+                <div className="flex shrink-0 items-center justify-start sm:justify-end">
+                  <Switch
+                    ariaLabel={`Allow ${c.name}`}
+                    checked={c.granted}
+                    disabled={setConsent.isPending}
+                    onChange={(granted) => setConsent.mutate({ source: c.source, granted })}
+                  />
+                </div>
               </div>
             ))}
           </div>

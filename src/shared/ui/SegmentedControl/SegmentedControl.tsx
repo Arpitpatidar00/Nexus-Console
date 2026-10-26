@@ -8,6 +8,8 @@ export const SegmentedControl = <T extends string>({
   options,
   onChange,
   ariaLabel,
+  className,
+  equalWidth = false,
 }: SegmentedControlProps<T>) => {
   const reduce = useReducedMotion();
   const groupId = useId();
@@ -15,7 +17,10 @@ export const SegmentedControl = <T extends string>({
   return (
     <fieldset
       aria-label={ariaLabel}
-      className="m-0 inline-flex min-w-0 items-center gap-0.5 rounded-full border border-hairline bg-muted p-1"
+      className={cn(
+        'm-0 inline-flex shrink-0 items-center gap-0.5 rounded-full border border-hairline bg-muted p-1 select-none',
+        className,
+      )}
     >
       {options.map((o) => {
         const active = value === o.value;
@@ -26,7 +31,8 @@ export const SegmentedControl = <T extends string>({
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'relative h-8 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+              'relative flex h-8 cursor-pointer items-center justify-center rounded-full px-3.5 text-center text-[13px] font-medium transition-colors select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+              equalWidth ? 'min-w-[3.25rem] flex-1' : 'shrink-0',
               active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-fg',
             )}
           >
@@ -40,7 +46,7 @@ export const SegmentedControl = <T extends string>({
                 }
               />
             )}
-            <span className="relative z-10">{o.label}</span>
+            <span className="relative z-10 truncate px-0.5">{o.label}</span>
           </button>
         );
       })}

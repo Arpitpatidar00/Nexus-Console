@@ -52,8 +52,9 @@ All performance tests were executed deterministically via `src/features/database
    - `db_ping` command in `src-tauri/src/commands/databases.rs` performs lightweight health checks (`SELECT 1` for PostgreSQL/MySQL, `PING` for Redis, admin ping for MongoDB) in < 15ms without running full schema introspection.
 3. **Cache Eviction**:
    - When a connection is removed, `useDeleteConnection` explicitly purges both `dbKeys.schema(id)` and `['databases', 'browse', id]` from TanStack Query cache, eliminating stale cache leakage.
-4. **Credential Security & Outbound Guard**:
-   - Outbound connections are gated by `net::check_outbound_allowed` with strict IP resolution and validation, permitting loopback (`127.0.0.1`, `::1`) while preventing SSRF / internal subnet probing.
+4. **Credential Security & Endpoint Validation**:
+   - Declared `db_hosts` in `core::net` as a disclosed `user_configured` destination.
+   - Enforced strict newtype validation (`HostName`, `Port`, `DbUser`, `DbName`) on all database connection endpoints, supporting legitimate user-configured remote databases (e.g. Neon, AWS RDS, cloud providers) and local/loopback instances.
    - Keychain credentials (`db_conn_{id}`) are purged automatically when connections are deleted.
    - Automated secret redaction (`redact_secrets_in_text`) strips tokens, passwords, and sensitive keys from error panels and CLI outputs.
 

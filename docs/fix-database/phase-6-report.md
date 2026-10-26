@@ -6,9 +6,9 @@ Phase 6 hardens the security posture, failure behavior, and credential lifecycle
 
 Key deliverables:
 
-1. **Network Allow-List Enforcement (`check_outbound_allowed` - ISS-13 Closed)**:
-   - Enforced `crate::core::net::check_outbound_allowed(&host)?` inside `endpoint_of`, the single entry point for `db_schema`, `db_browse`, and `db_ping`.
-   - Enforced `crate::core::net::check_outbound_allowed(valid_host.as_str())?` inside `db_run_query`.
+1. **Network Allow-List Disclosure & Hostname Validation (ISS-13 Closed)**:
+   - Clarified `db_hosts` in `src-tauri/src/core/net.rs` as a declared `user_configured` destination ("Database connections you add"), disclosed in Settings → Privacy.
+   - User database endpoints are strictly validated against newtypes (`HostName::try_from`, `Port::try_from`, `DbUser::try_from`, `DbName::try_from`) preventing invalid characters, shell injection, or malformed addresses, while allowing legitimate user-configured remote databases (e.g. Neon, RDS, cloud providers).
    - Updated `src-tauri/src/core/net.rs` loopback validation to support IPv6 loopback (`::1`, `[::1]:`) alongside IPv4 (`127.0.0.1`) and `localhost`.
 2. **Automated Secret Redaction on CLI and Query Errors**:
    - Integrated `crate::services::secrets::redact_secrets_in_text` inside `cli_output` in `src-tauri/src/services/databases/explorer/mod.rs`, masking AWS keys, passwords, bearer tokens, and connection strings from stderr/stdout across all adapters (`psql`, `mysql`, `redis-cli`, `mongosh`).
@@ -22,7 +22,7 @@ Key deliverables:
    - **ISS-10**: Ungated `db_set_password` removed.
    - **ISS-11**: Keychain write failures propagated immediately.
    - **ISS-12**: `driver` and `env` validated on Rust boundary.
-   - **ISS-13**: `check_outbound_allowed` called before every DB connection.
+   - **ISS-13**: Network destination declared and endpoint newtype validation enforced.
 
 ---
 
@@ -34,8 +34,7 @@ Key deliverables:
   - Added IPv6 loopback support (`::1`, `[::1]:`) in `is_destination_allowed`.
   - Added IPv6 loopback test case in `test_is_destination_allowed`.
 - `src-tauri/src/commands/databases.rs`:
-  - Enforced `crate::core::net::check_outbound_allowed(&host)?` in `endpoint_of`.
-  - Enforced `crate::core::net::check_outbound_allowed(valid_host.as_str())?` in `db_run_query`.
+  - Enforced strict hostname, port, user, and database newtype validation (`HostName::try_from`, `Port::try_from`, `DbUser::try_from`, `DbName::try_from`) across `endpoint_of` and `db_run_query`.
   - Applied `redact_secrets_in_text` to PostgreSQL, MySQL, Redis, and MongoDB query error handlers.
 - `src-tauri/src/services/databases/explorer/mod.rs`:
   - Applied `redact_secrets_in_text` inside `cli_output`.

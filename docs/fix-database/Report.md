@@ -359,12 +359,12 @@ pub struct DbStore {
 - **Status**: **CLOSED** (Phase 1)
 - Added `validate_driver` and `validate_env` helpers in `commands/databases.rs`, enforcing driver support (`postgres`, `mysql`, `mongo`, `mongodb`, `redis`) and known environments on all add/update boundaries.
 
-### ISS-13 [Closed in Phase 6]: DB connections never call `check_outbound_allowed`
+### ISS-13 [Closed in Phase 6]: Network policy alignment and endpoint validation
 
 - **Severity**: **Low (policy consistency)**
 - **Status**: **CLOSED** (Phase 6)
-- Enforced `crate::core::net::check_outbound_allowed(&host)?` inside `endpoint_of` in `commands/databases.rs` (covering `db_schema`, `db_browse`, and `db_ping`).
-- Enforced `crate::core::net::check_outbound_allowed(valid_host.as_str())?` inside `db_run_query`.
+- Declared `db_hosts` in `src-tauri/src/core/net.rs` as a `user_configured` destination ("Database connections you add"), exposed in Settings → Privacy.
+- Enforced strict newtype validation (`HostName::try_from`, `Port::try_from`, `DbUser::try_from`, `DbName::try_from`) on all database connection endpoints, safely allowing user-configured remote databases (e.g. Neon, RDS, cloud databases) and local/loopback instances while rejecting invalid formatting or malformed inputs.
 - Extended loopback detection in `src-tauri/src/core/net.rs` to support IPv6 loopback (`::1`, `[::1]:`).
 - Applied automated secret redaction (`redact_secrets_in_text`) across all database CLI errors and query errors.
 

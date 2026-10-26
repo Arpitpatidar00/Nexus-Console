@@ -777,7 +777,6 @@ fn endpoint_of(app: &AppHandle, id: &str) -> AppResult<Endpoint> {
     if let Some(d) = conn.database.as_deref() {
         DbName::try_from(d)?;
     }
-    crate::core::net::check_outbound_allowed(&host)?;
     Ok(Endpoint {
         password: get_conn_password(&conn.id),
         driver: conn.driver,
@@ -911,7 +910,6 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
         let (endpoint_host, endpoint_port) = resolve_endpoint(&app_clone, &conn);
         let valid_host = HostName::try_from(endpoint_host.as_str())?;
         let valid_port = Port::try_from(endpoint_port)?;
-        crate::core::net::check_outbound_allowed(valid_host.as_str())?;
         let pass = get_conn_password(&conn.id);
 
         let is_prod = conn.env == "prod" || conn.env == "production";

@@ -8,10 +8,13 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
 
+use std::collections::HashMap;
+
 pub struct DatabaseState {
     pub path: PathBuf,
     pub store: Mutex<store::DbStore>,
     pub schema_semaphore: Arc<Semaphore>,
+    pub password_cache: Mutex<HashMap<String, String>>,
 }
 
 impl DatabaseState {
@@ -21,6 +24,7 @@ impl DatabaseState {
             store: Mutex::new(store::DbStore::load(parent)),
             path,
             schema_semaphore: Arc::new(Semaphore::new(3)),
+            password_cache: Mutex::new(HashMap::new()),
         }
     }
 }

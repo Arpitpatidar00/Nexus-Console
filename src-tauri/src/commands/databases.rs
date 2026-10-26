@@ -282,6 +282,11 @@ pub async fn db_delete_group(
         drop(store);
 
         if delete_connections {
+            if let Ok(mut cache) = state.password_cache.lock() {
+                for conn_id in &affected_ids {
+                    cache.remove(conn_id);
+                }
+            }
             for conn_id in affected_ids {
                 if let Err(e) =
                     crate::core::keychain::delete_password(&format!("db_conn_{conn_id}"))
@@ -585,10 +590,13 @@ pub async fn db_update_connection(
             }
         }
 
-        // If password is provided, update Keychain first
+        // If password is provided, update Keychain first and in-memory cache
         if let Some(ref pass) = password_opt {
             crate::core::keychain::set_password(&format!("db_conn_{}", input.id), pass)
                 .map_err(|e| AppError::Io(format!("Failed to update Keychain password: {e}")))?;
+            if let Ok(mut cache) = state.password_cache.lock() {
+                cache.insert(input.id.clone(), pass.clone());
+            }
         }
 
         let conn = DbConnection {
@@ -657,6 +665,9 @@ pub async fn db_add_connection(
         if let Some(ref pass) = password_opt {
             crate::core::keychain::set_password(&format!("db_conn_{conn_id}"), pass)
                 .map_err(|e| AppError::Io(format!("Failed to save Keychain password: {e}")))?;
+            if let Ok(mut cache) = state.password_cache.lock() {
+                cache.insert(conn_id.clone(), pass.clone());
+            }
         }
 
         let mut store = state
@@ -728,6 +739,9 @@ pub async fn db_remove_connection(app: AppHandle, id: String) -> AppResult<()> {
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
         drop(store);
+        if let Ok(mut cache) = state.password_cache.lock() {
+            cache.remove(&id);
+        }
         if let Err(e) = crate::core::keychain::delete_password(&format!("db_conn_{id}")) {
             guard.failure(format!("removed, but Keychain entry not deleted: {e}"));
         } else {
@@ -751,10 +765,22 @@ fn resolve_endpoint(app: &AppHandle, conn: &DbConnection) -> (String, u16) {
     (conn.host.clone(), conn.port)
 }
 
-fn get_conn_password(conn_id: &str) -> Option<String> {
-    crate::core::keychain::get_password(&format!("db_conn_{conn_id}"))
-        .ok()
-        .flatten()
+fn get_conn_password(app: &AppHandle, conn_id: &str) -> Option<String> {
+    let state = app.state::<DatabaseState>();
+    if let Ok(cache) = state.password_cache.lock() {
+        if let Some(pass) = cache.get(conn_id) {
+            return Some(pass.clone());
+        }
+    }
+    match crate::core::keychain::get_password(&format!("db_conn_{conn_id}")) {
+        Ok(Some(pass)) => {
+            if let Ok(mut cache) = state.password_cache.lock() {
+                cache.insert(conn_id.to_string(), pass.clone());
+            }
+            Some(pass)
+        }
+        _ => None,
+    }
 }
 
 /// The saved connection as something the explorer can dial: its tunnel's
@@ -778,7 +804,7 @@ fn endpoint_of(app: &AppHandle, id: &str) -> AppResult<Endpoint> {
         DbName::try_from(d)?;
     }
     Ok(Endpoint {
-        password: get_conn_password(&conn.id),
+        password: get_conn_password(app, &conn.id),
         driver: conn.driver,
         host,
         port,
@@ -910,7 +936,7 @@ pub async fn db_run_query(app: AppHandle, id: String, query: String) -> AppResul
         let (endpoint_host, endpoint_port) = resolve_endpoint(&app_clone, &conn);
         let valid_host = HostName::try_from(endpoint_host.as_str())?;
         let valid_port = Port::try_from(endpoint_port)?;
-        let pass = get_conn_password(&conn.id);
+        let pass = get_conn_password(&app_clone, &conn.id);
 
         let is_prod = conn.env == "prod" || conn.env == "production";
         let allow_writes = conn.allow_writes && !is_prod;

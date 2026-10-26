@@ -3,6 +3,7 @@ pub mod classifier;
 pub mod discovery;
 pub mod explorer;
 pub mod store;
+pub mod vault;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -20,12 +21,55 @@ pub struct DatabaseState {
 impl DatabaseState {
     pub fn load(path: PathBuf) -> Self {
         let parent = path.parent().unwrap_or(&path);
+        let store = store::DbStore::load(parent);
+        let vault_file = parent.join("local-db-vault.json");
+        let mut initial_passwords = vault::load_passwords(&vault_file);
+
+        // One-time migration: for any existing connection without a cached password,
+        // attempt to read it once from Keychain natively so existing connections
+        // are seamlessly migrated into local-db-vault.
+        let mut migrated = false;
+        for conn in &store.connections {
+            if !initial_passwords.contains_key(&conn.id) {
+                if let Ok(Some(pass)) =
+                    crate::core::keychain::get_password(&format!("db_conn_{}", conn.id))
+                {
+                    initial_passwords.insert(conn.id.clone(), pass);
+                    migrated = true;
+                }
+            }
+        }
+        if migrated {
+            let _ = vault::save_passwords(&vault_file, &initial_passwords);
+        }
+
         Self {
-            store: Mutex::new(store::DbStore::load(parent)),
+            store: Mutex::new(store),
             path,
             schema_semaphore: Arc::new(Semaphore::new(3)),
-            password_cache: Mutex::new(HashMap::new()),
+            password_cache: Mutex::new(initial_passwords),
         }
+    }
+
+    pub fn save_password(&self, conn_id: &str, password: &str) {
+        if let Ok(mut cache) = self.password_cache.lock() {
+            cache.insert(conn_id.to_string(), password.to_string());
+            let parent = self.path.parent().unwrap_or(&self.path);
+            let vault_file = parent.join("local-db-vault.json");
+            let _ = vault::save_passwords(&vault_file, &cache);
+        }
+        // Best effort sync to Keychain
+        let _ = crate::core::keychain::set_password(&format!("db_conn_{conn_id}"), password);
+    }
+
+    pub fn remove_password(&self, conn_id: &str) {
+        if let Ok(mut cache) = self.password_cache.lock() {
+            cache.remove(conn_id);
+            let parent = self.path.parent().unwrap_or(&self.path);
+            let vault_file = parent.join("local-db-vault.json");
+            let _ = vault::save_passwords(&vault_file, &cache);
+        }
+        let _ = crate::core::keychain::delete_password(&format!("db_conn_{conn_id}"));
     }
 }
 

@@ -245,7 +245,7 @@ pub async fn db_delete_group(
                 .ok_or_else(|| AppError::NotFound(format!("group {id}")))?
         };
 
-        let guard = if delete_connections {
+        let _guard = if delete_connections {
             mutation(
                 &app,
                 MutationSpec::new(
@@ -282,17 +282,8 @@ pub async fn db_delete_group(
         drop(store);
 
         if delete_connections {
-            if let Ok(mut cache) = state.password_cache.lock() {
-                for conn_id in &affected_ids {
-                    cache.remove(conn_id);
-                }
-            }
             for conn_id in affected_ids {
-                if let Err(e) =
-                    crate::core::keychain::delete_password(&format!("db_conn_{conn_id}"))
-                {
-                    guard.failure(format!("Keychain entry not deleted for {conn_id}: {e}"));
-                }
+                state.remove_password(&conn_id);
             }
         }
 
@@ -590,13 +581,9 @@ pub async fn db_update_connection(
             }
         }
 
-        // If password is provided, update Keychain first and in-memory cache
+        // If password is provided, update vault, in-memory cache, and Keychain
         if let Some(ref pass) = password_opt {
-            crate::core::keychain::set_password(&format!("db_conn_{}", input.id), pass)
-                .map_err(|e| AppError::Io(format!("Failed to update Keychain password: {e}")))?;
-            if let Ok(mut cache) = state.password_cache.lock() {
-                cache.insert(input.id.clone(), pass.clone());
-            }
+            state.save_password(&input.id, pass);
         }
 
         let conn = DbConnection {
@@ -663,11 +650,7 @@ pub async fn db_add_connection(
         let conn_id = new_connection_id();
 
         if let Some(ref pass) = password_opt {
-            crate::core::keychain::set_password(&format!("db_conn_{conn_id}"), pass)
-                .map_err(|e| AppError::Io(format!("Failed to save Keychain password: {e}")))?;
-            if let Ok(mut cache) = state.password_cache.lock() {
-                cache.insert(conn_id.clone(), pass.clone());
-            }
+            state.save_password(&conn_id, pass);
         }
 
         let mut store = state
@@ -739,14 +722,8 @@ pub async fn db_remove_connection(app: AppHandle, id: String) -> AppResult<()> {
         let dir = state.path.parent().unwrap_or(&state.path);
         store.save(dir)?;
         drop(store);
-        if let Ok(mut cache) = state.password_cache.lock() {
-            cache.remove(&id);
-        }
-        if let Err(e) = crate::core::keychain::delete_password(&format!("db_conn_{id}")) {
-            guard.failure(format!("removed, but Keychain entry not deleted: {e}"));
-        } else {
-            guard.success("removed");
-        }
+        state.remove_password(&id);
+        guard.success("removed");
         Ok(())
     })
     .await
@@ -774,9 +751,7 @@ fn get_conn_password(app: &AppHandle, conn_id: &str) -> Option<String> {
     }
     match crate::core::keychain::get_password(&format!("db_conn_{conn_id}")) {
         Ok(Some(pass)) => {
-            if let Ok(mut cache) = state.password_cache.lock() {
-                cache.insert(conn_id.to_string(), pass.clone());
-            }
+            state.save_password(conn_id, &pass);
             Some(pass)
         }
         _ => None,

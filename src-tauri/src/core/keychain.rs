@@ -5,31 +5,9 @@ const SERVICE_NAME: &str = "com.stackroost.app";
 pub fn set_password(account: &str, password: &str) -> AppResult<()> {
     #[cfg(target_os = "macos")]
     {
-        // On macOS, saving with `-A` (allow any application to access without warning)
-        // prevents repetitive OS modal prompts ("Stackroost wants to use your confidential
-        // information stored in 'db_conn_...' in your keychain") across development
-        // builds, cargo runs, and app updates.
-        let cli_status = std::process::Command::new("/usr/bin/security")
-            .args([
-                "add-generic-password",
-                "-U",
-                "-s",
-                SERVICE_NAME,
-                "-a",
-                account,
-                "-w",
-                password,
-                "-A",
-            ])
-            .output();
+        // First delete any existing entry to reset permissions cleanly
+        let _ = security_framework::passwords::delete_generic_password(SERVICE_NAME, account);
 
-        if let Ok(out) = cli_status {
-            if out.status.success() {
-                return Ok(());
-            }
-        }
-
-        // Fallback to security-framework crate
         security_framework::passwords::set_generic_password(
             SERVICE_NAME,
             account,
@@ -48,40 +26,19 @@ pub fn set_password(account: &str, password: &str) -> AppResult<()> {
 pub fn get_password(account: &str) -> AppResult<Option<String>> {
     #[cfg(target_os = "macos")]
     {
-        // First try the security CLI (which reads cleanly with -w without OS prompts)
-        if let Ok(out) = std::process::Command::new("/usr/bin/security")
-            .args([
-                "find-generic-password",
-                "-s",
-                SERVICE_NAME,
-                "-a",
-                account,
-                "-w",
-            ])
-            .output()
-        {
-            if out.status.success() {
-                let pass = String::from_utf8_lossy(&out.stdout).trim_end().to_string();
-                if !pass.is_empty() {
-                    return Ok(Some(pass));
-                }
-            }
-        }
-
-        // Fall back to security-framework
+        // Native security-framework call inside the process.
+        // We strictly avoid spawning `/usr/bin/security` CLI, which triggers
+        // the macOS modal prompt: "'security' wants to use your confidential information...".
         match security_framework::passwords::get_generic_password(SERVICE_NAME, account) {
             Ok(bytes) => {
                 let s = String::from_utf8(bytes)
                     .map_err(|e| AppError::Io(format!("keychain password utf8: {e}")))?;
                 Ok(Some(s))
             }
-            Err(e) => {
-                // If item not found (errSecItemNotFound = -25300)
-                if e.code() == -25300 {
-                    Ok(None)
-                } else {
-                    Err(AppError::Io(format!("keychain read failed: {e}")))
-                }
+            Err(_) => {
+                // If item not found or any access/signature issue occurs, return None
+                // so caller falls back to persistent vault / memory cache cleanly without crashing.
+                Ok(None)
             }
         }
     }
@@ -95,20 +52,8 @@ pub fn get_password(account: &str) -> AppResult<Option<String>> {
 pub fn delete_password(account: &str) -> AppResult<()> {
     #[cfg(target_os = "macos")]
     {
-        let _ = std::process::Command::new("/usr/bin/security")
-            .args(["delete-generic-password", "-s", SERVICE_NAME, "-a", account])
-            .output();
-
-        match security_framework::passwords::delete_generic_password(SERVICE_NAME, account) {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                if e.code() == -25300 {
-                    Ok(())
-                } else {
-                    Err(AppError::Io(format!("keychain delete failed: {e}")))
-                }
-            }
-        }
+        let _ = security_framework::passwords::delete_generic_password(SERVICE_NAME, account);
+        Ok(())
     }
     #[cfg(not(target_os = "macos"))]
     {

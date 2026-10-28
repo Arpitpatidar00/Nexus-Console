@@ -24,6 +24,7 @@ pub mod vscode;
 
 pub mod databases;
 pub mod docker;
+pub mod kafka;
 use crate::core::error::{AppError, AppResult};
 
 /// Run blocking fs/db work off the main thread — shared by all doctor commands.

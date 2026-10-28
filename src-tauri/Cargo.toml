@@ -36,5 +36,13 @@ blake3 = "1.8.7"
 tokio = { version = "1", features = ["net", "io-util", "sync", "time", "macros", "rt-multi-thread"] }
 regex = "1"
 security-framework = "3.7.0"
+# Kafka explorer: the wire protocol spoken natively (no JVM, no kcat); TLS via
+# rustls + the macOS trust store, SCRAM via ring — all already in the tree.
+kafka-protocol = "0.18"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rustls-platform-verifier = "0.7"
+ring = "0.17"
+base64 = "0.22"
+bytes = "1"
 
 # ponytail: notification plugin + nix land in P5/P7 as needed — not pre-added.

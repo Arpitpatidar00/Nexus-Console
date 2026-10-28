@@ -15,6 +15,7 @@ const TOOL_MODULES: Record<string, ModuleId[]> = {
   android: ['devices'],
   flutter: ['devices', 'releases'],
   databases: ['databases'],
+  kafka: ['kafka'],
 };
 
 /** The defaults plus every opt-in module whose tool this Mac has. */

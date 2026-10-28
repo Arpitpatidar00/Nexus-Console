@@ -6,6 +6,7 @@ pub mod cloud;
 pub mod databases;
 pub mod doctor;
 pub mod domains;
+pub mod kafka;
 pub mod local_docker;
 pub mod maclean;
 pub mod network;

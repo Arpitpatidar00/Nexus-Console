@@ -14,6 +14,7 @@ export const TABS = [
   'sessions',
   'docker',
   'databases',
+  'kafka',
   'projects',
   'toolbox',
   'domains',

@@ -73,6 +73,9 @@ pub fn run() {
             app.manage(databases::DatabaseState::load(
                 app.path().app_data_dir()?.join("local-databases.json"),
             ));
+            app.manage(crate::services::kafka::KafkaState::load(
+                app.path().app_data_dir()?,
+            ));
             app.manage(projects::ProjectsState::load(
                 app.path().app_data_dir()?.join("projects.json"),
             ));
@@ -317,6 +320,19 @@ pub fn run() {
             commands::databases::db_list_snapshots,
             commands::databases::db_create_snapshot,
             commands::databases::db_restore_snapshot,
+            commands::kafka::kafka_list_clusters,
+            commands::kafka::kafka_add_cluster,
+            commands::kafka::kafka_update_cluster,
+            commands::kafka::kafka_remove_cluster,
+            commands::kafka::kafka_test_connection,
+            commands::kafka::kafka_ping,
+            commands::kafka::kafka_overview,
+            commands::kafka::kafka_topics,
+            commands::kafka::kafka_topic_detail,
+            commands::kafka::kafka_groups,
+            commands::kafka::kafka_group_detail,
+            commands::kafka::kafka_consume,
+            commands::kafka::kafka_broker_configs,
             commands::projects::projects_discover,
             commands::projects::projects_profile,
             commands::projects::projects_create_env,

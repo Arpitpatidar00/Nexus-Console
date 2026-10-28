@@ -131,6 +131,12 @@ pub fn declared_destinations() -> Vec<NetDestination> {
             "Queries to the database hosts you connect to (local or remote)",
             "databases",
         ),
+        user_dest(
+            "kafka_brokers",
+            "Kafka clusters you add",
+            "Read-only Kafka protocol requests to the brokers of clusters you add",
+            "kafka",
+        ),
     ])
     .collect()
 }

@@ -43,6 +43,9 @@ export const PAGES: Record<Tab, ComponentType> = {
   databases: lazy(() =>
     import('@/features/databases/pages/DatabasesPage').then((m) => ({ default: m.DatabasesPage })),
   ),
+  kafka: lazy(() =>
+    import('@/features/kafka/pages/KafkaPage').then((m) => ({ default: m.KafkaPage })),
+  ),
   projects: lazy(() =>
     import('@/features/projects/pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
   ),

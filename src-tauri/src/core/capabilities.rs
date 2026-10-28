@@ -37,6 +37,8 @@ pub fn command_module(cmd: &str) -> Option<&'static str> {
         Some("docker")
     } else if cmd.starts_with("db_") {
         Some("databases")
+    } else if cmd.starts_with("kafka_") {
+        Some("kafka")
     } else if cmd.starts_with("remote_") {
         Some("remote")
     } else if cmd.starts_with("maclean_") {
@@ -161,6 +163,7 @@ mod tests {
         assert_eq!(command_module("aws_list_profiles"), Some("cloud"));
         assert_eq!(command_module("docker_list_containers"), Some("docker"));
         assert_eq!(command_module("db_list_connections"), Some("databases"));
+        assert_eq!(command_module("kafka_consume"), Some("kafka"));
         assert_eq!(command_module("remote_connect"), Some("remote"));
         assert_eq!(command_module("maclean_scan"), Some("maclean"));
         assert_eq!(command_module("devices_list_ios"), Some("devices"));

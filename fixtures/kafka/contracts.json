@@ -1,0 +1,234 @@
+{
+  "cluster": {
+    "bootstrap": [
+      "localhost:9092",
+      "[::1]:9093"
+    ],
+    "caCertPath": null,
+    "createdAt": 1,
+    "env": "local",
+    "hasPassword": true,
+    "id": "kafka_1_ab",
+    "name": "Local",
+    "saslMechanism": "SCRAM-SHA-512",
+    "security": "saslSsl",
+    "updatedAt": 2,
+    "username": "svc"
+  },
+  "consume": {
+    "durationMs": 3,
+    "messages": [
+      {
+        "headers": [
+          {
+            "key": "trace",
+            "value": {
+              "base64": true,
+              "format": "schemaRegistry",
+              "schemaId": 9,
+              "size": 6,
+              "text": "/w==",
+              "truncated": false
+            }
+          }
+        ],
+        "key": {
+          "base64": false,
+          "format": "text",
+          "schemaId": null,
+          "size": 7,
+          "text": "order-1",
+          "truncated": false
+        },
+        "offset": 41,
+        "partition": 0,
+        "size": 13,
+        "timestamp": 1700000000000,
+        "timestampType": "create",
+        "value": null
+      }
+    ],
+    "partial": null,
+    "partitions": [
+      {
+        "error": null,
+        "high": 42,
+        "low": 0,
+        "partition": 0,
+        "reached": 42,
+        "start": 41
+      }
+    ],
+    "scanned": 1,
+    "warnings": []
+  },
+  "groupDetail": {
+    "assignor": null,
+    "coordinator": 1,
+    "error": null,
+    "groupId": "billing",
+    "members": [
+      {
+        "assignment": [
+          {
+            "partitions": [
+              0,
+              1
+            ],
+            "topic": "orders"
+          }
+        ],
+        "clientId": "app",
+        "groupInstanceId": null,
+        "host": "/127.0.0.1",
+        "memberId": "m-1"
+      }
+    ],
+    "offsets": [
+      {
+        "behindLogStart": false,
+        "clientId": null,
+        "committed": 10,
+        "host": null,
+        "lag": 5,
+        "logEnd": 15,
+        "logStart": 0,
+        "memberId": "m-1",
+        "partition": 0,
+        "topic": "orders"
+      }
+    ],
+    "protocolType": "consumer",
+    "state": "Empty",
+    "totalLag": 5,
+    "warnings": []
+  },
+  "groups": {
+    "groups": [
+      {
+        "assignor": "range",
+        "coordinator": 1,
+        "error": null,
+        "groupId": "billing",
+        "groupType": "classic",
+        "members": 2,
+        "protocolType": "consumer",
+        "state": "Stable",
+        "topics": [
+          {
+            "lag": 5,
+            "partitions": 3,
+            "topic": "orders"
+          }
+        ],
+        "totalLag": 5
+      }
+    ],
+    "warnings": []
+  },
+  "jsonPayload": {
+    "base64": false,
+    "format": "json",
+    "schemaId": null,
+    "size": 7,
+    "text": "{\"a\":1}",
+    "truncated": false
+  },
+  "overview": {
+    "brokers": [
+      {
+        "diskTotalBytes": null,
+        "diskUsableBytes": 10,
+        "error": null,
+        "host": "localhost",
+        "id": 1,
+        "isController": true,
+        "leaderCount": 3,
+        "port": 9092,
+        "rack": null,
+        "replicaCount": 3,
+        "sizeBytes": 1024
+      }
+    ],
+    "clusterId": "abc",
+    "controllerId": 1,
+    "features": [
+      {
+        "level": 21,
+        "name": "metadata.version"
+      }
+    ],
+    "internalTopicCount": 1,
+    "nonPreferredLeaders": 1,
+    "offlinePartitions": 0,
+    "partitionCount": 53,
+    "topicCount": 2,
+    "underReplicatedPartitions": 0,
+    "warnings": []
+  },
+  "test": {
+    "brokerCount": 0,
+    "clusterId": null,
+    "error": "refused",
+    "latencyMs": 12,
+    "ok": false,
+    "topicCount": 0,
+    "warnings": [
+      "w"
+    ]
+  },
+  "topicDetail": {
+    "configs": [
+      {
+        "documentation": null,
+        "isDefault": true,
+        "name": "cleanup.policy",
+        "readOnly": false,
+        "sensitive": false,
+        "source": "default",
+        "value": "delete"
+      }
+    ],
+    "configsError": null,
+    "internal": false,
+    "name": "orders",
+    "partitions": [
+      {
+        "error": null,
+        "high": 42,
+        "isr": [
+          1
+        ],
+        "leader": 1,
+        "low": 0,
+        "messages": 42,
+        "offlineReplicas": [],
+        "partition": 0,
+        "replicas": [
+          1
+        ],
+        "sizeBytes": null
+      }
+    ],
+    "topicId": "uuid",
+    "warnings": []
+  },
+  "topics": {
+    "topics": [
+      {
+        "error": null,
+        "internal": false,
+        "messages": 42,
+        "name": "orders",
+        "offline": 0,
+        "partitions": 3,
+        "replicationFactor": 1,
+        "sizeBytes": null,
+        "underReplicated": 0
+      }
+    ],
+    "warnings": [
+      "Sizes unavailable"
+    ]
+  }
+}

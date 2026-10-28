@@ -68,6 +68,18 @@ const TOOLS: &[(&str, &str, &[&str])] = &[
         &["~/Library/Android/sdk/emulator/emulator"],
     ),
     (
+        "kafka",
+        "Kafka / kcat",
+        &[
+            "/opt/homebrew/bin/kafka-server-start",
+            "/usr/local/bin/kafka-server-start",
+            "/opt/homebrew/bin/kcat",
+            "/usr/local/bin/kcat",
+            "/opt/homebrew/bin/rpk",
+            "/Applications/Offset Explorer 3.app",
+        ],
+    ),
+    (
         "databases",
         "psql / mysql",
         &[

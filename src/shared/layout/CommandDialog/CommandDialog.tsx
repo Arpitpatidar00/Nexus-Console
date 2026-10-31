@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useEffectEvent } from 'react';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setActiveTab, type Tab } from '@/shared/state/uiSlice';
 import { addRecentCommandId, togglePinnedCommand } from '@/shared/state/settingsSlice';
@@ -96,13 +96,17 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
   // Only keyboard moves scroll the list; hover-selection must not make it jump.
   const keyboardMove = useRef(false);
 
-  useEffect(() => {
+  // Fresh palette on every open (and when the tab changes while open) — during
+  // render, not in an effect's second pass.
+  const [syncedFor, setSyncedFor] = useState({ open: false, activeTab });
+  if (syncedFor.open !== open || syncedFor.activeTab !== activeTab) {
+    setSyncedFor({ open, activeTab });
     if (open) {
       setSelectedModule(activeTab);
       setQuery('');
       setSelectedIndex(0);
     }
-  }, [open, activeTab]);
+  }
 
   const handleSelectTab = useCallback(
     (tab: string) => {
@@ -155,72 +159,66 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
     };
   }, [query, actions, recentIds, pinnedIds]);
 
-  // Keep selectedIndex in bounds
-  useEffect(() => {
-    setSelectedIndex((prev) => {
-      if (selectableItems.length === 0) return 0;
-      return Math.min(prev, selectableItems.length - 1);
-    });
-  }, [selectableItems.length]);
+  // Kept in bounds by derivation when the list shrinks.
+  const activeIndex =
+    selectableItems.length === 0 ? 0 : Math.min(selectedIndex, selectableItems.length - 1);
 
-  const handleExecute = useCallback(
-    (action: ActionItem) => {
-      dispatch(addRecentCommandId(action.id));
-      try {
-        action.run({
-          dispatch,
-          navigate: (tab) => dispatch(setActiveTab(tab)),
-        });
-      } finally {
-        onOpenChange(false);
-      }
-    },
-    [dispatch, onOpenChange],
-  );
+  // React Compiler memoizes this; no hand-written useCallback.
+  const handleExecute = (action: ActionItem) => {
+    dispatch(addRecentCommandId(action.id));
+    try {
+      action.run({
+        dispatch,
+        navigate: (tab) => dispatch(setActiveTab(tab)),
+      });
+    } finally {
+      onOpenChange(false);
+    }
+  };
 
   // Global & modal keydown handling
+  // An Effect Event: always the latest state, while the listener is added once.
+  const handleKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      onOpenChange(!open);
+      return;
+    }
+
+    if (!open) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onOpenChange(false);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      keyboardMove.current = true;
+      setSelectedIndex(selectableItems.length > 0 ? (activeIndex + 1) % selectableItems.length : 0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      keyboardMove.current = true;
+      setSelectedIndex(
+        selectableItems.length > 0
+          ? (activeIndex - 1 + selectableItems.length) % selectableItems.length
+          : 0,
+      );
+    } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+      e.preventDefault();
+      const item = selectableItems[activeIndex];
+      if (item) dispatch(togglePinnedCommand(item.id));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectableItems[activeIndex]) {
+        handleExecute(selectableItems[activeIndex]);
+      }
+    }
+  });
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        onOpenChange(!open);
-        return;
-      }
-
-      if (!open) return;
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onOpenChange(false);
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        keyboardMove.current = true;
-        setSelectedIndex((prev) =>
-          selectableItems.length > 0 ? (prev + 1) % selectableItems.length : 0,
-        );
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        keyboardMove.current = true;
-        setSelectedIndex((prev) =>
-          selectableItems.length > 0
-            ? (prev - 1 + selectableItems.length) % selectableItems.length
-            : 0,
-        );
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        const item = selectableItems[selectedIndex];
-        if (item) dispatch(togglePinnedCommand(item.id));
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (selectableItems[selectedIndex]) {
-          handleExecute(selectableItems[selectedIndex]);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange, selectableItems, selectedIndex, handleExecute, dispatch]);
+    const listener = (e: KeyboardEvent) => handleKeyDown(e);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 
   if (!open) return null;
 
@@ -296,7 +294,7 @@ export const CommandDialog: React.FC<CommandDialogProps> = ({ open, onOpenChange
                   <div key={groupEntry.group} className="flex flex-col gap-1.5">
                     <p className="sr-eyebrow mt-1 text-muted-foreground">{groupLabel}</p>
                     {groupEntry.items.map(({ item, index: itemIndex }) => {
-                      const isSelected = itemIndex === selectedIndex;
+                      const isSelected = itemIndex === activeIndex;
                       const icon = item.danger ? (
                         <AlertTriangle className="size-4 text-destructive" />
                       ) : (

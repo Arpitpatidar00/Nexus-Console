@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDuration, formatTime } from '@/shared/lib/format';
 import { useLiveUptime } from '@/features/sessions/hooks/useLiveUptime';
-import { iconFor } from '@/features/services/components/ServiceCard';
+import { ServiceIcon } from '@/features/services/components/ServiceIcon';
 import { Badge } from '@/shared/ui/Badge';
 import type { Run } from '@/shared/state/sessionsSlice';
+import { useNow } from '@/shared/lib/useNow';
 
 interface Props {
   formula: string;
@@ -15,11 +16,11 @@ interface Props {
 export const SessionCard = ({ formula, displayName, runs }: Props) => {
   const [open, setOpen] = useState(false);
   const liveUptime = useLiveUptime(formula);
-  const now = Date.now();
+  // A run still going counts up to now: tick only while one is.
+  const now = useNow(runs.some((r) => r.endMs === null) ? 1000 : undefined);
   const totalSecs = Math.floor(
     runs.reduce((sum, r) => sum + ((r.endMs ?? now) - r.startMs), 0) / 1000,
   );
-  const Icon = iconFor(formula);
 
   return (
     <div className="rounded-xl shadow-edge glass transition-all hover:bg-glass-strong">
@@ -29,7 +30,7 @@ export const SessionCard = ({ formula, displayName, runs }: Props) => {
         className="flex w-full cursor-pointer items-center gap-3 p-4 text-left select-none"
       >
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-fg">
-          <Icon className="size-4" />
+          <ServiceIcon formula={formula} className="size-4" />
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="truncate font-semibold text-fg">{displayName}</span>

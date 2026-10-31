@@ -19,6 +19,7 @@ import { olderThan } from './helpers';
 import { useExportMarkdown, useProjectUsage } from '../../api/useArchiverUpgrades';
 import { ContextAnalysisModal } from '../ContextAnalysisModal';
 import type { ProjectDetailProps } from './ProjectDetail.types';
+import { useNow } from '@/shared/lib/useNow';
 
 /** Age filter for the live list — the Archive… action archives what's shown. */
 const FILTERS = [
@@ -56,8 +57,9 @@ export const ProjectDetail = ({ row }: ProjectDetailProps) => {
   const [selLive, setSelLive] = useState<Set<string>>(new Set());
   const [selArch, setSelArch] = useState<Set<string>>(new Set());
 
+  const now = useNow();
   const liveChats = liveQuery.data ?? [];
-  const shownLive = olderThan(liveChats, filter === 'all' ? 0 : Number(filter), Date.now() / 1000);
+  const shownLive = olderThan(liveChats, filter === 'all' ? 0 : Number(filter), now / 1000);
   const archChats = row.archived?.chats ?? [];
   const busy =
     archiveFiles.isPending ||

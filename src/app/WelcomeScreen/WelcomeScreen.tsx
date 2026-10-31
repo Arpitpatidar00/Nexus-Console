@@ -27,18 +27,17 @@ export const WelcomeScreen = () => {
   const dispatch = useAppDispatch();
   const claudeInstalled = useClaudeInstalled();
   const reduce = useReducedMotion();
-  const [selected, setSelected] = useState<ModuleId[]>(() =>
-    availableModules(DEFAULT_MODULES, { claudeInstalled }),
-  );
-  // Path checks only, nothing runs (PLAN F.3); detection pre-selects once.
+  // Path checks only, nothing runs (PLAN F.3). Detection pre-selects until the
+  // user picks something themselves — derived, so a late answer never
+  // overwrites their choice.
   const tools = useDetectedTools();
   const installed = (tools.data ?? []).filter((t) => t.installed);
-  const [suggested, setSuggested] = useState(false);
-  useEffect(() => {
-    if (suggested || !tools.data) return;
-    setSuggested(true);
-    setSelected(availableModules(suggestModules(installed.map((t) => t.id)), { claudeInstalled }));
-  }, [tools.data, suggested, installed, claudeInstalled]);
+  const [picked, setSelected] = useState<ModuleId[] | null>(null);
+  const selected =
+    picked ??
+    availableModules(tools.data ? suggestModules(installed.map((t) => t.id)) : DEFAULT_MODULES, {
+      claudeInstalled,
+    });
 
   const handleContinue = () => {
     dispatch(setEnabledModules(selected));

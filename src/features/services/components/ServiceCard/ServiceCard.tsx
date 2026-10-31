@@ -6,11 +6,10 @@ import { ServiceMenu } from '@/features/services/components/ServiceMenu';
 import { StartFailureNotice } from '@/features/services/components/StartFailureNotice';
 import { cn } from '@/shared/lib/cn';
 import { cardStyles } from './ServiceCard.styles';
-import { iconFor } from './ServiceCard.config';
+import { ServiceIcon } from '@/features/services/components/ServiceIcon';
 import type { ServiceCardProps } from './ServiceCard.types';
 
 export const ServiceCard = ({ service }: ServiceCardProps) => {
-  const Icon = iconFor(service.formula);
   // Installed (active/stopped) cards de-emphasise the icon + process line so the
   // name + status read first; not-installed cards stay crisp to draw the eye.
   const dim = service.status !== 'notInstalled';
@@ -29,7 +28,7 @@ export const ServiceCard = ({ service }: ServiceCardProps) => {
                 dim && 'opacity-55',
               )}
             >
-              <Icon className="h-4 w-4" />
+              <ServiceIcon formula={service.formula} className="h-4 w-4" />
             </div>
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold text-fg">{service.displayName}</h3>

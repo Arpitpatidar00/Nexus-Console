@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 import { hubOfTab, useVisibleHubs } from '@/shared/modules';
 import { useAppSelector } from '@/shared/state/hooks';
 import { useAppDispatch } from '@/shared/state/hooks';
@@ -25,47 +25,45 @@ export function useKeyboardShortcuts(): void {
     ...hubs.map((h) => h.tabs.find((t) => t.tab === lastTabByHub[h.id])?.tab ?? h.tabs[0].tab),
   ];
   const hubTabs = hubs.find((h) => h.id === hubOfTab(activeTab))?.tabs.map((t) => t.tab) ?? [];
-  // Read through refs so the listener is registered once, not re-subscribed on
-  // every render (these are fresh arrays each time).
-  const tabsRef = useRef(railTabs);
-  tabsRef.current = railTabs;
-  const hubRef = useRef({ hubTabs, activeTab });
-  hubRef.current = { hubTabs, activeTab };
+  // An Effect Event sees the latest tabs while the listener is registered once,
+  // not re-subscribed on every render (these are fresh arrays each time).
+  const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    if (!e.metaKey || e.altKey || e.ctrlKey) return;
+
+    const tabs = railTabs;
+    const nth = Number(e.key);
+    if (Number.isInteger(nth) && nth >= 1 && nth <= tabs.length) {
+      e.preventDefault();
+      dispatch(setActiveTab(tabs[nth - 1]));
+      return;
+    }
+    if (e.shiftKey && (e.key === '[' || e.key === ']' || e.key === '{' || e.key === '}')) {
+      const inHub = hubTabs;
+      const current = activeTab;
+      const i = inHub.indexOf(current);
+      if (i < 0 || inHub.length < 2) return;
+      e.preventDefault();
+      const step = e.key === '[' || e.key === '{' ? -1 : 1;
+      dispatch(setActiveTab(inHub[(i + step + inHub.length) % inHub.length]));
+      return;
+    }
+    if (e.key === ',') {
+      e.preventDefault();
+      dispatch(setActiveTab('settings'));
+      return;
+    }
+    if (e.key.toLowerCase() === 'f') {
+      const input = document.querySelector<HTMLInputElement>('[data-nx-page-search]');
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!e.metaKey || e.altKey || e.ctrlKey) return;
-
-      const tabs = tabsRef.current;
-      const nth = Number(e.key);
-      if (Number.isInteger(nth) && nth >= 1 && nth <= tabs.length) {
-        e.preventDefault();
-        dispatch(setActiveTab(tabs[nth - 1]));
-        return;
-      }
-      if (e.shiftKey && (e.key === '[' || e.key === ']' || e.key === '{' || e.key === '}')) {
-        const { hubTabs: inHub, activeTab: current } = hubRef.current;
-        const i = inHub.indexOf(current);
-        if (i < 0 || inHub.length < 2) return;
-        e.preventDefault();
-        const step = e.key === '[' || e.key === '{' ? -1 : 1;
-        dispatch(setActiveTab(inHub[(i + step + inHub.length) % inHub.length]));
-        return;
-      }
-      if (e.key === ',') {
-        e.preventDefault();
-        dispatch(setActiveTab('settings'));
-        return;
-      }
-      if (e.key.toLowerCase() === 'f') {
-        const input = document.querySelector<HTMLInputElement>('[data-nx-page-search]');
-        if (!input) return;
-        e.preventDefault();
-        input.focus();
-        input.select();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [dispatch]);
+    const listener = (e: KeyboardEvent) => onKeyDown(e);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 }

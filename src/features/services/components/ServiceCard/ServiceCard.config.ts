@@ -1,5 +1,3 @@
-import { Database, Globe, Layers, Box, type LucideIcon } from 'lucide-react';
-
 const DB = [
   'postgresql',
   'postgres',
@@ -10,11 +8,13 @@ const DB = [
   'memcached',
 ];
 
-/** Icon per formula (ignoring @version), matching the original app. */
-export function iconFor(formula: string): LucideIcon {
+export type ServiceKind = 'cache' | 'web' | 'db' | 'other';
+
+/** Kind per formula (ignoring @version) — picks its icon, matching the original app. */
+export function serviceKind(formula: string): ServiceKind {
   const base = formula.split('@')[0];
-  if (base === 'redis' || base === 'valkey') return Layers;
-  if (base === 'nginx') return Globe;
-  if (DB.includes(base)) return Database;
-  return Box;
+  if (base === 'redis' || base === 'valkey') return 'cache';
+  if (base === 'nginx') return 'web';
+  if (DB.includes(base)) return 'db';
+  return 'other';
 }

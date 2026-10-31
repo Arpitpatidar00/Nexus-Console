@@ -107,6 +107,150 @@ export const STATIC_ACTIONS: ActionItem[] = [
     },
   },
   {
+    id: 'nav:docker',
+    title: 'Go to Docker',
+    subtitle: 'Manage local container runtime and compose stacks',
+    keywords: ['docker', 'containers', 'compose', 'images'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('docker') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('docker'));
+      navigate('docker');
+    },
+  },
+  {
+    id: 'nav:databases',
+    title: 'Go to Databases',
+    subtitle: 'Local & remote database client, schema inspector and query editor',
+    keywords: ['database', 'databases', 'sql', 'postgres', 'mysql', 'redis', 'schema', 'query'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('databases') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('databases'));
+      navigate('databases');
+    },
+  },
+  {
+    id: 'nav:kafka',
+    title: 'Go to Kafka',
+    subtitle: 'Kafka clusters, topics, consumer groups and messages',
+    keywords: ['kafka', 'clusters', 'topics', 'consumer', 'lag', 'messages', 'broker'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('kafka') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('kafka'));
+      navigate('kafka');
+    },
+  },
+  {
+    id: 'nav:projects',
+    title: 'Go to Projects',
+    subtitle: 'Git status, workspaces, saved commands, and GitHub PRs',
+    keywords: ['projects', 'git', 'workspaces', 'repo', 'github', 'pr'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('projects') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('projects'));
+      navigate('projects');
+    },
+  },
+  {
+    id: 'nav:toolbox',
+    title: 'Go to Dev Toolbox',
+    subtitle: 'Offline converters, regex tester, cron, hashes & tokens',
+    keywords: ['toolbox', 'tools', 'regex', 'cron', 'base64', 'jwt', 'hash'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('toolbox') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('toolbox'));
+      navigate('toolbox');
+    },
+  },
+  {
+    id: 'nav:domains',
+    title: 'Go to Domains & Uptime',
+    subtitle: 'RDAP expiry, DNS lookup, SSL check & uptime monitoring',
+    keywords: ['domains', 'dns', 'ssl', 'uptime', 'rdap', 'whois', 'cert'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('domains') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('domains'));
+      navigate('domains');
+    },
+  },
+  {
+    id: 'nav:secrets',
+    title: 'Go to Secrets Scanner',
+    subtitle: 'Detect committed secrets, unignored .env files & leaked keys',
+    keywords: ['secrets', 'scanner', 'keys', 'credentials', 'env'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('secrets') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('secrets'));
+      navigate('secrets');
+    },
+  },
+  {
+    id: 'nav:cloud',
+    title: 'Go to Cloud AWS',
+    subtitle: 'AWS profiles, EC2 instances, S3 buckets & cost tracking',
+    keywords: ['cloud', 'aws', 'ec2', 's3', 'costs', 'instances'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('cloud') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('cloud'));
+      navigate('cloud');
+    },
+  },
+  {
+    id: 'nav:backups',
+    title: 'Go to Backups',
+    subtitle: 'Database dumps and project .env archives',
+    keywords: ['backups', 'backup', 'dumps', 'archive'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('backups') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('backups'));
+      navigate('backups');
+    },
+  },
+  {
+    id: 'nav:network',
+    title: 'Go to Network & Chaos',
+    subtitle: 'Bandwidth monitor, DNS flush, hosts editor & chaos proxy',
+    keywords: ['network', 'chaos', 'bandwidth', 'hosts', 'dns', 'proxy'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('network') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('network'));
+      navigate('network');
+    },
+  },
+  {
+    id: 'nav:devices',
+    title: 'Go to Simulators & AVDs',
+    subtitle: 'iOS Simulators and Android AVD lifecycle controls',
+    keywords: ['devices', 'simulators', 'android', 'ios', 'emulator'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('devices') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('devices'));
+      navigate('devices');
+    },
+  },
+  {
+    id: 'nav:releases',
+    title: 'Go to Release Config',
+    subtitle: 'Version names, build numbers, and Fastlane lanes',
+    keywords: ['releases', 'release', 'config', 'build', 'version', 'fastlane'],
+    group: 'navigation',
+    when: (s) => s.settings.enabledModules?.includes('releases') ?? false,
+    run: ({ dispatch, navigate }) => {
+      dispatch(setActiveTab('releases'));
+      navigate('releases');
+    },
+  },
+  {
     id: 'nav:settings',
     title: 'Go to Settings',
     subtitle: 'Configure features, shortcuts and preferences',

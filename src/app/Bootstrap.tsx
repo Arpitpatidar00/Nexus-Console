@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type PropsWithChildren } from 'react';
+import { lazy, Suspense, useEffect, useState, type PropsWithChildren } from 'react';
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { hydrateSettings } from '@/shared/state/settingsSlice';
 import { hydrateServiceIntent } from '@/shared/state/serviceIntentSlice';
@@ -49,7 +49,7 @@ export const Bootstrap = ({ children }: PropsWithChildren) => {
   const needsModuleChoice = useAppSelector((s) => s.settings.enabledModules) === null;
 
   const [phase, setPhase] = useState<Phase>('splash');
-  const mountedAt = useRef(Date.now());
+  const [mountedAt] = useState(Date.now);
 
   useEffect(() => {
     if (appContext?.maxPtys) {
@@ -78,10 +78,10 @@ export const Bootstrap = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     if (!ready || phase !== 'splash') return;
-    const hold = Math.max(0, MIN_SPLASH_MS - (Date.now() - mountedAt.current));
+    const hold = Math.max(0, MIN_SPLASH_MS - (Date.now() - mountedAt));
     const t = setTimeout(() => setPhase('leaving'), hold);
     return () => clearTimeout(t);
-  }, [ready, phase]);
+  }, [ready, phase, mountedAt]);
 
   useEffect(() => {
     if (phase !== 'leaving') return;

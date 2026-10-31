@@ -11,6 +11,7 @@ import {
   humanizeId,
   type ChangeTone,
 } from '@/features/remote/utils/timeline';
+import { useNow } from '@/shared/lib/useNow';
 
 interface Props {
   host: RemoteHost;
@@ -44,6 +45,8 @@ const Skeleton = () => (
 
 export const TimelineTab = ({ host, connected }: Props) => {
   const { data: history, isLoading, error, refetch } = useServerHistory(host.id, connected);
+  // Ages ("opened 5m ago") stay current while the tab is open.
+  const nowMs = useNow(60_000);
 
   if (isLoading) return <Skeleton />;
   if (error) {
@@ -63,7 +66,7 @@ export const TimelineTab = ({ host, connected }: Props) => {
   const [prev, last] = checks.slice(-2);
   const changes = changesOf(history.latestDiff);
   const incidents = [...history.incidents].sort((a, b) => b.openedAtEpoch - a.openedAtEpoch);
-  const nowSecs = Date.now() / 1000;
+  const nowSecs = nowMs / 1000;
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">

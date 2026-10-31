@@ -21,6 +21,7 @@ import {
   projectState,
   selectedBytes,
 } from '@/features/maclean/utils/storageTools';
+import { useNow } from '@/shared/lib/useNow';
 
 const BUCKETS = [90, 30, 7];
 
@@ -34,7 +35,7 @@ export const ProjectsPanel = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [stack, setStack] = useState<string | null>(null);
   const r = scan.data;
-  const now = Date.now() / 1000;
+  const now = useNow() / 1000;
 
   const toggle = (paths: string[], on: boolean) =>
     setSelected((s) => {

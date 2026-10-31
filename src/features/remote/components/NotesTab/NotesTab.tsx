@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FileEdit, Save, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
@@ -14,19 +14,16 @@ export const NotesTab = ({ host }: Props) => {
   const { data: note, isLoading, error, refetch } = useHostNote(host.id);
   const saveNote = useSaveHostNote(host.id);
 
-  const [text, setText] = useState('');
-  const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    if (note) {
-      setText(note.content);
-      setDirty(false);
-    }
-  }, [note]);
+  // Unsaved edits live in `draft`; otherwise the saved note shows. A refetch
+  // can no longer wipe what's being typed.
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? note?.content ?? '';
+  const dirty = draft !== null;
 
   const handleSave = async () => {
     await saveNote.mutateAsync(text);
-    setDirty(false);
+    // The mutation already put the saved note in the cache.
+    setDraft(null);
   };
 
   if (isLoading) {
@@ -90,8 +87,7 @@ export const NotesTab = ({ host }: Props) => {
         <textarea
           value={text}
           onChange={(e) => {
-            setText(e.target.value);
-            setDirty(true);
+            setDraft(e.target.value);
           }}
           placeholder="Write host notes, deployment guidelines, or recovery steps in Markdown here..."
           className="min-h-0 flex-1 resize-none border-none bg-transparent p-5 font-mono text-sm leading-relaxed text-fg focus:outline-none"

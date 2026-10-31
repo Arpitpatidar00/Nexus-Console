@@ -34,3 +34,6 @@ dist-ssr
 PLAN.md
 .vscode
 docs!docs/roadmap/
+.aistudio
+metadata.json
+.playwright-cli

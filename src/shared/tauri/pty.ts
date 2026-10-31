@@ -30,6 +30,15 @@ export async function openPty(
   params: PtyOpenParams,
   onEvent: (e: PtyEvent) => void,
 ): Promise<void> {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
+    setTimeout(() => {
+      onEvent({
+        type: 'output',
+        data: `\x1b[36mStackroost Developer Console [Web Preview]\x1b[0m\r\nSession target: ${params.target.type}\r\n$ `,
+      });
+    }, 50);
+    return;
+  }
   const channel = new Channel<PtyEvent>();
   channel.onmessage = onEvent;
   try {

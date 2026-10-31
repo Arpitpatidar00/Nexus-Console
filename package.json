@@ -16,6 +16,7 @@
     "changelog": "node scripts/changelog.mjs",
     "version:set": "node scripts/version.mjs",
     "dev": "vite",
+    "dev:web": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

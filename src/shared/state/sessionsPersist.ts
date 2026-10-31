@@ -12,7 +12,14 @@ const getStore = () => (cached ??= load(FILE, { autoSave: false, defaults: {} })
 export async function loadPersistedSessions(): Promise<Record<string, Run[]> | null> {
   try {
     const store = await getStore();
-    return (await store.get<Record<string, Run[]>>(KEY)) ?? null;
+    const val = await store.get<Record<string, Run[]>>(KEY);
+    if (val) return val;
+  } catch {
+    // Non-Tauri fallback
+  }
+  try {
+    const raw = localStorage.getItem('stackroost_sessions');
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -30,8 +37,16 @@ sessionsListener.startListening({
       const done = list.filter((r) => r.endMs !== null);
       if (done.length) closed[formula] = done;
     }
-    const store = await getStore();
-    await store.set(KEY, closed);
-    await store.save();
+    try {
+      const store = await getStore();
+      await store.set(KEY, closed);
+      await store.save();
+    } catch {
+      try {
+        localStorage.setItem('stackroost_sessions', JSON.stringify(closed));
+      } catch {
+        /* best-effort */
+      }
+    }
   },
 });

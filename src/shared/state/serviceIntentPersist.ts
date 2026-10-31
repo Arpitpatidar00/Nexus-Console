@@ -18,7 +18,14 @@ const getStore = () => (cached ??= load(FILE, { autoSave: false, defaults: {} })
 export async function loadPersistedServiceIntent(): Promise<Partial<PersistedServiceIntent> | null> {
   try {
     const store = await getStore();
-    return (await store.get<Partial<PersistedServiceIntent>>(KEY)) ?? null;
+    const val = await store.get<Partial<PersistedServiceIntent>>(KEY);
+    if (val) return val;
+  } catch {
+    // Non-Tauri fallback
+  }
+  try {
+    const raw = localStorage.getItem('stackroost_serviceIntent');
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -29,8 +36,19 @@ serviceIntentListener.startListening({
   matcher: isAnyOf(seedManaged, addManaged, removeManaged, setIntent),
   effect: async (_action, api) => {
     const { managed, intent, seeded } = (api.getState() as RootState).serviceIntent;
-    const store = await getStore();
-    await store.set(KEY, { managed, intent, seeded });
-    await store.save();
+    try {
+      const store = await getStore();
+      await store.set(KEY, { managed, intent, seeded });
+      await store.save();
+    } catch {
+      try {
+        localStorage.setItem(
+          'stackroost_serviceIntent',
+          JSON.stringify({ managed, intent, seeded }),
+        );
+      } catch {
+        /* best-effort */
+      }
+    }
   },
 });

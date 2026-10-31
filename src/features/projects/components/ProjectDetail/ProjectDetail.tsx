@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -80,8 +80,14 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
   const sessions = useAppSelector((s) => s.terminals.sessions);
   const cap = useAppSelector((s) => s.terminals.cap);
   // Poll for a couple of minutes after a run starts, and while anything runs.
-  const [startedAt, setStartedAt] = useState(0);
-  const recent = Date.now() - startedAt < 120_000;
+  // Each run bumps `runs`; the effect ends that run's 2-minute polling window.
+  const [runs, setRuns] = useState(0);
+  const [recent, setRecent] = useState(false);
+  useEffect(() => {
+    if (!runs) return;
+    const t = setTimeout(() => setRecent(false), 120_000);
+    return () => clearTimeout(t);
+  }, [runs]);
   const q = useProjectProfile(project.path, recent);
   const p = q.data;
   const createEnv = useCreateEnv(project.path);
@@ -109,7 +115,8 @@ export const ProjectDetail = ({ project, onOpenWorkspace, onOpenCommands }: Prop
         description: 'Showing its tab.',
       });
     dispatch(openTerminal({ target, title: `${project.name} · ${task.label}` }));
-    setStartedAt(Date.now());
+    setRecent(true);
+    setRuns((n) => n + 1);
   };
 
   const fix = (c: Check) => {

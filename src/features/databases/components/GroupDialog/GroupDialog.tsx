@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Button } from '@/shared/ui/Button';
 import { Field, Input } from '@/shared/ui/Field';
@@ -30,17 +30,15 @@ export const GroupDialog = ({ open, onOpenChange, group }: GroupDialogProps) => 
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(COLOR_SWATCHES[0].hex);
 
-  useEffect(() => {
-    if (group) {
-      setName(group.name);
-      setDescription(group.description ?? '');
-      setColor(group.color ?? COLOR_SWATCHES[0].hex);
-    } else {
-      setName('');
-      setDescription('');
-      setColor(COLOR_SWATCHES[0].hex);
-    }
-  }, [group, open]);
+  // Reset on (re)open or a different group, during render rather than in an
+  // effect's second pass.
+  const [syncedFrom, setSyncedFrom] = useState<{ group: typeof group; open: boolean } | null>(null);
+  if (!syncedFrom || syncedFrom.group !== group || syncedFrom.open !== open) {
+    setSyncedFrom({ group, open });
+    setName(group?.name ?? '');
+    setDescription(group?.description ?? '');
+    setColor(group?.color ?? COLOR_SWATCHES[0].hex);
+  }
 
   const isEditing = Boolean(group);
   const isPending = createGroup.isPending || updateGroup.isPending;

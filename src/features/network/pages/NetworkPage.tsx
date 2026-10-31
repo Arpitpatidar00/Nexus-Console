@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Wifi,
   Activity,
@@ -241,32 +241,27 @@ const HostsEditorSection = () => {
   const { data: savedEntries = [], isLoading, error, refetch } = useHostsEntries();
   const saveHosts = useSaveHosts();
   const restoreHosts = useRestoreHosts();
-  const [rows, setRows] = useState<EditableRow[] | null>(null);
+  // null = no local edits: the saved entries show. Edits survive refetches.
+  const [edits, setRows] = useState<EditableRow[] | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Seed local editable rows from the server once per load; don't clobber
-  // in-progress edits on an unrelated refetch.
-  useEffect(() => {
-    if (rows === null && savedEntries.length >= 0 && !isLoading) {
-      setRows(savedEntries.map(toEditable));
-    }
-  }, [savedEntries, isLoading, rows]);
+  const saved = savedEntries.map(toEditable);
+  const rows = edits ?? (isLoading ? null : saved);
 
-  const dirty =
-    rows !== null && JSON.stringify(rows) !== JSON.stringify(savedEntries.map(toEditable));
+  const dirty = edits !== null && JSON.stringify(edits) !== JSON.stringify(saved);
 
   const updateRow = (id: string, patch: Partial<EditableRow>) =>
-    setRows((r) => r?.map((row) => (row.id === id ? { ...row, ...patch } : row)) ?? r);
+    setRows((r) => (r ?? saved).map((row) => (row.id === id ? { ...row, ...patch } : row)));
 
   const addRow = () =>
     setRows((r) => [
-      ...(r ?? []),
+      ...(r ?? saved),
       { id: newLocalId(), ip: '', hostnamesText: '', comment: null, enabled: true },
     ]);
 
-  const removeRow = (id: string) => setRows((r) => r?.filter((row) => row.id !== id) ?? r);
+  const removeRow = (id: string) => setRows((r) => (r ?? saved).filter((row) => row.id !== id));
 
-  const discard = () => setRows(savedEntries.map(toEditable));
+  const discard = () => setRows(null);
 
   const problems: string[] = [];
   for (const row of rows ?? []) {

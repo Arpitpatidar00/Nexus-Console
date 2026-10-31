@@ -70,8 +70,8 @@ export const ToolboxPage = () => {
   const [b64Output, setB64Output] = useState('');
 
   // 4. Timestamp State
-  const [tsInput, setTsInput] = useState(Math.floor(Date.now() / 1000).toString());
-  const [dateInput, setDateInput] = useState(new Date().toISOString());
+  const [tsInput, setTsInput] = useState(() => Math.floor(Date.now() / 1000).toString());
+  const [dateInput, setDateInput] = useState(() => new Date().toISOString());
 
   // 5. UUID State
   const [uuidOutput, setUuidOutput] = useState('');

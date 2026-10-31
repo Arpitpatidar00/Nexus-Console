@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Check, Copy, Radio, RotateCw, ScrollText, Search, TerminalSquare, X } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { useAppDispatch } from '@/shared/state/hooks';
@@ -151,13 +151,15 @@ export const LogsViewer = ({ host, snapshot }: Props) => {
   // user scrolled up to read something.
   const listRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  // A new source starts pinned to its newest line.
+  const pickSource = (name: string) => {
+    pinned.current = true;
+    setSource(name);
+  };
   useLayoutEffect(() => {
     const el = listRef.current;
     if (el && pinned.current) el.scrollTop = el.scrollHeight;
   });
-  useEffect(() => {
-    pinned.current = true;
-  }, [source]);
 
   const follow = () =>
     container &&
@@ -200,7 +202,7 @@ export const LogsViewer = ({ host, snapshot }: Props) => {
               <SourceButton
                 key={c.id}
                 active={source === c.name}
-                onClick={() => setSource(c.name)}
+                onClick={() => pickSource(c.name)}
                 title={`${c.name} · ${c.status}`}
               >
                 <span className={cn('size-1.5 shrink-0 rounded-full', dotOf(c))} aria-hidden />
@@ -210,7 +212,7 @@ export const LogsViewer = ({ host, snapshot }: Props) => {
           </div>
         ))}
         <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">System</p>
-        <SourceButton active={isJournal} onClick={() => setSource(JOURNAL)}>
+        <SourceButton active={isJournal} onClick={() => pickSource(JOURNAL)}>
           <ScrollText className="size-3.5 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1 truncate">Journal errors</span>
           <span className="text-xs tabular-nums">{snapshot.recentErrors.length}</span>

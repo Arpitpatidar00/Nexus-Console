@@ -15,6 +15,7 @@ import { ShortcutBar } from '@/features/maclean/components/ShortcutBar';
 import { appDataSelection } from '@/features/maclean/utils/shortcuts';
 import { CleanSummaryBanner } from '@/features/maclean/components/CleanSummaryBanner';
 import { appDataSelectedBytes, idleLabel } from '@/features/maclean/utils/storageTools';
+import { useNow } from '@/shared/lib/useNow';
 
 /** What each kind costs to delete, in the order worth reading. */
 const SECTIONS: { kind: SpotKind; title: string; blurb: string }[] = [
@@ -60,7 +61,7 @@ const SpotRow = ({
   onToggle: (target: string, on: boolean) => void;
   onReveal: (path: string) => void;
 }) => {
-  const now = Date.now() / 1000;
+  const now = useNow() / 1000;
   const cache = spot.kind === 'cache';
   return (
     <li className="px-5 py-2.5">

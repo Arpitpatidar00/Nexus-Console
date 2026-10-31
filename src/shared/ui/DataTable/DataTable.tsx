@@ -21,6 +21,9 @@ export function DataTable<T>({
   emptyMessage = 'Nothing to show.',
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  // TanStack Table's API can't be memoized; React Compiler skips this component
+  // by design. Nothing memoized receives `table`, so the warning is expected.
+  // oxlint-disable-next-line react/incompatible-library
   const table = useReactTable({
     data,
     columns,

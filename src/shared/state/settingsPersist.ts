@@ -36,7 +36,14 @@ const getStore = () => (cached ??= load(FILE, { autoSave: false, defaults: {} })
 export async function loadPersistedSettings(): Promise<Partial<PersistedSettings> | null> {
   try {
     const store = await getStore();
-    return (await store.get<Partial<PersistedSettings>>(KEY)) ?? null;
+    const val = await store.get<Partial<PersistedSettings>>(KEY);
+    if (val) return val;
+  } catch {
+    // Non-Tauri fallback
+  }
+  try {
+    const raw = localStorage.getItem('stackroost_settings');
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -71,8 +78,16 @@ settingsListener.startListening({
   effect: async (_action, api) => {
     const settings = (api.getState() as RootState).settings;
     const persisted = Object.fromEntries(PERSISTED_KEYS.map((k) => [k, settings[k]]));
-    const store = await getStore();
-    await store.set(KEY, persisted);
-    await store.save();
+    try {
+      const store = await getStore();
+      await store.set(KEY, persisted);
+      await store.save();
+    } catch {
+      try {
+        localStorage.setItem('stackroost_settings', JSON.stringify(persisted));
+      } catch {
+        /* best-effort */
+      }
+    }
   },
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Button } from '@/shared/ui/Button';
 import { Field, Input } from '@/shared/ui/Field';
@@ -36,33 +36,35 @@ export const EditConnectionDialog = ({
   const [allowWrites, setAllowWrites] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (connection) {
-      const eng = (
-        connection.driver === 'mongodb'
+  // Reset the form when a different connection is opened (React's "adjust
+  // state on prop change": during render, not an effect's second pass).
+  const [syncedFrom, setSyncedFrom] = useState<DbConnection | null>(null);
+  if (connection && connection !== syncedFrom) {
+    setSyncedFrom(connection);
+    const eng = (
+      connection.driver === 'mongodb'
+        ? 'mongodb'
+        : connection.driver === 'mongo'
           ? 'mongodb'
-          : connection.driver === 'mongo'
-            ? 'mongodb'
-            : connection.driver === 'mysql'
-              ? 'mysql'
-              : connection.driver === 'redis'
-                ? 'redis'
-                : 'postgres'
-      ) as Engine;
+          : connection.driver === 'mysql'
+            ? 'mysql'
+            : connection.driver === 'redis'
+              ? 'redis'
+              : 'postgres'
+    ) as Engine;
 
-      setEngine(eng);
-      setName(connection.name);
-      setHost(connection.host);
-      setPort(String(connection.port));
-      setUser(connection.user ?? '');
-      setPassword(''); // Blank means keep existing Keychain password
-      setDatabase(connection.database ?? '');
-      setDataDir(connection.dataDir ?? '');
-      setEnv(connection.env as Env);
-      setAllowWrites(connection.allowWrites);
-      setGroupId(connection.groupId ?? null);
-    }
-  }, [connection]);
+    setEngine(eng);
+    setName(connection.name);
+    setHost(connection.host);
+    setPort(String(connection.port));
+    setUser(connection.user ?? '');
+    setPassword(''); // Blank means keep existing Keychain password
+    setDatabase(connection.database ?? '');
+    setDataDir(connection.dataDir ?? '');
+    setEnv(connection.env as Env);
+    setAllowWrites(connection.allowWrites);
+    setGroupId(connection.groupId ?? null);
+  }
 
   if (!connection) return null;
 

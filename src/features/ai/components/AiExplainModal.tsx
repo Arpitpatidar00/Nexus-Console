@@ -34,12 +34,11 @@ export const AiExplainModal = ({
 
   const activeModel = selectedModel || (status?.models && status.models[0]) || '';
 
-  // Keep prompt preview synchronized with backend pattern redaction
+  // Keep prompt preview synchronized with backend pattern redaction. Empty
+  // input shows no preview (derived below), so nothing is reset here.
+  const hasInput = Boolean(prompt.trim() || context.trim());
   useEffect(() => {
-    if (!prompt.trim() && !context.trim()) {
-      setPreviewText('');
-      return;
-    }
+    if (!hasInput) return;
     const timer = setTimeout(() => {
       preparePrompt(
         { prompt, context: context.trim() ? context : undefined },
@@ -52,7 +51,7 @@ export const AiExplainModal = ({
       );
     }, 200);
     return () => clearTimeout(timer);
-  }, [prompt, context, preparePrompt]);
+  }, [hasInput, prompt, context, preparePrompt]);
 
   // Handle incoming stream chunks
   const handleChunk = useCallback((event: { payload: { chunk: string; done: boolean } }) => {
@@ -174,7 +173,7 @@ export const AiExplainModal = ({
             </div>
 
             {/* Prompt preview with explicit notice */}
-            {previewText && (
+            {hasInput && previewText && (
               <div className="rounded border border-border bg-muted/10 p-3">
                 <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-fg-muted">
                   <Eye className="h-3.5 w-3.5 text-info" />

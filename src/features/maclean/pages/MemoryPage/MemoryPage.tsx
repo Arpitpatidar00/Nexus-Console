@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import { useMemory } from '@/features/maclean/api/useMemory';
 import { appendMem, memSample, type MemSample } from '@/features/maclean/utils/memory';
@@ -12,9 +12,12 @@ export const MemoryPage = () => {
   const [history, setHistory] = useState<MemSample[]>([]);
   const m = mem.data;
 
-  useEffect(() => {
-    if (m) setHistory((h) => appendMem(h, memSample(m)));
-  }, [m]);
+  // Append each new sample once, during render (no effect re-render pass).
+  const [lastSample, setLastSample] = useState(m);
+  if (m && m !== lastSample) {
+    setLastSample(m);
+    setHistory((h) => appendMem(h, memSample(m)));
+  }
 
   return (
     <div className="flex h-full flex-col">

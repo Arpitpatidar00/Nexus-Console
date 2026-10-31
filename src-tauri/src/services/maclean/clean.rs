@@ -16,13 +16,36 @@ pub fn move_to_trash(path: &Path, home: &Path) -> Result<(), String> {
     let trash = home.join(".Trash");
     let name = path.file_name().ok_or("invalid file name")?;
     let mut target = trash.join(name);
-    if target.exists() {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs());
-        target = trash.join(format!("{ts}_{}", name.to_string_lossy()));
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    // rename() silently replaces an existing file: never land on a taken name.
+    let mut n = 0u32;
+    while target.symlink_metadata().is_ok() {
+        n += 1;
+        target = trash.join(format!("{ts}_{n}_{}", name.to_string_lossy()));
     }
     std::fs::rename(path, target).map_err(|e| format!("move to trash: {e}"))
+}
+
+/// Move every entry inside `dir` to the Trash, leaving `dir` itself in place
+/// (apps expect `~/Library/Caches` to exist). Entries macOS refuses (in use,
+/// SIP-protected) or the rules protect are skipped and counted, not fatal.
+/// Returns `(moved, skipped)`.
+pub fn trash_contents(dir: &Path, home: &Path, rules: &Rules) -> (usize, usize) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return (0, 0);
+    };
+    let (mut moved, mut skipped) = (0, 0);
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if refuse_reason(&p, home, rules).is_some() || move_to_trash(&p, home).is_err() {
+            skipped += 1;
+        } else {
+            moved += 1;
+        }
+    }
+    (moved, skipped)
 }
 
 pub fn refuse_reason(path: &Path, home: &Path, rules: &Rules) -> Option<&'static str> {
@@ -284,6 +307,30 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d.canonicalize().unwrap()
+    }
+
+    #[test]
+    fn trash_contents_keeps_the_folder_and_never_overwrites_trash() {
+        let h = home("trashcontents");
+        let caches = h.join("Library/Caches");
+        std::fs::create_dir_all(caches.join("com.app.one")).unwrap();
+        std::fs::write(caches.join("blob"), b"new").unwrap();
+        std::fs::create_dir_all(h.join(".Trash")).unwrap();
+        std::fs::write(h.join(".Trash/blob"), b"old").unwrap();
+
+        assert_eq!(trash_contents(&caches, &h, &Rules::default()), (2, 0));
+        assert!(caches.is_dir(), "the Caches folder itself stays");
+        assert_eq!(std::fs::read_dir(&caches).unwrap().count(), 0);
+        assert_eq!(std::fs::read(h.join(".Trash/blob")).unwrap(), b"old");
+        assert!(h.join(".Trash/com.app.one").is_dir());
+        // The colliding file got a fresh name instead of replacing the old one.
+        assert_eq!(std::fs::read_dir(h.join(".Trash")).unwrap().count(), 3);
+
+        assert_eq!(
+            trash_contents(&h.join("missing"), &h, &Rules::default()),
+            (0, 0)
+        );
+        let _ = std::fs::remove_dir_all(&h);
     }
 
     #[test]

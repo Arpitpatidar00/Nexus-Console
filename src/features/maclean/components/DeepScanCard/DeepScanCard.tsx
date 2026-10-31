@@ -126,21 +126,19 @@ export const DeepScanCard = ({ unexplainedBytes, dataUsedBytes }: DeepScanCardPr
               )}
             </div>
 
-            {/* 2. Permission / FDA Warning Banner if blocked */}
-            {permissionDeniedCount > 0 && (
+            {/* 2. FDA banner — only when Stackroost really lacks Full Disk Access */}
+            {deep.data.fullDiskAccess === false && (
               <div className="mx-5 my-3 flex flex-col items-start justify-between gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-fg sm:flex-row sm:items-center">
                 <div className="flex items-start gap-2.5">
                   <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                   <div className="space-y-1">
                     <p className="font-semibold text-warning">
-                      Partial scan — {permissionDeniedCount} directories restricted by macOS privacy
-                      permissions
+                      Partial scan — Stackroost doesn’t have Full Disk Access
                     </p>
                     <p className="text-fg-muted">
-                      Unmeasured folders (e.g. Mail, Messages, Safari, MobileSync) are grouped under{' '}
-                      <strong className="text-fg">Unindexed or permission-restricted</strong>. Grant
-                      Full Disk Access to Stackroost in System Settings → Privacy & Security for
-                      exact measurements.
+                      Protected folders (Mail, Messages, app containers) weren’t measured and are
+                      counted under <strong className="text-fg">Unattributed space</strong>. Grant
+                      access, quit and reopen Stackroost, then run the deep scan again.
                     </p>
                   </div>
                 </div>
@@ -155,6 +153,14 @@ export const DeepScanCard = ({ unexplainedBytes, dataUsedBytes }: DeepScanCardPr
                   Grant Full Disk Access
                 </Button>
               </div>
+            )}
+
+            {deep.data.fullDiskAccess !== false && permissionDeniedCount > 0 && (
+              <p className="mx-5 my-3 text-xs text-fg-muted">
+                {permissionDeniedCount} protected folders in other accounts or system data can’t be
+                read by any app, even with Full Disk Access; their size is in{' '}
+                <strong className="text-fg">Unattributed space</strong>.
+              </p>
             )}
 
             {/* 3. Categories Accordion List */}

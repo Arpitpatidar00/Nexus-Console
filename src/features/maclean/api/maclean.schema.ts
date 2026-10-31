@@ -137,6 +137,7 @@ export const deepReportSchema = z.object({
   totalDataUsedBytes: z.number().optional(),
   purgeableBytes: z.number().optional(),
   permissionDeniedPaths: z.array(z.string()).optional(),
+  fullDiskAccess: z.boolean().optional(),
 });
 export type DeepReport = z.infer<typeof deepReportSchema>;
 

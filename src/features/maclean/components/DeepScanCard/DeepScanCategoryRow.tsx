@@ -168,12 +168,13 @@ export const DeepScanCategoryRow = ({
     deletePath.mutate(itemToDelete.path, {
       onSuccess: (res) => {
         setItemToDelete(null);
-        setStatusMessage(res || 'Item removed successfully.');
+        setStatusMessage(res || 'Moved to the Trash.');
         setTimeout(() => setStatusMessage(null), 5000);
         onRescan?.();
       },
       onError: (err) => {
-        setStatusMessage(`Delete failed: ${(err as Error).message}`);
+        setItemToDelete(null);
+        setStatusMessage(`Couldn’t clean: ${(err as Error).message}`);
         setTimeout(() => setStatusMessage(null), 6000);
       },
     });
@@ -385,7 +386,10 @@ export const DeepScanCategoryRow = ({
               {category.subItems.length > 0 ? (
                 <ul className="divide-y divide-border/40 overflow-hidden rounded-lg border border-border/60 bg-card/60">
                   {category.subItems.map((item) => {
-                    const isFileSystemPath = item.path.startsWith('/') || item.path.startsWith('~');
+                    // Unreadable rows (other accounts' Mail…) can't be shown in Finder either.
+                    const isFileSystemPath =
+                      item.kind !== 'restricted' &&
+                      (item.path.startsWith('/') || item.path.startsWith('~'));
                     return (
                       <li
                         key={item.path + item.name}
@@ -433,8 +437,8 @@ export const DeepScanCategoryRow = ({
                               size="iconSm"
                               variant="ghost"
                               className="text-fg-muted hover:bg-destructive/15 hover:text-destructive"
-                              title={`Delete ${item.name}`}
-                              aria-label={`Delete ${item.name}`}
+                              title={`Move contents of ${item.name} to the Trash`}
+                              aria-label={`Move contents of ${item.name} to the Trash`}
                               onClick={() => setItemToDelete(item)}
                               disabled={deletePath.isPending}
                             >
@@ -524,8 +528,8 @@ export const DeepScanCategoryRow = ({
       <Dialog
         open={Boolean(itemToDelete)}
         onOpenChange={(open) => !open && setItemToDelete(null)}
-        title="Delete Item"
-        description={`Are you sure you want to permanently delete "${itemToDelete?.name}"?`}
+        title="Clean cache folder"
+        description={`Move everything inside "${itemToDelete?.name}" to the Trash?`}
         footer={
           <>
             <Button
@@ -542,15 +546,15 @@ export const DeepScanCategoryRow = ({
               onClick={handleDeleteItem}
               disabled={deletePath.isPending}
             >
-              {deletePath.isPending ? 'Deleting...' : 'Delete Permanently'}
+              {deletePath.isPending ? 'Moving…' : 'Move to Trash'}
             </Button>
           </>
         }
       >
         <p className="font-mono text-xs break-all text-muted-foreground">{itemToDelete?.path}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          This will permanently delete this item to reclaim storage space. This action cannot be
-          undone.
+          The folder itself stays; apps rebuild their caches as needed. Items in use or protected by
+          macOS are skipped. Empty the Trash to free the space.
         </p>
       </Dialog>
     </li>

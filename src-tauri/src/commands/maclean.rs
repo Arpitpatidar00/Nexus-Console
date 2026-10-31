@@ -293,8 +293,20 @@ pub async fn maclean_deep_scan(app: AppHandle) -> AppResult<crate::maclean::deep
             .map_err(|_| AppError::Io("report lock poisoned".into()))?
             .clone()
             .ok_or_else(|| AppError::NotFound("Run a storage scan first.".into()))?;
-        let raw = crate::maclean::deep::run_raw()?;
+        let mut raw = crate::maclean::deep::run_raw()?;
         let me = std::env::var("USER").unwrap_or_default();
+        let home = crate::doctor::paths::home()
+            .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
+        // The root shell lacks the app's FDA: our own home comes from an
+        // in-process `du` instead (the script skips the console user; drop any
+        // rows it still emitted for us, e.g. under fast user switching).
+        let home_prefix = format!("{}/", home.to_string_lossy());
+        raw.retain(|i| {
+            !(i.tag == "user_total" && i.name == me)
+                && !(i.tag == "user_sub" && i.name.starts_with(&format!("{me}/")))
+                && !(i.tag == "eperm" && i.path.starts_with(&home_prefix))
+        });
+        raw.extend(crate::maclean::deep::measure_home(&home, &me)?);
         let snapshots = crate::maclean::disk::list_apfs_snapshots();
         let purgeable = crate::maclean::disk::query_purgeable_bytes();
         let report = crate::maclean::deep::build_report(
@@ -304,6 +316,7 @@ pub async fn maclean_deep_scan(app: AppHandle) -> AppResult<crate::maclean::deep
             last.disk.data_used_bytes,
             &snapshots,
             purgeable,
+            crate::maclean::deep::has_full_disk_access(),
         );
         let mut deep_paths = Vec::new();
         for cat in &report.categories {
@@ -315,6 +328,15 @@ pub async fn maclean_deep_scan(app: AppHandle) -> AppResult<crate::maclean::deep
         }
         if let Ok(mut lock) = state.last_deep_paths.lock() {
             *lock = deep_paths;
+        }
+        if let Ok(mut lock) = state.last_deep_deletable.lock() {
+            *lock = report
+                .categories
+                .iter()
+                .flat_map(|c| &c.sub_items)
+                .filter(|s| s.is_deletable && s.path.starts_with('/'))
+                .map(|s| s.path.clone())
+                .collect();
         }
         Ok(report)
     })
@@ -365,6 +387,19 @@ pub async fn maclean_reveal(app: AppHandle, path: String) -> AppResult<()> {
             return Err(AppError::Forbidden(
                 "Only files from the latest scan can be revealed.".into(),
             ));
+        }
+        match std::fs::symlink_metadata(&path) {
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Err(AppError::NotFound(
+                    "It's gone since the scan. Run the scan again.".into(),
+                ))
+            }
+            Err(_) => {
+                return Err(AppError::Forbidden(
+                    "macOS doesn't let Stackroost open this location.".into(),
+                ))
+            }
         }
         std::process::Command::new("/usr/bin/open")
             .args(["-R", "--", &path])
@@ -447,46 +482,50 @@ pub async fn maclean_delete_snapshot(app: AppHandle, date: String) -> AppResult<
     .await
 }
 
-/// Delete or move to trash a safe item (such as installer leftover or cache) from deep scan.
+/// Empty one reclaimable cache folder from the latest Deep Scan into the Trash.
+/// Only rows that scan marked reclaimable are accepted (all inside the home);
+/// the folder itself stays, its entries move to the Trash one by one.
 #[tauri::command]
 pub async fn maclean_delete_path(app: AppHandle, path: String) -> AppResult<String> {
     blocking(move || {
-        confirm_action(
-            &app,
-            &format!("Delete item at {}?", path),
-            "This will delete or move the selected item to Trash to reclaim disk space.",
-            "Delete",
-            true,
-        )?;
+        let state = app.state::<MacleanState>();
+        let listed = state
+            .last_deep_deletable
+            .lock()
+            .is_ok_and(|l| l.iter().any(|x| x == &path));
+        if !listed {
+            return Err(AppError::Forbidden(
+                "Only reclaimable items from the latest deep scan can be cleaned. Run the deep scan again.".into(),
+            ));
+        }
         let p = std::path::PathBuf::from(&path);
         let home = crate::doctor::paths::home()
             .ok_or_else(|| AppError::NotFound("HOME not set".into()))?;
-        let state = app.state::<MacleanState>();
         let rules = state.read()?.rules.clone();
-
-        let in_home = p.starts_with(&home);
-        let is_installer =
-            path.starts_with("/Library/Updates") || path.starts_with("/macOS Install Data");
-
-        if !in_home && !is_installer {
-            return Err(AppError::InvalidName(
-                "Path is not in a deletable category".into(),
-            ));
+        if let Some(why) = clean::refuse_reason(&p, &home, &rules) {
+            return Err(AppError::Forbidden(format!("Protected path: {why}")));
         }
-
-        if in_home {
-            if let Some(why) = clean::refuse_reason(&p, &home, &rules) {
-                return Err(AppError::InvalidName(format!("Protected path: {why}")));
-            }
-            clean::move_to_trash(&p, &home).map_err(AppError::Io)?;
-            Ok("Moved to Trash".into())
-        } else {
-            if p.is_dir() {
-                std::fs::remove_dir_all(&p).map_err(|e| AppError::Io(e.to_string()))?;
-            } else if p.is_file() {
-                std::fs::remove_file(&p).map_err(|e| AppError::Io(e.to_string()))?;
-            }
-            Ok("Deleted".into())
+        // Gone since the scan (cleaned elsewhere): nothing to do, not an error.
+        if p.symlink_metadata().is_err() {
+            return Ok("Already gone — nothing left to clean.".into());
+        }
+        confirm_action(
+            &app,
+            &format!("Move the contents of {path} to the Trash?"),
+            "Apps rebuild their caches as needed. Items in use or protected by macOS are skipped.",
+            "Move to Trash",
+            true,
+        )?;
+        let (moved, skipped) = clean::trash_contents(&p, &home, &rules);
+        match (moved, skipped) {
+            (0, 0) => Ok("Already empty — nothing to clean.".into()),
+            (0, s) => Err(AppError::Forbidden(format!(
+                "macOS refused all {s} items (in use or protected). Quit the apps using them and try again."
+            ))),
+            (m, 0) => Ok(format!("Moved {m} items to the Trash.")),
+            (m, s) => Ok(format!(
+                "Moved {m} items to the Trash; skipped {s} in use or protected by macOS."
+            )),
         }
     })
     .await

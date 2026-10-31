@@ -12,10 +12,18 @@ use std::process::Command;
 const GIB: u64 = 1024 * 1024 * 1024;
 
 /// Granular, read-only scanner script covering all major footprints on Data volume.
-pub const DEEP_SCRIPT: &str = r#"for u in /Users/*; do
+///
+/// A root shell started from the admin prompt does NOT inherit Stackroost's
+/// Full Disk Access (TCC attributes it to the authorization trampoline), so
+/// `du` here silently skips Mail, Messages, Group Containers… The console
+/// user's home is therefore skipped and measured in-process instead
+/// (`measure_home`), where the app's FDA applies.
+pub const DEEP_SCRIPT: &str = r#"me=$(stat -f %Su /dev/console 2>/dev/null)
+for u in /Users/*; do
   [ -d "$u" ] || continue
   n="${u##*/}"
   case "$n" in Guest|.localized|Shared) continue ;; esac
+  [ "$n" = "$me" ] && continue
   ukb=$(du -skx "$u" 2>/dev/null | cut -f1)
   [ -n "$ukb" ] && printf 'user_total\t%s\t%s\t%s\n' "$n" "$u" "$ukb"
   for item in "$u"/* "$u"/.*; do
@@ -30,10 +38,6 @@ pub const DEEP_SCRIPT: &str = r#"for u in /Users/*; do
           lkb=$(du -skx "$lsub" 2>/dev/null | cut -f1)
           [ -n "$lkb" ] && printf 'user_sub\t%s\t%s\t%s\n' "$n/Library/$lsbn" "$lsub" "$lkb"
         done
-        ;;
-      .cargo|.rustup|.nvm|.npm|.bun|.docker|.vscode|.cache|.m2|.gradle)
-        dkb=$(du -skx "$item" 2>/dev/null | cut -f1)
-        [ -n "$dkb" ] && printf 'dev_user\t%s\t%s\t%s\n' "$bn" "$item" "$dkb"
         ;;
       *)
         skb=$(du -skx "$item" 2>/dev/null | cut -f1)
@@ -57,8 +61,8 @@ if [ -d /Users/Shared ]; then
     fi
   done
 fi
-for app in /Applications/*.app; do
-  if [ -d "$app" ]; then
+for app in /Applications/*; do
+  if [ -e "$app" ]; then
     akb=$(du -skx "$app" 2>/dev/null | cut -f1)
     [ -n "$akb" ] && printf 'app\t%s\t%s\t%s\n' "${app##*/}" "$app" "$akb"
   fi
@@ -94,6 +98,12 @@ for lp in /Library/*; do
   lkb=$(du -skx "$lp" 2>/dev/null | cut -f1)
   [ -n "$lkb" ] && printf 'lib_sub\t%s\t%s\t%s\n' "$lsub" "$lp" "$lkb"
 done
+for pv in /private/*; do
+  [ -e "$pv" ] || continue
+  case "${pv##*/}" in var) continue ;; esac
+  pkb=$(du -skx "$pv" 2>/dev/null | cut -f1)
+  [ -n "$pkb" ] && printf 'sys_sub\t%s\t%s\t%s\n' "${pv##*/}" "$pv" "$pkb"
+done
 for sys in /private/var/*; do
   [ -e "$sys" ] || continue
   sbn="${sys##*/}"
@@ -117,7 +127,7 @@ for vmp in /private/var/vm/*; do
     [ -n "$vkb" ] && printf 'vm_sub\t%s\t%s\t%s\n' "${vmp##*/}" "$vmp" "$vkb"
   fi
 done
-for sys_tp in "/Library/Application Support/com.apple.TCC" "/private/var/root" "/System/Volumes/Data/.Spotlight-V100"; do
+for sys_tp in "/private/var/root" "/System/Volumes/Data/.Spotlight-V100"; do
   if [ -e "$sys_tp" ]; then
     [ -r "$sys_tp" ] || printf 'eperm\t%s\t%s\t0\n' "${sys_tp##*/}" "$sys_tp"
   fi
@@ -125,9 +135,15 @@ done
 for dp in /System/Volumes/Data/* /System/Volumes/Data/.*; do
   [ -e "$dp" ] || continue
   dbn="${dp##*/}"
-  case "$dbn" in .|..|Applications|Library|Users|opt|private|System|Volumes|dev|cores|home|net|.Spotlight-V100|.DocumentRevisions-V100|macOS\ Install\ Data) continue ;; esac
+  case "$dbn" in .|..|Applications|Library|Users|opt|private|usr|System|Volumes|dev|cores|home|net|.Spotlight-V100|macOS\ Install\ Data) continue ;; esac
   dkb=$(du -skx "$dp" 2>/dev/null | cut -f1)
   [ -n "$dkb" ] && printf 'data_root\t%s\t%s\t%s\n' "$dbn" "$dp" "$dkb"
+done
+for dp in /System/Volumes/Data/opt/* /System/Volumes/Data/usr/*; do
+  [ -e "$dp" ] || continue
+  case "$dp" in */opt/homebrew|*/usr/local) continue ;; esac
+  dkb=$(du -skx "$dp" 2>/dev/null | cut -f1)
+  [ -n "$dkb" ] && printf 'data_root\t%s\t%s\t%s\n' "${dp#/System/Volumes/Data/}" "$dp" "$dkb"
 done"#;
 
 /// AppleScript string literal for `do shell script "…"`.
@@ -261,6 +277,8 @@ pub struct DeepReport {
     pub total_data_used_bytes: u64,
     pub purgeable_bytes: u64,
     pub permission_denied_paths: Vec<String>,
+    /// Stackroost itself holds Full Disk Access (`has_full_disk_access`).
+    pub full_disk_access: bool,
 }
 
 /// Overhauled build report attributing every gigabyte accurately.
@@ -271,6 +289,7 @@ pub fn build_report(
     data_used: u64,
     snapshots: &[SnapshotInfo],
     purgeable_bytes: u64,
+    full_disk_access: bool,
 ) -> DeepReport {
     let mut categories = Vec::new();
     let mut causes = Vec::new();
@@ -339,7 +358,7 @@ pub fn build_report(
             name: format!("~/{}", i.name),
             path: i.path.clone(),
             bytes: i.bytes,
-            is_deletable: i.name.contains("cache"),
+            is_deletable: i.name == ".cache",
             kind: "folder".into(),
         })
         .collect();
@@ -413,7 +432,7 @@ pub fn build_report(
                 name: rel.to_string(),
                 path: i.path.clone(),
                 bytes: i.bytes,
-                is_deletable: rel.contains("Caches") || rel == ".Trash",
+                is_deletable: rel == "Library/Caches",
                 kind: "folder".into(),
             }
         })
@@ -495,7 +514,7 @@ pub fn build_report(
             name: i.name.clone(),
             path: i.path.clone(),
             bytes: i.bytes,
-            is_deletable: i.name == "folders" || i.name == "log",
+            is_deletable: false,
             kind: "folder".into(),
         })
         .collect();
@@ -575,7 +594,7 @@ pub fn build_report(
             name: i.name.clone(),
             path: i.path.clone(),
             bytes: i.bytes,
-            is_deletable: true,
+            is_deletable: false,
             kind: "folder".into(),
         })
         .collect();
@@ -598,15 +617,16 @@ pub fn build_report(
         } else {
             0.0
         },
+        // macOS removes these itself; nothing here is app-reclaimable.
         severity: if inst_total > GIB {
-            "actionable".into()
+            "warning".into()
         } else {
             "normal".into()
         },
         permission_blocked_count: 0,
         sub_items: inst_sub_items,
         available_actions: if inst_total > 0 {
-            vec!["clean".into(), "reveal".into()]
+            vec!["reveal".into()]
         } else {
             vec![]
         },
@@ -698,10 +718,29 @@ pub fn build_report(
 
     let residual = data_used.saturating_sub(measured_sum + purgeable_bytes);
 
+    // Accounts whose protected folders the root script couldn't open. macOS
+    // never lets an admin-prompt shell use the app's FDA, so this survives a
+    // grant; only logging into that account reveals them.
+    let mut blocked_owners: Vec<String> = Vec::new();
     let mut unindexed_sub_items = Vec::new();
     for p in &permission_denied_paths {
+        let leaf = p.rsplit('/').next().unwrap_or(p);
+        let owner = p
+            .strip_prefix("/Users/")
+            .and_then(|r| r.split('/').next())
+            .filter(|u| *u != me);
+        let name = match (owner, leaf) {
+            (Some(u), _) => {
+                if !blocked_owners.iter().any(|b| b == u) {
+                    blocked_owners.push(u.to_string());
+                }
+                format!("{leaf} ({u}'s account, unreadable)")
+            }
+            (None, ".Spotlight-V100") => "Spotlight index (unreadable)".into(),
+            (None, _) => format!("{leaf} (unreadable)"),
+        };
         unindexed_sub_items.push(DeepSubItem {
-            name: format!("Restricted: {}", p.rsplit('/').next().unwrap_or(p)),
+            name,
             path: p.clone(),
             bytes: 0,
             is_deletable: false,
@@ -710,7 +749,7 @@ pub fn build_report(
     }
     if residual > 0 {
         unindexed_sub_items.push(DeepSubItem {
-            name: "APFS filesystem metadata & clone delta".into(),
+            name: "Not attributable to any folder".into(),
             path: "/System/Volumes/Data".into(),
             bytes: residual,
             is_deletable: false,
@@ -718,40 +757,53 @@ pub fn build_report(
         });
     }
 
-    if perm_count > 0 {
+    if !full_disk_access && residual > 0 {
         causes.push(Cause {
-            bytes: if residual > 0 { Some(residual) } else { None },
-            text: format!(
-                "{perm_count} directories were restricted by macOS Full Disk Access permissions."
-            ),
-            fix: "Grant Full Disk Access to Stackroost in System Settings → Privacy & Security."
-                .into(),
+            bytes: Some(residual),
+            text: "Stackroost doesn't have Full Disk Access, so protected folders (Mail, Messages, app containers) weren't measured.".into(),
+            fix: "Grant Full Disk Access to Stackroost in System Settings → Privacy & Security, quit and reopen Stackroost, then run the deep scan again.".into(),
+        });
+    } else if residual > GIB {
+        let fix = if blocked_owners.is_empty() {
+            "This is the Spotlight index and APFS filesystem metadata. macOS manages it; there are no files here to delete.".to_string()
+        } else {
+            format!(
+                "macOS hides other accounts' Mail, Messages and Safari data even from administrators. Log into {} to see it there; the rest is the Spotlight index and APFS metadata.",
+                blocked_owners.join(", ")
+            )
+        };
+        causes.push(Cause {
+            bytes: Some(residual),
+            text: "This much couldn't be attributed to a folder.".into(),
+            fix,
         });
     }
 
     categories.push(DeepCategory {
         id: "unindexed_restricted".into(),
-        title: "APFS metadata & restricted directories".into(),
-        subtitle:
-            "Space protected by macOS permissions (Full Disk Access) or APFS filesystem metadata."
-                .into(),
+        title: "Unattributed space".into(),
+        subtitle: if full_disk_access {
+            "Other accounts' protected folders, the Spotlight index and APFS metadata — not readable by any app.".into()
+        } else {
+            "Protected folders Stackroost can't read without Full Disk Access, plus APFS metadata.".into()
+        },
         total_bytes: residual,
         percentage_of_volume: if data_used > 0 {
             (residual as f64 * 100.0) / data_used as f64
         } else {
             0.0
         },
-        severity: if perm_count > 0 || residual > 10 * GIB {
+        severity: if (!full_disk_access && perm_count > 0) || residual > 10 * GIB {
             "warning".into()
         } else {
             "normal".into()
         },
         permission_blocked_count: perm_count,
         sub_items: unindexed_sub_items,
-        available_actions: if perm_count > 0 {
-            vec!["grant_fda".into()]
-        } else {
+        available_actions: if full_disk_access {
             vec![]
+        } else {
+            vec!["grant_fda".into()]
         },
     });
 
@@ -776,6 +828,7 @@ pub fn build_report(
         total_data_used_bytes: data_used,
         purgeable_bytes,
         permission_denied_paths,
+        full_disk_access,
     }
 }
 
@@ -818,7 +871,7 @@ pub fn build(raw: &[(String, u64)], me: &str, map: &[MapEntry], data_used: u64) 
             }
         })
         .collect();
-    build_report(&raw_items, me, map, data_used, &[], 0)
+    build_report(&raw_items, me, map, data_used, &[], 0, true)
 }
 
 /// Run the constant script as root via the native admin prompt, returning RawItems.
@@ -843,6 +896,138 @@ pub fn run_raw() -> AppResult<Vec<RawItem>> {
     Ok(parse_raw_items(
         &String::from_utf8_lossy(&out.stdout).replace('\r', "\n"),
     ))
+}
+
+/// Whether Stackroost itself holds Full Disk Access: the TCC folder is listable
+/// only with FDA (the check Apple's own tools use). Lists names, reads nothing.
+pub fn has_full_disk_access() -> bool {
+    std::fs::read_dir("/Library/Application Support/com.apple.TCC").is_ok()
+}
+
+/// User-level toolchain folders reported under "Developer" instead of the home.
+const DEV_USER_DIRS: &[&str] = &[
+    ".cargo", ".rustup", ".nvm", ".npm", ".bun", ".docker", ".vscode", ".cache", ".m2", ".gradle",
+];
+
+/// The current user's home, measured as the user. `du` is a child of the app,
+/// so it carries Stackroost's FDA — unlike the root script. Emits the script's
+/// row shapes (`user_total`, `user_sub`, `dev_user`) plus one `eperm` per
+/// top-level/Library folder macOS still refused (e.g. without FDA).
+pub fn measure_home(home: &std::path::Path, me: &str) -> AppResult<Vec<RawItem>> {
+    let mut operands: Vec<String> = Vec::new();
+    let children = |dir: &std::path::Path| -> Vec<String> {
+        let mut v: Vec<String> = std::fs::read_dir(dir)
+            .map(|rd| {
+                rd.flatten()
+                    .map(|e| e.path().to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        v.sort();
+        v
+    };
+    for item in children(home) {
+        if item.ends_with("/Library") {
+            operands.extend(children(std::path::Path::new(&item)));
+        } else {
+            operands.push(item);
+        }
+    }
+    if operands.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut args = vec!["-skx".to_string(), "--".to_string()];
+    args.extend(operands.iter().cloned());
+    // du exits 1 when any subtree was refused; the sizes are still valid.
+    let out = crate::core::exec::run(
+        "/usr/bin/du",
+        &args,
+        crate::core::exec::ExecOpts::default()
+            .with_timeout(std::time::Duration::from_secs(15 * 60))
+            .with_max_out(16 * 1024 * 1024)
+            .no_check_exit(),
+    )?;
+    Ok(parse_home_du(
+        &out.stdout_str,
+        &out.stderr_str,
+        &home.to_string_lossy(),
+        me,
+        &operands,
+    ))
+}
+
+/// Turn `du -sk` stdout (`KB\tpath`) and stderr (`du: path: Operation not
+/// permitted`) over the home's operands into rows. Pure; tested below.
+pub fn parse_home_du(
+    stdout: &str,
+    stderr: &str,
+    home: &str,
+    me: &str,
+    operands: &[String],
+) -> Vec<RawItem> {
+    let home = home.trim_end_matches('/');
+    let mut rows = Vec::new();
+    let mut total = 0u64;
+    for line in stdout.lines() {
+        let Some((kb, path)) = line.split_once('\t') else {
+            continue;
+        };
+        let Ok(kb) = kb.trim().parse::<u64>() else {
+            continue;
+        };
+        let Some(rel) = path.strip_prefix(home).map(|r| r.trim_start_matches('/')) else {
+            continue;
+        };
+        let bytes = kb * 1024;
+        total += bytes;
+        let tag = if DEV_USER_DIRS.contains(&rel) {
+            "dev_user"
+        } else {
+            "user_sub"
+        };
+        let name = if tag == "dev_user" {
+            rel.to_string()
+        } else {
+            format!("{me}/{rel}")
+        };
+        rows.push(RawItem {
+            tag: tag.into(),
+            name,
+            path: path.to_string(),
+            bytes,
+        });
+    }
+    let mut denied: Vec<&String> = Vec::new();
+    for line in stderr.lines() {
+        if !(line.contains("Operation not permitted") || line.contains("Permission denied")) {
+            continue;
+        }
+        let Some(p) = line.strip_prefix("du: ") else {
+            continue;
+        };
+        if let Some(op) = operands.iter().find(|op| {
+            p == op.as_str() || p.starts_with(&format!("{op}/")) || p.starts_with(&format!("{op}:"))
+        }) {
+            if !denied.contains(&op) {
+                denied.push(op);
+            }
+        }
+    }
+    for op in denied {
+        rows.push(RawItem {
+            tag: "eperm".into(),
+            name: op.rsplit('/').next().unwrap_or(op).to_string(),
+            path: op.clone(),
+            bytes: 0,
+        });
+    }
+    rows.push(RawItem {
+        tag: "user_total".into(),
+        name: me.to_string(),
+        path: home.to_string(),
+        bytes: total,
+    });
+    rows
 }
 
 /// Run the constant script as root via the native admin prompt. A dismissed
@@ -944,12 +1129,100 @@ mod tests {
         // 150 − (60 + 12 + 4 + 0 + 9) = 65 GB unindexed / permission restricted.
         let unindexed = by_cat("unindexed_restricted");
         assert_eq!(unindexed.total_bytes, gib(65));
-        assert_eq!(unindexed.title, "APFS metadata & restricted directories");
+        assert_eq!(unindexed.title, "Unattributed space");
 
         // Real snapshots are separate and 0 because none exist in this fixture:
         assert_eq!(by_cat("snapshots_purgeable").total_bytes, 0);
 
         assert!(d.causes.iter().any(|c| c.text.contains("arpit")));
+    }
+
+    #[test]
+    fn root_script_skips_the_console_user() {
+        assert!(DEEP_SCRIPT.contains("stat -f %Su /dev/console"));
+        assert!(DEEP_SCRIPT.contains(r#"[ "$n" = "$me" ] && continue"#));
+        // Other users' toolchains stay inside their account total (no double count).
+        assert!(!DEEP_SCRIPT.contains("dev_user"));
+    }
+
+    #[test]
+    fn home_du_rows_split_dev_dirs_and_collect_denials() {
+        let home = "/Users/me";
+        let ops: Vec<String> = [
+            "/Users/me/Desktop",
+            "/Users/me/.cargo",
+            "/Users/me/Library/Group Containers",
+            "/Users/me/Library/Mail",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let stdout = "1000\t/Users/me/Desktop\n200\t/Users/me/.cargo\n3000\t/Users/me/Library/Group Containers\n0\t/Users/me/Library/Mail\n";
+        let stderr = "du: /Users/me/Library/Group Containers/group.x: Operation not permitted\n\
+                      du: /Users/me/Library/Group Containers/group.y: Operation not permitted\n\
+                      du: /Users/me/Library/Mail: Operation not permitted\n";
+        let rows = parse_home_du(stdout, stderr, home, "me", &ops);
+        let get = |tag: &str, name: &str| rows.iter().find(|r| r.tag == tag && r.name == name);
+        assert_eq!(get("user_sub", "me/Desktop").unwrap().bytes, 1000 * 1024);
+        assert_eq!(get("dev_user", ".cargo").unwrap().bytes, 200 * 1024);
+        assert_eq!(
+            get("user_sub", "me/Library/Group Containers")
+                .unwrap()
+                .bytes,
+            3000 * 1024
+        );
+        assert_eq!(get("user_total", "me").unwrap().bytes, 4200 * 1024);
+        let denied: Vec<&str> = rows
+            .iter()
+            .filter(|r| r.tag == "eperm")
+            .map(|r| r.path.as_str())
+            .collect();
+        assert_eq!(
+            denied,
+            [
+                "/Users/me/Library/Group Containers",
+                "/Users/me/Library/Mail"
+            ]
+        );
+    }
+
+    #[test]
+    fn unattributed_space_only_blames_fda_when_it_is_missing() {
+        let raw = vec![
+            RawItem {
+                tag: "user_total".into(),
+                name: "me".into(),
+                path: "/Users/me".into(),
+                bytes: 40 * GIB,
+            },
+            RawItem {
+                tag: "eperm".into(),
+                name: "Mail".into(),
+                path: "/Users/other/Library/Mail".into(),
+                bytes: 0,
+            },
+        ];
+        let with = build_report(&raw, "me", &[], 60 * GIB, &[], 0, true);
+        let cat = with
+            .categories
+            .iter()
+            .find(|c| c.id == "unindexed_restricted")
+            .unwrap();
+        assert_eq!(cat.total_bytes, 20 * GIB);
+        assert!(cat.available_actions.is_empty());
+        assert_eq!(cat.sub_items[0].name, "Mail (other's account, unreadable)");
+        assert!(with.full_disk_access);
+        assert!(!with
+            .causes
+            .iter()
+            .any(|c| c.fix.contains("Grant Full Disk Access")));
+        assert!(with.causes.iter().any(|c| c.fix.contains("Log into other")));
+
+        let without = build_report(&raw, "me", &[], 60 * GIB, &[], 0, false);
+        assert!(without
+            .causes
+            .iter()
+            .any(|c| c.fix.contains("Grant Full Disk Access")));
     }
 
     #[test]
@@ -974,7 +1247,7 @@ mod tests {
             bytes: gib(50),
         }];
         let map = vec![];
-        let d = build_report(&raw, "me", &map, gib(100), &snapshots, gib(15));
+        let d = build_report(&raw, "me", &map, gib(100), &snapshots, gib(15), true);
         let snap_cat = d
             .categories
             .iter()
@@ -1007,7 +1280,9 @@ mod tests {
             .find(|c| c.id == "installer_leftovers")
             .unwrap();
         assert_eq!(installer_cat.total_bytes, gib(8));
-        assert_eq!(installer_cat.severity, "actionable");
+        assert_eq!(installer_cat.severity, "warning");
+        // Root/SIP-owned: the app can't delete it, so it must not offer to.
+        assert!(installer_cat.sub_items.iter().all(|s| !s.is_deletable));
 
         let vm_cat = d.categories.iter().find(|c| c.id == "vm_swap").unwrap();
         assert_eq!(vm_cat.total_bytes, gib(4));
